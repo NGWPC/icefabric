@@ -771,6 +771,7 @@ class Topmodel(BaseModel):
     num_sub_catchments: int = Field(default=1, description="Number of sub catchments")
     imap: int = Field(default=1, description="NA")
     yes_print_output: int = Field(default=1, description="NA")
+    twi: list[dict] = Field(default=[{'twi':'dist_4.twi'}], description="NA")
     num_topodex_values: int = Field(..., description="NA")
     area: int = Field(default=1, description="NA")
     num_channels: int = Field(default=1, description="Number of channels")
@@ -797,6 +798,7 @@ class Topmodel(BaseModel):
             f"num_sub_catchments={self.num_sub_catchments}",
             f"imap={self.imap}",
             f"yes_print_output={self.yes_print_output}",
+            f"twi={self.twi}",
             f"num_topodex_values={self.num_topodex_values}"
             f"area={self.area}",
             f"num_channels={self.num_channels}",

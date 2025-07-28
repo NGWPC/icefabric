@@ -38,21 +38,25 @@ def test_module_ipes():
     snow17_pydantic_models0 = get_snow17_parameters(catalog,
                                                     domain,
                                                     identifier,
-                                                    conus_only=False)
+                                                    conus_only=False,
+                                                    envca=True)
     snow17_pydantic_models1 = get_snow17_parameters(catalog,
                                                     domain,
                                                     identifier,
-                                                    conus_only=True)
+                                                    conus_only=True,
+                                                    envca=False)
 
     # SAC SMA
     sacsma_pydantic_models0 = get_sacsma_parameters(catalog,
                                                     domain,
                                                     identifier,
-                                                    conus_only=False)
+                                                    conus_only=True,
+                                                    envca=False)
     sacsma_pydantic_models1 = get_sacsma_parameters(catalog,
                                                     domain,
                                                     identifier,
-                                                    conus_only=True)
+                                                    conus_only=True,
+                                                    envca=True)
 
     # SMP
     smp_pydantic_models = get_smp_parameters(catalog,
@@ -67,7 +71,7 @@ def test_module_ipes():
     
     for i in range(1):
         tm_variables = [attr for attr in dir(topmodel_pydantic_models[i]) if not attr.startswith('__')]
-        assert len(tm_variables) == 58, "Incorrect Number of Attributes For Topmodel"
+        assert len(tm_variables) == 59, "Incorrect Number of Attributes For Topmodel"
         
         noah_variables = [attr for attr in dir(noahowp_pydantic_models[i]) if not attr.startswith('__')]
         assert len(noah_variables) == 83, "Incorrect Number of Attributes For Noah OWP Modular"

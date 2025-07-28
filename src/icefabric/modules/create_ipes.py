@@ -8,6 +8,7 @@ import collections
 import pyiceberg.exceptions as ex
 from botocore.exceptions import ClientError
 from pyiceberg.catalog import Catalog, load_catalog
+from pyproj import Transformer
 
 from icefabric.hydrofabric import subset
 from icefabric.schemas.hydrofabric import HydrofabricDomains, IdType
@@ -116,7 +117,7 @@ def get_sft_parameters(
 
 
 def get_snow17_parameters(
-    catalog: Catalog, domain: HydrofabricDomains, identifier: str, conus_only: bool
+    catalog: Catalog, domain: HydrofabricDomains, identifier: str, conus_only: bool, envca: bool
 ) -> list[Snow17]:
     """Creates the initial parameter estimates for the Snow17 module
 
@@ -129,7 +130,9 @@ def get_snow17_parameters(
     identifier : str
         the gauge identifier
     conus_only : bool, optional
-        If domain is CONUS, then set to True
+        If domain is CONUS, then set to True - otherwise False
+    envca : bool, optional
+        If source is ENVCA, then set to True - otherwise False.
         
     Returns
     -------
@@ -143,7 +146,7 @@ def get_snow17_parameters(
         domain=domain,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
     )
-    attr = {'elevation_mean':'mean.elevation', 'lat':'centroid_y'}
+    attr = {'elevation_mean':'mean.elevation', 'lat':'centroid_y', 'lon':'centroid_x'}
 
     # Extraction of relevant features from divide attributes layer
     # & convert to polar
@@ -167,13 +170,23 @@ def get_snow17_parameters(
 
     # Ensure final result aligns properly based on each instances divide ids
     result_df = pd.merge(divide_attr_df.to_pandas(), divides_df, on="divide_id", how="left")
+
+    # Convert elevation from cm to m
+    result_df['elevation_mean'] = result_df['elevation_mean']*0.01
+
+    # Convert CRS to WGS84 (EPSG4326)
+    crs = gauge["divides"].crs
+    transformer = Transformer.from_crs(crs, 4326)
+    wgs84_latlon = transformer.transform(result_df['lon'], result_df['lat'])
+    result_df['lon'] = wgs84_latlon[0]
+    result_df['lat'] = wgs84_latlon[1]
     
     # Default parameter values used only for CONUS
     result_df['mfmax'] = CalibratableScheme.MFMAX
     result_df['mfmin'] = CalibratableScheme.MFMIN
     result_df['uadj'] = CalibratableScheme.UADJ
 
-    if conus_only:
+    if conus_only and not envca:
         divides_list = result_df["divide_id"]
         conus_param_df = divide_parameters(divides_list, "snow-17", HydrofabricDomains.CONUS.split("_")[0])
         result_df.drop(columns=['mfmax', 'mfmin', 'uadj'], inplace=True)
@@ -337,6 +350,16 @@ def get_lstm_parameters(
 
     # Ensure final result aligns properly based on each instances divide ids
     result_df = pd.merge(divide_attr_df.to_pandas(), divides_df, on="divide_id", how="left")
+
+    # Convert elevation from cm to m
+    result_df['elevation_mean'] = result_df['elevation_mean']*0.01
+
+    # Convert CRS to WGS84 (EPSG4326)
+    crs = gauge["divides"].crs
+    transformer = Transformer.from_crs(crs, 4326)
+    wgs84_latlon = transformer.transform(result_df['lon'], result_df['lat'])
+    result_df['lon'] = wgs84_latlon[0]
+    result_df['lat'] = wgs84_latlon[1]
         
     pydantic_models = []
     for idx, row_dict in result_df.iterrows():
@@ -463,10 +486,17 @@ def get_noahowp_parameters(
             # Default to 0.0 if no matching columns found
             expressions.append(pl.lit(0.0).alias(f"{param_name}"))
             
-    result_df = divide_attr_df.select(expressions)
+    result_df = divide_attr_df.select(expressions).to_pandas()
+
+    # Convert CRS to WGS84 (EPSG4326)
+    crs = gauge["divides"].crs
+    transformer = Transformer.from_crs(crs, 4326)
+    wgs84_latlon = transformer.transform(result_df['lon'], result_df['lat'])
+    result_df['lon'] = wgs84_latlon[0]
+    result_df['lat'] = wgs84_latlon[1]
     
     pydantic_models = []
-    for row_dict in result_df.iter_rows(named=True):
+    for idx, row_dict in result_df.iterrows():
         # Instantiate the Pydantic model for each row
         model_instance =NoahOwpModular(
             catchment=row_dict["divide_id"],
@@ -485,7 +515,7 @@ def get_noahowp_parameters(
 
 
 def get_sacsma_parameters(
-    catalog: Catalog, domain: HydrofabricDomains, identifier: str, conus_only: bool
+    catalog: Catalog, domain: HydrofabricDomains, identifier: str, conus_only: bool, envca: bool
 ) -> list[SacSma]:
     """Creates the initial parameter estimates for the SAC SMA module
 
@@ -499,6 +529,8 @@ def get_sacsma_parameters(
         the gauge identifier
     conus_only : bool, optional
         If domain is CONUS, then set to True
+    envca : bool, optional
+        If source is ENVCA, then set to True - otherwise False.
         
     Returns
     -------
@@ -535,7 +567,7 @@ def get_sacsma_parameters(
     result_df['side'] = SacSmaValues.SIDE.value
     result_df['rserv'] = SacSmaValues.RSERV.value
 
-    if conus_only:
+    if conus_only and not envca:
         divides_list = result_df["divide_id"]
         conus_param_df = divide_parameters(divides_list, "sac-sma", HydrofabricDomains.CONUS.split("_")[0])
         result_df.drop(columns=['uztwm', 'uzfwm', 'lztwm', 'lzfpm',
@@ -678,6 +710,7 @@ def get_topmodel_parameters(
         model_instance =Topmodel(
             catchment = row_dict["divide_id"],
             divide_id = row_dict["divide_id"],
+            twi = twi_json,
             num_topodex_values = len(twi_json),
             dist_from_outlet = round(row_dict["lengthkm"]*1000)
         )

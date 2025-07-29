@@ -2,7 +2,19 @@
 
 import enum
 
-from .create_ipes import divide_parameters, get_sft_parameters, get_lstm_parameters, get_lasam_parameters, get_noahowp_parameters, get_smp_parameters, get_snow17_parameters, get_sacsma_parameters, get_troute_parameters, get_topmodel_parameters, get_topoflow_parameters
+from .create_ipes import (
+    divide_parameters,
+    get_lasam_parameters,
+    get_lstm_parameters,
+    get_noahowp_parameters,
+    get_sacsma_parameters,
+    get_sft_parameters,
+    get_smp_parameters,
+    get_snow17_parameters,
+    get_topmodel_parameters,
+    get_topoflow_parameters,
+    get_troute_parameters,
+)
 from .rnr import get_rnr_segment
 
 
@@ -20,6 +32,7 @@ class NWMModules(enum.Enum):
     TOPMODEL = "topmodel"
     TOPOFLOW = "topoflow"
 
+
 config_mapper = {
     "sft": get_sft_parameters,
     "lstm": get_lstm_parameters,
@@ -30,7 +43,7 @@ config_mapper = {
     "sacsma": get_sacsma_parameters,
     "troute": get_troute_parameters,
     "topmodel": get_topmodel_parameters,
-    "topoflow": get_topoflow_parameters
+    "topoflow": get_topoflow_parameters,
 }
 
 __all__ = [
@@ -45,5 +58,5 @@ __all__ = [
     "get_sacsma_parameters",
     "get_troute_parameters",
     "get_topmodel_parameters",
-    "get_topoflow_parameters"
+    "get_topoflow_parameters",
 ]

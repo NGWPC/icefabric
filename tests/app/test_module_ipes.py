@@ -62,7 +62,7 @@ def test_module_ipes():
     smp_pydantic_models = get_smp_parameters(catalog,
                                              domain,
                                              identifier,
-                                             None)
+                                             'TopModel')
 
     # LSTM
     lstm_pydantic_models = get_lstm_parameters(catalog,
@@ -86,19 +86,19 @@ def test_module_ipes():
         assert len(lasam_variables1) == 55, "Incorrect Number of Attributes For LASAM (w/ sft_included=True)"
 
         snow17_variables0 = [attr for attr in dir(snow17_pydantic_models0[i]) if not attr.startswith('__')]
-        assert len(snow17_variables0) == 63, "Incorrect Number of Attributes For Snow17 (w/ conus_only=False)"
+        assert len(snow17_variables0) == 63, "Incorrect Number of Attributes For Snow17 (w/ conus_only=False, envca=True)"
 
         snow17_variables1 = [attr for attr in dir(snow17_pydantic_models1[i]) if not attr.startswith('__')]
-        assert len(snow17_variables1) == 63, "Incorrect Number of Attributes For Snow17 (w/ conus_only=True)"
+        assert len(snow17_variables1) == 63, "Incorrect Number of Attributes For Snow17 (w/ conus_only=True, envca=False)"
 
         sacsma_variables0 = [attr for attr in dir(sacsma_pydantic_models0[i]) if not attr.startswith('__')]
-        assert len(sacsma_variables0) == 55, "Incorrect Number of Attributes For SACSMA (w/ conus_only=False)"
+        assert len(sacsma_variables0) == 55, "Incorrect Number of Attributes For SACSMA (w/ conus_only=True, envca=False)"
 
         sacsma_variables1 = [attr for attr in dir(sacsma_pydantic_models1[i]) if not attr.startswith('__')]
-        assert len(sacsma_variables1) == 55, "Incorrect Number of Attributes For SACSMA (w/ conus_only=True)"
+        assert len(sacsma_variables1) == 55, "Incorrect Number of Attributes For SACSMA (w/ conus_only=True, envca=True)"
 
         smp_variables = [attr for attr in dir(smp_pydantic_models[i]) if not attr.startswith('__')]
-        assert len(smp_variables) == 49, "Incorrect Number of Attributes For SMP (w/ module=None)"
+        assert len(smp_variables) == 49, "Incorrect Number of Attributes For SMP (w/ module='TopModel')"
 
         lstm_variables = [attr for attr in dir(lstm_pydantic_models[i]) if not attr.startswith('__')]
         assert len(lstm_variables) == 48, "Incorrect Number of Attributes For LSTM"

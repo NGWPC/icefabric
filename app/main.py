@@ -11,6 +11,7 @@ from pyiceberg.catalog import load_catalog
 from app.routers.hydrofabric.router import api_router as hydrofabric_api_router
 from app.routers.nwm_modules.router import sft_router, topoflow_router
 from app.routers.ras_xs.router import api_router as ras_api_router
+from app.routers.rise_wrappers.router import api_router as rise_api_wrap_router
 from app.routers.streamflow_observations.router import api_router as streamflow_api_router
 from icefabric.helpers import load_creds
 
@@ -29,6 +30,15 @@ async def lifespan(app: FastAPI):
     yield
 
 
+tags_metadata = [
+    {
+        "name": "RISE",
+        "description": "An interface to the RISE API for querying reservoir outflow data",
+        "externalDocs": {"description": "Link to the RISE API", "url": "https://data.usbr.gov/rise-api"},
+    }
+]
+
+
 app = FastAPI(
     title="Icefabric API",
     description="API for accessing iceberg or icechunk data from EDFS services",
@@ -36,6 +46,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
+    openapi_tags=tags_metadata,
 )
 
 
@@ -51,6 +62,7 @@ app.include_router(streamflow_api_router, prefix="/v1")
 app.include_router(sft_router, prefix="/v1")
 app.include_router(topoflow_router, prefix="/v1")
 app.include_router(ras_api_router, prefix="/v1")
+app.include_router(rise_api_wrap_router, prefix="/v1")
 
 
 @app.head(

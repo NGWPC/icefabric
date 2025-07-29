@@ -275,6 +275,8 @@ def get_smp_parameters(
         soil_moisture_profile_option = SoilScheme.LASAM_SOIL_MOISTURE.value
         soil_depth_layers = SoilScheme.LASAM_SOIL_DEPTH_LAYERS.value
         water_table_depth = SoilScheme.LASAM_WATER_TABLE_DEPTH.value
+    else:
+        raise ValueError(f"Passing unsupported module into endpoint: {module}")
 
     pydantic_models = []
     for row_dict in result_df.iter_rows(named=True):

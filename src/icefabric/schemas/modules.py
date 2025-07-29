@@ -629,6 +629,7 @@ class NoahOwpModular(BaseModel):
         return noahowp_bmi_file
 
 
+# TODO: integrate TRoute-config class for creating/validating
 class TRoute(BaseModel):
     """
     Pydantic model for T-Route module configuration

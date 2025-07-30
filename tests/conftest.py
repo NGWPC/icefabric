@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
+from hydrofabric.conftest import MockCatalog
 from pyiceberg.catalog import Catalog, load_catalog
 
 from app.main import app
@@ -21,41 +22,21 @@ else:
         "Cannot find .pyiceberg.yaml. Please download this from NGWPC confluence or create "
     )
 
-
-sample_gauges = [
-    # "01010000",
-    # "02450825",
-    # "03173000",
-    # "04100500",
-    # "05473450",
-    # "06823500",
-    # "07060710",
-    # "08070000",
-    # "09253000",
-    # "10316500",
-    # "11456000",
-    # "12411000",
-    # "13337000",
-    # "14020000",
-    "06710385",
-]
-
 sample_hf_uri = [
-    # "gages-01010000",
-    # "gages-02450825",
-    # "gages-03173000",
-    # "gages-04100500",
-    # "gages-05473450",
-    # "gages-06823500",
-    # "gages-07060710",
-    # "gages-08070000",
-    # "gages-09253000",
-    # "gages-10316500",
-    # "gages-11456000",
-    # "gages-12411000",
-    # "gages-13337000",
-    # "gages-14020000",
-    "gages-06710385"
+    "gages-01010000",
+    "gages-02450825",
+    "gages-03173000",
+    "gages-04100500",
+    "gages-05473450",
+    "gages-06823500",
+    "gages-07060710",
+    "gages-08070000",
+    "gages-09253000",
+    "gages-10316500",
+    "gages-11456000",
+    "gages-12411000",
+    "gages-13337000",
+    "gages-14020000",
 ]
 
 test_ic_rasters = [f for f in NGWPCTestLocations._member_names_ if "TOPO" in f]
@@ -88,12 +69,6 @@ def local_ic_raster(request) -> Path:
     return request.param
 
 
-@pytest.fixture(params=sample_gauges)
-def gauge_ids(request) -> str:
-    """Returns individual gauge identifiers for parameterized testing"""
-    return request.param
-
-
 @pytest.fixture(params=sample_hf_uri)
 def gauge_hf_uri(request) -> str:
     """Returns individual gauge identifiers for parameterized testing"""
@@ -107,9 +82,16 @@ def testing_dir() -> Path:
 
 
 @pytest.fixture(scope="session")
+def remote_client():
+    """Create a test client for the FastAPI app."""
+    app.state.catalog = load_catalog("glue")  # defaulting to use the glue
+    return TestClient(app)
+
+
+@pytest.fixture(scope="session")
 def client():
     """Create a test client for the FastAPI app."""
-    app.state.catalog = load_catalog("glue")  # defaulting to GLUE
+    app.state.catalog = MockCatalog()  # defaulting to use the mock catalog
     return TestClient(app)
 
 

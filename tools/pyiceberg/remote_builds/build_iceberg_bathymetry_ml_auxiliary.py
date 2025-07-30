@@ -59,7 +59,7 @@ def build_table(file_dir: Path):
             parquet_file=f"{file_dir}/{layer}/ml_auxiliary_data.parquet",
             namespace=namespace,
             table_name=layer,
-            location="s3://fim-services-data-test/icefabric_metadata/",
+            location=f"s3://edfs-data/icefabric_catalog/{namespace}/{layer}",
         )
     print(f"Build successful. Files written into metadata store @ {catalog.name}")
 

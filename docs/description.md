@@ -60,7 +60,7 @@ Hydrologic research and operations face unique data management challenges:
     - Land cover classifications
 
     **Why Icechunk:**
-    - **Virtual References**: Avoid duplicating large elevation datasets
+    - **Virtual References**: Avoid duplicating large raster datasets
     - **Zarr Compatibility**: Seamless integration with scientific Python ecosystem
     - **Git-like Versioning**: Branch/merge workflows for experimental processing
     - **Chunked Storage**: Optimized for geospatial access patterns

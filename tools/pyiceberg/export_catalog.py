@@ -6,6 +6,7 @@ from pathlib import Path
 
 import yaml
 from pyiceberg.catalog import load_catalog
+from pyiceberg.transforms import IdentityTransform
 from tqdm import tqdm
 
 from icefabric.helpers import load_creds
@@ -41,6 +42,12 @@ def export(namespace: str, snapshot: int | None = None):
             f"{namespace}.{table}",
             schema=_arrow.schema,
         )
+        if namespace == "conus_hf":
+            # Partitioning the CONUS HF data
+            partition_spec = iceberg_table.spec()
+            if len(partition_spec.fields) == 0:
+                with iceberg_table.update_spec() as update:
+                    update.add_field("vpuid", IdentityTransform(), "vpuid_partition")
         iceberg_table.append(_arrow)
     print(f"Exported {namespace} into local pyiceberg DB")
 

@@ -1,6 +1,7 @@
 import collections
 import json
 import os
+from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
@@ -10,7 +11,7 @@ from botocore.exceptions import ClientError
 from pyiceberg.catalog import Catalog, load_catalog
 from pyproj import Transformer
 
-from icefabric.hydrofabric import subset
+from icefabric.hydrofabric import subset_hydrofabric
 from icefabric.schemas.hydrofabric import HydrofabricDomains, IdType
 from icefabric.schemas.modules import (
     LASAM,
@@ -85,13 +86,28 @@ def get_sft_parameters(
     list[SFT]
         The list of all initial parameters for catchments using SFT
     """
-    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset(
+    upstream_connections_path = (
+        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
+    )
+    assert upstream_connections_path.exists(), (
+        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
+    )
+
+    with open(upstream_connections_path) as f:
+        data = json.load(f)
+        print(
+            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
+        )
+        upstream_dict = data["upstream_connections"]
+
+    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
         identifier=f"gages-{identifier}",
         id_type=IdType.HL_URI,
-        domain=domain,
+        namespace=domain.value,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
-    )  # type: ignore
+        upstream_dict=upstream_dict,
+    )
     attr = {"smcmax": "mean.smcmax", "bexp": "mode.bexp", "psisat": "geom_mean.psisat"}
 
     df = pl.DataFrame(gauge["divide-attributes"])
@@ -152,12 +168,28 @@ def get_snow17_parameters(
     list[Snow17]
         The list of all initial parameters for catchments using Snow17
     """
-    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset(
+    upstream_connections_path = (
+        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
+    )
+    assert upstream_connections_path.exists(), (
+        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
+    )
+
+    with open(upstream_connections_path) as f:
+        data = json.load(f)
+        print(
+            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
+        )
+        upstream_dict = data["upstream_connections"]
+
+    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
         identifier=f"gages-{identifier}",
         id_type=IdType.HL_URI,
-        domain=domain,
+        namespace=domain.value,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
+        upstream_dict=upstream_dict,
+
     )
     attr = {"elevation_mean": "mean.elevation", "lat": "centroid_y", "lon": "centroid_x"}
 
@@ -241,12 +273,28 @@ def get_smp_parameters(
     list[SMP]
         The list of all initial parameters for catchments using SMP
     """
-    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset(
+    upstream_connections_path = (
+        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
+    )
+    assert upstream_connections_path.exists(), (
+        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
+    )
+
+    with open(upstream_connections_path) as f:
+        data = json.load(f)
+        print(
+            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
+        )
+        upstream_dict = data["upstream_connections"]
+
+    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
         identifier=f"gages-{identifier}",
         id_type=IdType.HL_URI,
-        domain=domain,
+        namespace=domain.value,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
+        upstream_dict=upstream_dict,
+
     )
     attr = {"smcmax": "mean.smcmax", "bexp": "mode.bexp", "psisat": "geom_mean.psisat"}
 
@@ -329,12 +377,28 @@ def get_lstm_parameters(catalog: Catalog, domain: HydrofabricDomains, identifier
     *Note: Per HF API, the following attributes for LSTM does not carry any relvant information:
     'train_cfg_file' & basin_name' -- remove if desire
     """
-    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset(
+    upstream_connections_path = (
+        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
+    )
+    assert upstream_connections_path.exists(), (
+        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
+    )
+
+    with open(upstream_connections_path) as f:
+        data = json.load(f)
+        print(
+            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
+        )
+        upstream_dict = data["upstream_connections"]
+
+    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
         identifier=f"gages-{identifier}",
         id_type=IdType.HL_URI,
-        domain=domain,
+        namespace=domain.value,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
+        upstream_dict=upstream_dict,
+
     )
     attr = {
         "slope": "mean.slope",
@@ -418,12 +482,27 @@ def get_lasam_parameters(
     list[LASAM]
         The list of all initial parameters for catchments using LASAM
     """
-    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset(
+    upstream_connections_path = (
+        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
+    )
+    assert upstream_connections_path.exists(), (
+        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
+    )
+
+    with open(upstream_connections_path) as f:
+        data = json.load(f)
+        print(
+            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
+        )
+        upstream_dict = data["upstream_connections"]
+
+    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
         identifier=f"gages-{identifier}",
         id_type=IdType.HL_URI,
-        domain=domain,
+        namespace=domain.value,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
+        upstream_dict=upstream_dict,
     )
     attr = {"soil_type": "mode.ISLTYP"}
 
@@ -474,12 +553,27 @@ def get_noahowp_parameters(
     list[NoahOwpModular]
         The list of all initial parameters for catchments using NoahOwpModular
     """
-    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset(
+    upstream_connections_path = (
+        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
+    )
+    assert upstream_connections_path.exists(), (
+        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
+    )
+
+    with open(upstream_connections_path) as f:
+        data = json.load(f)
+        print(
+            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
+        )
+        upstream_dict = data["upstream_connections"]
+
+    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
         identifier=f"gages-{identifier}",
         id_type=IdType.HL_URI,
-        domain=domain,
+        namespace=domain.value,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
+        upstream_dict=upstream_dict,
     )
     attr = {
         "slope": "mean.slope",
@@ -552,12 +646,27 @@ def get_sacsma_parameters(
     list[SacSma]
         The list of all initial parameters for catchments using SacSma
     """
-    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset(
+    upstream_connections_path = (
+        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
+    )
+    assert upstream_connections_path.exists(), (
+        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
+    )
+
+    with open(upstream_connections_path) as f:
+        data = json.load(f)
+        print(
+            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
+        )
+        upstream_dict = data["upstream_connections"]
+
+    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
         identifier=f"gages-{identifier}",
         id_type=IdType.HL_URI,
-        domain=domain,
+        namespace=domain.value,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
+        upstream_dict=upstream_dict,
     )
 
     # Extraction of relevant features from divides layer
@@ -645,12 +754,27 @@ def get_troute_parameters(catalog: Catalog, domain: HydrofabricDomains, identifi
     list[TRoute]
         The list of all initial parameters for catchments using TRoute
     """
-    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset(
+    upstream_connections_path = (
+        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
+    )
+    assert upstream_connections_path.exists(), (
+        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
+    )
+
+    with open(upstream_connections_path) as f:
+        data = json.load(f)
+        print(
+            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
+        )
+        upstream_dict = data["upstream_connections"]
+
+    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
         identifier=f"gages-{identifier}",
         id_type=IdType.HL_URI,
-        domain=domain,
+        namespace=domain.value,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
+        upstream_dict=upstream_dict,
     )
 
     # Extraction of relevant features from divide attributes layer
@@ -694,12 +818,27 @@ def get_topmodel_parameters(catalog: Catalog, domain: HydrofabricDomains, identi
     - The divide_id is the same as catchment, but will return divide_id variable name here
     since expected from HF API - remove if needed.
     """
-    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset(
+    upstream_connections_path = (
+        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
+    )
+    assert upstream_connections_path.exists(), (
+        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
+    )
+
+    with open(upstream_connections_path) as f:
+        data = json.load(f)
+        print(
+            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
+        )
+        upstream_dict = data["upstream_connections"]
+
+    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
         identifier=f"gages-{identifier}",
         id_type=IdType.HL_URI,
-        domain=domain,
+        namespace=domain.value,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
+        upstream_dict=upstream_dict,
     )
     attr = {"twi": "dist_4.twi"}
 
@@ -758,4 +897,4 @@ def get_topoflow_parameters(catalog: Catalog, domain: HydrofabricDomains, identi
     *Note: This is a placeholder for Topoflow as the generation of IPEs for
     Topoflow does not exist currently.
     """
-    return
+    raise NotImplementedError("Topoflow not implemented yet")

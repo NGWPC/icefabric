@@ -5,9 +5,9 @@ import pytest
 
 
 @pytest.mark.integration
-def test_sources_endpoint(client):
+def test_sources_endpoint(remote_client):
     """Test: GET /streamflow_observations/sources"""
-    response = client.get("/v1/streamflow_observations/sources")
+    response = remote_client.get("/v1/streamflow_observations/sources")
     assert response.status_code == 200
 
     data = response.json()
@@ -22,9 +22,9 @@ def test_sources_endpoint(client):
 
 
 @pytest.mark.integration
-def test_available_identifiers_example(client):
+def test_available_identifiers_example(remote_client):
     """Test: GET /streamflow_observations/usgs/available"""
-    response = client.get("/v1/streamflow_observations/usgs/available")
+    response = remote_client.get("/v1/streamflow_observations/usgs/available")
 
     assert response.status_code in [200, 500]  # Will return if the PyIceberg DB exists in the /tmp/ dir
 
@@ -37,9 +37,9 @@ def test_available_identifiers_example(client):
 
 
 @pytest.mark.integration
-def test_available_identifiers_with_limit_example(client):
+def test_available_identifiers_with_limit_example(remote_client):
     """Test: GET /streamflow_observations/usgs/available?limit=50"""
-    response = client.get("/v1/streamflow_observations/usgs/available?limit=50")
+    response = remote_client.get("/v1/streamflow_observations/usgs/available?limit=50")
 
     assert response.status_code in [200, 500]
 
@@ -49,9 +49,9 @@ def test_available_identifiers_with_limit_example(client):
 
 
 @pytest.mark.integration
-def test_csv_generation(client, local_usgs_streamflow_csv):
+def test_csv_generation(remote_client, local_usgs_streamflow_csv):
     """Test: GET /streamflow_observations/usgs/csv"""
-    response = client.get(
+    response = remote_client.get(
         "/v1/streamflow_observations/usgs/csv",
         params={
             "identifier": "01010000",
@@ -68,9 +68,9 @@ def test_csv_generation(client, local_usgs_streamflow_csv):
 
 
 @pytest.mark.integration
-def test_parquet_generation(client, local_usgs_streamflow_parquet):
+def test_parquet_generation(remote_client, local_usgs_streamflow_parquet):
     """Test: GET /streamflow_observations/usgs/parquet"""
-    response = client.get(
+    response = remote_client.get(
         "/v1/streamflow_observations/usgs/parquet",
         params={
             "identifier": "01010000",

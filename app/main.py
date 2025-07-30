@@ -15,6 +15,13 @@ from app.routers.rise_wrappers.router import api_router as rise_api_wrap_router
 from app.routers.streamflow_observations.router import api_router as streamflow_api_router
 from icefabric.helpers import load_creds
 
+tags_metadata = [
+    {
+        "name": "Hydrofabric Services",
+        "description": "Data Querying functions for the Hydrofabric",
+    },
+]
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

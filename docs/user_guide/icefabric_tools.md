@@ -25,7 +25,7 @@ from icefabric_tools import subset, IdType
 catalog = load_catalog("glue")
 
 # Basic subset using a hydrofabric ID
-result = subset(
+result = subset_hydrofabric(
     catalog=catalog,
     identifier="wb-10026",
     id_type=IdType.ID,
@@ -45,7 +45,7 @@ nexus = result["nexus"]
 # Export subset directly to GeoPackage
 output_path = Path("subset_output.gpkg")
 
-subset(
+subset_hydrofabric(
     catalog=catalog,
     identifier="01031500",
     id_type=IdType.POI_ID,
@@ -64,7 +64,7 @@ all_layers = [
     "flowpath-attributes-ml", "pois", "hydrolocations"
 ]
 
-result = subset(
+result = subset_hydrofabric(
     catalog=catalog,
     identifier="HUC12-010100100101",
     id_type=IdType.HL_URI,

@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 import pyarrow as pa
 from pyiceberg.catalog import load_catalog
-from pyiceberg.exceptions import NamespaceAlreadyExistsError
+from pyiceberg.transforms import IdentityTransform
 
 from icefabric.helpers import load_creds
 
@@ -46,10 +46,7 @@ def build_table(file_dir: str, domain: str):
     """
     catalog = load_catalog("glue")  # Using an AWS Glue Endpoint
     namespace = f"{domain}_HF"
-    try:
-        catalog.create_namespace(namespace)
-    except NamespaceAlreadyExistsError:
-        print(f"Namespace {namespace} already exists")
+    catalog.create_namespace_if_not_exists(namespace)
     layers = [
         "divide-attributes",
         "divides",
@@ -72,14 +69,18 @@ def build_table(file_dir: str, domain: str):
                 iceberg_table = catalog.create_table(
                     f"{namespace}.{layer}",
                     schema=cleaned_table.schema,
-                    location="s3://fim-services-data-test/icefabric_metadata/",
+                    location=f"s3://edfs-data/icefabric_catalog/{namespace.lower()}/{layer}",
                 )
+                partition_spec = iceberg_table.spec()
+                if len(partition_spec.fields) == 0:
+                    with iceberg_table.update_spec() as update:
+                        update.add_field("vpuid", IdentityTransform(), "vpuid_partition")
                 iceberg_table.append(cleaned_table)
         except FileNotFoundError:
             print(f"Cannot find {layer} in the given file dir {file_dir}")
             pass
 
-    print(f"Build successful. Files written into metadata store on {catalog.name} @ {namespace}")
+    print(f"Build complete. Files written into metadata store on {catalog.name} @ {namespace}")
 
 
 if __name__ == "__main__":

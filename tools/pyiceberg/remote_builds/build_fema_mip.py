@@ -32,7 +32,7 @@ def build_table(file_dir: str):
             parquet_file=f"{file_dir}/mip_{huc_number}/huc_{huc_number}.parquet",
             namespace=namespace,
             table_name=huc_number,
-            location="s3://fim-services-data-test/icefabric_metadata/",
+            location=f"s3://edfs-data/icefabric_catalog/{namespace}/{huc_number}",
         )
     print(f"Build successful. Files written into metadata store @ {catalog.name}")
 

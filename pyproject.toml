@@ -181,6 +181,5 @@ show_error_codes = true
 warn_unused_ignores = true
 
 [tool.pytest.ini_options]
-rootdir = "."                                                                 # Ensures pytest always treats project root as the root
 pythonpath = ["tests", "src/icefabric_api", "src/icefabric_tools"]
 testpaths = ["src/icefabric_api/tests", "src/icefabric_tools/tests", "tests"]

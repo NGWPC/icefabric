@@ -3,7 +3,6 @@
 import enum
 
 from .create_ipes import (
-    divide_parameters,
     get_lasam_parameters,
     get_lstm_parameters,
     get_noahowp_parameters,
@@ -47,7 +46,6 @@ config_mapper = {
 }
 
 __all__ = [
-    "divide_parameters",
     "get_sft_parameters",
     "get_rnr_segment",
     "get_lstm_parameters",

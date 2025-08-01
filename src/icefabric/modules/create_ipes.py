@@ -1,18 +1,14 @@
 import collections
 import json
-import os
-from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
 import polars as pl
-import pyiceberg.exceptions as ex
-from botocore.exceptions import ClientError
-from pyiceberg.catalog import Catalog, load_catalog
+from pyiceberg.catalog import Catalog
 from pyproj import Transformer
 
 from icefabric.hydrofabric import subset_hydrofabric
-from icefabric.schemas.hydrofabric import HydrofabricDomains, IdType
+from icefabric.schemas.hydrofabric import IdType
 from icefabric.schemas.modules import (
     LASAM,
     LSTM,
@@ -30,8 +26,6 @@ from icefabric.schemas.modules import (
     TRoute,
 )
 
-ROOT_DIR = os.path.abspath(os.curdir)
-
 
 def _get_mean_soil_temp() -> float:
     """Returns an avg soil temp of 45 degrees F converted to Kelvin. This equation is just a reasonable estimate per new direction (EW: 07/2025)
@@ -44,29 +38,12 @@ def _get_mean_soil_temp() -> float:
     return (45 - 32) * 5 / 9 + 273.15
 
 
-def divide_parameters(divides, module, domain):
-    """Returns iceberg divide parameters"""
-    module = module.lower()
-    domain = domain.lower()
-    namespace = "divide_parameters"
-    table_name = f"{namespace}.{module}_{domain}"
-    catalog = load_catalog("glue", **{"type": "glue", "glue.region": "us-east-1"})
-    try:
-        table = catalog.load_table(table_name)
-    except ex.NoSuchTableError:
-        print(f"Table {table_name} does not exist")
-        return pd.DataFrame()
-    except ClientError as e:
-        msg = "AWS Test account credentials expired. Can't access remote S3 endpoint"
-        print(msg)
-        raise e
-    df = table.scan().to_pandas()
-    filtered = df[df["divide_id"].isin(divides)]
-    return filtered
-
-
 def get_sft_parameters(
-    catalog: Catalog, domain: HydrofabricDomains, identifier: str, use_schaake: bool = False
+    catalog: Catalog,
+    namespace: str,
+    identifier: str,
+    upstream_dict: dict[str, list[str]],
+    use_schaake: bool = False,
 ) -> list[SFT]:
     """Creates the initial parameter estimates for the SFT module
 
@@ -74,8 +51,8 @@ def get_sft_parameters(
     ----------
     catalog : Catalog
         the pyiceberg lakehouse catalog
-    domain : HydrofabricDomains
-        the hydrofabric domain
+    namespace : str
+        the hydrofabric namespace
     identifier : str
         the gauge identifier
     use_schaake : bool, optional
@@ -86,25 +63,11 @@ def get_sft_parameters(
     list[SFT]
         The list of all initial parameters for catchments using SFT
     """
-    upstream_connections_path = (
-        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
-    )
-    assert upstream_connections_path.exists(), (
-        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
-    )
-
-    with open(upstream_connections_path) as f:
-        data = json.load(f)
-        print(
-            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
-        )
-        upstream_dict = data["upstream_connections"]
-
     gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
-        identifier=f"gages-{identifier}",
+        identifier=identifier,
         id_type=IdType.HL_URI,
-        namespace=domain.value,
+        namespace=namespace,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
         upstream_dict=upstream_dict,
     )
@@ -146,7 +109,7 @@ def get_sft_parameters(
 
 
 def get_snow17_parameters(
-    catalog: Catalog, domain: HydrofabricDomains, identifier: str, conus_only: bool, envca: bool
+    catalog: Catalog, namespace: str, identifier: str, envca: bool, upstream_dict: dict[str, list[str]]
 ) -> list[Snow17]:
     """Creates the initial parameter estimates for the Snow17 module
 
@@ -154,12 +117,10 @@ def get_snow17_parameters(
     ----------
     catalog : Catalog
         the pyiceberg lakehouse catalog
-    domain : HydrofabricDomains
-        the hydrofabric domain
+    namespace : str
+        the hydrofabric namespace
     identifier : str
         the gauge identifier
-    conus_only : bool, optional
-        If domain is CONUS, then set to True - otherwise False
     envca : bool, optional
         If source is ENVCA, then set to True - otherwise False.
 
@@ -168,28 +129,13 @@ def get_snow17_parameters(
     list[Snow17]
         The list of all initial parameters for catchments using Snow17
     """
-    upstream_connections_path = (
-        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
-    )
-    assert upstream_connections_path.exists(), (
-        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
-    )
-
-    with open(upstream_connections_path) as f:
-        data = json.load(f)
-        print(
-            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
-        )
-        upstream_dict = data["upstream_connections"]
-
     gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
-        identifier=f"gages-{identifier}",
+        identifier=identifier,
         id_type=IdType.HL_URI,
-        namespace=domain.value,
+        namespace=namespace,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
         upstream_dict=upstream_dict,
-
     )
     attr = {"elevation_mean": "mean.elevation", "lat": "centroid_y", "lon": "centroid_x"}
 
@@ -225,18 +171,21 @@ def get_snow17_parameters(
     result_df["lat"] = wgs84_latlon[1]
 
     # Default parameter values used only for CONUS
-    result_df["mfmax"] = CalibratableScheme.MFMAX
-    result_df["mfmin"] = CalibratableScheme.MFMIN
-    result_df["uadj"] = CalibratableScheme.UADJ
+    result_df["mfmax"] = CalibratableScheme.MFMAX.value
+    result_df["mfmin"] = CalibratableScheme.MFMIN.value
+    result_df["uadj"] = CalibratableScheme.UADJ.value
 
-    if conus_only and not envca:
+    if namespace == "conus_hf" and not envca:
         divides_list = result_df["divide_id"]
-        conus_param_df = divide_parameters(divides_list, "snow-17", HydrofabricDomains.CONUS.split("_")[0])
+        domain = namespace.split("_")[0]
+        table_name = f"divide_parameters.snow-17_{domain}"
+        params_df = catalog.load_table(table_name).to_polars()
+        conus_param_df = params_df.filter(pl.col("divide_id").is_in(divides_list)).collect().to_pandas()
         result_df.drop(columns=["mfmax", "mfmin", "uadj"], inplace=True)
         result_df = pd.merge(conus_param_df, result_df, on="divide_id", how="left")
 
     pydantic_models = []
-    for _idx, row_dict in result_df.iterrows():
+    for _, row_dict in result_df.iterrows():
         model_instance = Snow17(
             catchment=row_dict["divide_id"],
             hru_id=row_dict["divide_id"],
@@ -252,7 +201,11 @@ def get_snow17_parameters(
 
 
 def get_smp_parameters(
-    catalog: Catalog, domain: HydrofabricDomains, identifier: str, module: str = None
+    catalog: Catalog,
+    namespace: str,
+    identifier: str,
+    upstream_dict: dict[str, list[str]],
+    module: str | None = None,
 ) -> list[SMP]:
     """Creates the initial parameter estimates for the SMP module
 
@@ -260,8 +213,8 @@ def get_smp_parameters(
     ----------
     catalog : Catalog
         the pyiceberg lakehouse catalog
-    domain : HydrofabricDomains
-        the hydrofabric domain
+    namespace : str
+        the hydrofabric namespace
     identifier : str
         the gauge identifier
     module : str, optional
@@ -273,28 +226,13 @@ def get_smp_parameters(
     list[SMP]
         The list of all initial parameters for catchments using SMP
     """
-    upstream_connections_path = (
-        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
-    )
-    assert upstream_connections_path.exists(), (
-        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
-    )
-
-    with open(upstream_connections_path) as f:
-        data = json.load(f)
-        print(
-            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
-        )
-        upstream_dict = data["upstream_connections"]
-
     gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
-        identifier=f"gages-{identifier}",
+        identifier=identifier,
         id_type=IdType.HL_URI,
-        namespace=domain.value,
+        namespace=namespace,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
         upstream_dict=upstream_dict,
-
     )
     attr = {"smcmax": "mean.smcmax", "bexp": "mode.bexp", "psisat": "geom_mean.psisat"}
 
@@ -357,15 +295,17 @@ def get_smp_parameters(
     return pydantic_models
 
 
-def get_lstm_parameters(catalog: Catalog, domain: HydrofabricDomains, identifier: str) -> list[LSTM]:
+def get_lstm_parameters(
+    catalog: Catalog, namespace: str, identifier: str, upstream_dict: dict[str, list[str]]
+) -> list[LSTM]:
     """Creates the initial parameter estimates for the LSTM module
 
     Parameters
     ----------
     catalog : Catalog
         the pyiceberg lakehouse catalog
-    domain : HydrofabricDomains
-        the hydrofabric domain
+    namespace : str
+        the hydrofabric namespace
     identifier : str
         the gauge identifier
 
@@ -377,28 +317,13 @@ def get_lstm_parameters(catalog: Catalog, domain: HydrofabricDomains, identifier
     *Note: Per HF API, the following attributes for LSTM does not carry any relvant information:
     'train_cfg_file' & basin_name' -- remove if desire
     """
-    upstream_connections_path = (
-        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
-    )
-    assert upstream_connections_path.exists(), (
-        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
-    )
-
-    with open(upstream_connections_path) as f:
-        data = json.load(f)
-        print(
-            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
-        )
-        upstream_dict = data["upstream_connections"]
-
     gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
-        identifier=f"gages-{identifier}",
+        identifier=identifier,
         id_type=IdType.HL_URI,
-        namespace=domain.value,
+        namespace=namespace,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
         upstream_dict=upstream_dict,
-
     )
     attr = {
         "slope": "mean.slope",
@@ -439,7 +364,7 @@ def get_lstm_parameters(catalog: Catalog, domain: HydrofabricDomains, identifier
     result_df["lat"] = wgs84_latlon[1]
 
     pydantic_models = []
-    for _idx, row_dict in result_df.iterrows():
+    for _, row_dict in result_df.iterrows():
         # Instantiate the Pydantic model for each row
         model_instance = LSTM(
             catchment=row_dict["divide_id"],
@@ -456,9 +381,10 @@ def get_lstm_parameters(catalog: Catalog, domain: HydrofabricDomains, identifier
 
 def get_lasam_parameters(
     catalog: Catalog,
-    domain: HydrofabricDomains,
+    namespace: str,
     identifier: str,
     sft_included: bool,
+    upstream_dict: dict[str, list[str]],
     soil_params_file: str = "vG_default_params_HYDRUS.dat",
 ) -> list[LASAM]:
     """Creates the initial parameter estimates for the LASAM module
@@ -467,8 +393,8 @@ def get_lasam_parameters(
     ----------
     catalog : Catalog
         the pyiceberg lakehouse catalog
-    domain : HydrofabricDomains
-        the hydrofabric domain
+    namespace : str
+        the hydrofabric namespace
     identifier : str
         the gauge identifier
     sft_included: bool
@@ -482,25 +408,11 @@ def get_lasam_parameters(
     list[LASAM]
         The list of all initial parameters for catchments using LASAM
     """
-    upstream_connections_path = (
-        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
-    )
-    assert upstream_connections_path.exists(), (
-        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
-    )
-
-    with open(upstream_connections_path) as f:
-        data = json.load(f)
-        print(
-            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
-        )
-        upstream_dict = data["upstream_connections"]
-
     gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
-        identifier=f"gages-{identifier}",
+        identifier=identifier,
         id_type=IdType.HL_URI,
-        namespace=domain.value,
+        namespace=namespace,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
         upstream_dict=upstream_dict,
     )
@@ -526,7 +438,7 @@ def get_lasam_parameters(
         # Instantiate the Pydantic model for each row
         model_instance = LASAM(
             catchment=row_dict["divide_id"],
-            soil_params_file=soil_params_file,
+            soil_params_file=soil_params_file,  # TODO figure out why this exists?
             layer_soil_type=str(row_dict["soil_type"]),
             sft_coupled=sft_included,
         )
@@ -535,7 +447,7 @@ def get_lasam_parameters(
 
 
 def get_noahowp_parameters(
-    catalog: Catalog, domain: HydrofabricDomains, identifier: str
+    catalog: Catalog, namespace: str, identifier: str, upstream_dict: dict[str, list[str]]
 ) -> list[NoahOwpModular]:
     """Creates the initial parameter estimates for the Noah OWP Modular module
 
@@ -543,8 +455,8 @@ def get_noahowp_parameters(
     ----------
     catalog : Catalog
         the pyiceberg lakehouse catalog
-    domain : HydrofabricDomains
-        the hydrofabric domain
+    namespace : str
+        the hydrofabric namespace
     identifier : str
         the gauge identifier
 
@@ -553,25 +465,11 @@ def get_noahowp_parameters(
     list[NoahOwpModular]
         The list of all initial parameters for catchments using NoahOwpModular
     """
-    upstream_connections_path = (
-        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
-    )
-    assert upstream_connections_path.exists(), (
-        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
-    )
-
-    with open(upstream_connections_path) as f:
-        data = json.load(f)
-        print(
-            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
-        )
-        upstream_dict = data["upstream_connections"]
-
     gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
-        identifier=f"gages-{identifier}",
+        identifier=identifier,
         id_type=IdType.HL_URI,
-        namespace=domain.value,
+        namespace=namespace,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
         upstream_dict=upstream_dict,
     )
@@ -607,7 +505,7 @@ def get_noahowp_parameters(
     result_df["lat"] = wgs84_latlon[1]
 
     pydantic_models = []
-    for _idx, row_dict in result_df.iterrows():
+    for _, row_dict in result_df.iterrows():
         # Instantiate the Pydantic model for each row
         model_instance = NoahOwpModular(
             catchment=row_dict["divide_id"],
@@ -624,7 +522,7 @@ def get_noahowp_parameters(
 
 
 def get_sacsma_parameters(
-    catalog: Catalog, domain: HydrofabricDomains, identifier: str, conus_only: bool, envca: bool
+    catalog: Catalog, namespace: str, identifier: str, envca: bool, upstream_dict: dict[str, list[str]]
 ) -> list[SacSma]:
     """Creates the initial parameter estimates for the SAC SMA module
 
@@ -632,12 +530,11 @@ def get_sacsma_parameters(
     ----------
     catalog : Catalog
         the pyiceberg lakehouse catalog
-    domain : HydrofabricDomains
-        the hydrofabric domain
+    namespace : str
+        the hydrofabric namespace
     identifier : str
         the gauge identifier
-    conus_only : bool, optional
-        If domain is CONUS, then set to True
+
     envca : bool, optional
         If source is ENVCA, then set to True - otherwise False.
 
@@ -646,25 +543,11 @@ def get_sacsma_parameters(
     list[SacSma]
         The list of all initial parameters for catchments using SacSma
     """
-    upstream_connections_path = (
-        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
-    )
-    assert upstream_connections_path.exists(), (
-        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
-    )
-
-    with open(upstream_connections_path) as f:
-        data = json.load(f)
-        print(
-            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
-        )
-        upstream_dict = data["upstream_connections"]
-
     gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
-        identifier=f"gages-{identifier}",
+        identifier=identifier,
         id_type=IdType.HL_URI,
-        namespace=domain.value,
+        namespace=namespace,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
         upstream_dict=upstream_dict,
     )
@@ -691,9 +574,12 @@ def get_sacsma_parameters(
     result_df["side"] = SacSmaValues.SIDE.value
     result_df["rserv"] = SacSmaValues.RSERV.value
 
-    if conus_only and not envca:
+    if namespace == "conus_hf" and not envca:
         divides_list = result_df["divide_id"]
-        conus_param_df = divide_parameters(divides_list, "sac-sma", HydrofabricDomains.CONUS.split("_")[0])
+        domain = namespace.split("_")[0]
+        table_name = f"divide_parameters.sac-sma_{domain}"
+        params_df = catalog.load_table(table_name).to_polars()
+        conus_param_df = params_df.filter(pl.col("divide_id").is_in(divides_list)).collect().to_pandas()
         result_df.drop(
             columns=[
                 "uztwm",
@@ -713,7 +599,7 @@ def get_sacsma_parameters(
         result_df = pd.merge(conus_param_df, result_df, on="divide_id", how="left")
 
     pydantic_models = []
-    for _idx, row_dict in result_df.iterrows():
+    for _, row_dict in result_df.iterrows():
         # Instantiate the Pydantic model for each row
         # *Note: The HF API declares hru_id as the divide id, but to remain consistent
         # keeping catchment arg.
@@ -737,15 +623,17 @@ def get_sacsma_parameters(
     return pydantic_models
 
 
-def get_troute_parameters(catalog: Catalog, domain: HydrofabricDomains, identifier: str) -> list[TRoute]:
+def get_troute_parameters(
+    catalog: Catalog, namespace: str, identifier: str, upstream_dict: dict[str, list[str]]
+) -> list[TRoute]:
     """Creates the initial parameter estimates for the T-Route
 
     Parameters
     ----------
     catalog : Catalog
         the pyiceberg lakehouse catalog
-    domain : HydrofabricDomains
-        the hydrofabric domain
+    namespace : str
+        the hydrofabric namespace
     identifier : str
         the gauge identifier
 
@@ -754,25 +642,11 @@ def get_troute_parameters(catalog: Catalog, domain: HydrofabricDomains, identifi
     list[TRoute]
         The list of all initial parameters for catchments using TRoute
     """
-    upstream_connections_path = (
-        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
-    )
-    assert upstream_connections_path.exists(), (
-        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
-    )
-
-    with open(upstream_connections_path) as f:
-        data = json.load(f)
-        print(
-            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
-        )
-        upstream_dict = data["upstream_connections"]
-
     gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
-        identifier=f"gages-{identifier}",
+        identifier=identifier,
         id_type=IdType.HL_URI,
-        namespace=domain.value,
+        namespace=namespace,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
         upstream_dict=upstream_dict,
     )
@@ -786,21 +660,23 @@ def get_troute_parameters(catalog: Catalog, domain: HydrofabricDomains, identifi
     )
 
     pydantic_models = []
-    for _idx, row_dict in divide_attr_df.iterrows():
+    for _, row_dict in divide_attr_df.iterrows():
         model_instance = TRoute(catchment=row_dict["divide_id"], nwtopo_param=nwtopo_param)
         pydantic_models.append(model_instance)
     return pydantic_models
 
 
-def get_topmodel_parameters(catalog: Catalog, domain: HydrofabricDomains, identifier: str) -> list[Topmodel]:
+def get_topmodel_parameters(
+    catalog: Catalog, namespace: str, identifier: str, upstream_dict: dict[str, list[str]]
+) -> list[Topmodel]:
     """Creates the initial parameter estimates for the Topmodel
 
     Parameters
     ----------
     catalog : Catalog
         the pyiceberg lakehouse catalog
-    domain : HydrofabricDomains
-        the hydrofabric domain
+    namespace : str
+        the hydrofabric namespace
     identifier : str
         the gauge identifier
 
@@ -818,25 +694,11 @@ def get_topmodel_parameters(catalog: Catalog, domain: HydrofabricDomains, identi
     - The divide_id is the same as catchment, but will return divide_id variable name here
     since expected from HF API - remove if needed.
     """
-    upstream_connections_path = (
-        Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
-    )
-    assert upstream_connections_path.exists(), (
-        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
-    )
-
-    with open(upstream_connections_path) as f:
-        data = json.load(f)
-        print(
-            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
-        )
-        upstream_dict = data["upstream_connections"]
-
     gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
         catalog=catalog,
-        identifier=f"gages-{identifier}",
+        identifier=identifier,
         id_type=IdType.HL_URI,
-        namespace=domain.value,
+        namespace=namespace,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
         upstream_dict=upstream_dict,
     )
@@ -877,15 +739,17 @@ def get_topmodel_parameters(catalog: Catalog, domain: HydrofabricDomains, identi
     return pydantic_models
 
 
-def get_topoflow_parameters(catalog: Catalog, domain: HydrofabricDomains, identifier: str) -> list[Topoflow]:
+def get_topoflow_parameters(
+    catalog: Catalog, namespace: str, identifier: str, upstream_dict: dict[str, list[str]]
+) -> list[Topoflow]:
     """Creates the initial parameter estimates for the Topoflow module
 
     Parameters
     ----------
     catalog : Catalog
         the pyiceberg lakehouse catalog
-    domain : HydrofabricDomains
-        the hydrofabric domain
+    namespace : str
+        the hydrofabric namespace
     identifier : str
         the gauge identifier
 

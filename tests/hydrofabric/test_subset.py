@@ -11,8 +11,7 @@ from icefabric.hydrofabric.subset import (
     subset_layers,
 )
 from icefabric.schemas.hydrofabric import IdType
-
-from .conftest import MockCatalog
+from tests.conftest import MockCatalog
 
 
 class TestGetUpstreamSegments:

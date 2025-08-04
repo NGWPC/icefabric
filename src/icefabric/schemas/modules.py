@@ -1023,3 +1023,288 @@ class Topoflow(BaseModel):
         with open(topoflow_bmi_file, "w") as f:
             f.write("\n".join(file_output))
         return topoflow_bmi_file
+
+
+class UEBValues(str, enum.Enum):
+    """The calibratable values to be used in UEB"""
+
+    JAN_TEMP = 11.04395
+    FEB_TEMP = 11.79382
+    MAR_TEMP = 12.72711
+    APR_TEMP = 13.67701
+    MAY_TEMP = 13.70334
+    JUN_TEMP = 13.76782
+    JUL_TEMP = 13.90212
+    AUG_TEMP = 13.9958
+    SEP_TEMP = 14.04895
+    OCT_TEMP = 13.44001
+    NOV_TEMP = 11.90162
+    DEC_TEMP = 10.71597
+
+
+class UEB(BaseModel):
+    """Pydantic model for UEB module configuration"""
+
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+    catchment: str = Field(..., description="The catchment ID")
+    aspect: float = Field(..., description="Aspect computed from DEM")
+    slope: float = Field(..., description="Slope")
+    longitude: float = Field(..., description="X coordinates of divide centroid")
+    latitude: float = Field(..., description="Y coordinates of divide centroid")
+    elevation: float = Field(..., description="Elevation from DEM")
+    standard_atm_pressure: float = Field(..., description="Standard atmospheric pressuure (atm)")
+    jan_temp_range: float = Field(default=UEBValues.JAN_TEMP.value, description="Average temperature")
+    feb_temp_range: float = Field(default=UEBValues.FEB_TEMP.value, description="Average temperature")
+    mar_temp_range: float = Field(default=UEBValues.MAR_TEMP.value, description="Average temperature")
+    apr_temp_range: float = Field(default=UEBValues.APR_TEMP.value, description="Average temperature")
+    may_temp_range: float = Field(default=UEBValues.MAY_TEMP.value, description="Average temperature")
+    jun_temp_range: float = Field(default=UEBValues.JUN_TEMP.value, description="Average temperature")
+    jul_temp_range: float = Field(default=UEBValues.JUL_TEMP.value, description="Average temperature")
+    aug_temp_range: float = Field(default=UEBValues.AUG_TEMP.value, description="Average temperature")
+    sep_temp_range: float = Field(default=UEBValues.SEP_TEMP.value, description="Average temperature")
+    oct_temp_range: float = Field(default=UEBValues.OCT_TEMP.value, description="Average temperature")
+    nov_temp_range: float = Field(default=UEBValues.NOV_TEMP.value, description="Average temperature")
+    dec_temp_range: float = Field(default=UEBValues.DEC_TEMP.value, description="Average temperature")
+
+    def to_bmi_config(self) -> list[str]:
+        """Convert the model back to the original config file format"""
+        return [
+            f"aspect: {self.aspect}",
+            f"slope: {self.slope}",
+            f"longitude: {self.longitude}",
+            f"latitude: {self.latitude}",
+            f"elevation: {self.elevation}",
+            f"standard_atm_pressure: {self.standard_atm_pressure}",
+            f"jan_temp_range: {self.jan_temp_range}",
+            f"feb_temp_range: {self.feb_temp_range}",
+            f"mar_temp_range: {self.mar_temp_range}",
+            f"apr_temp_range: {self.apr_temp_range}",
+            f"may_temp_range: {self.may_temp_range}",
+            f"jun_temp_range: {self.jun_temp_range}",
+            f"jul_temp_range: {self.jul_temp_range}",
+            f"aug_temp_range: {self.aug_temp_range}",
+            f"sep_temp_range: {self.sep_temp_range}",
+            f"oct_temp_range: {self.oct_temp_range}",
+            f"nov_temp_range: {self.nov_temp_range}",
+            f"dec_temp_range: {self.dec_temp_range}",
+        ]
+
+    def model_dump_config(self, output_path: Path) -> Path:
+        """Outputs the BaseModel to a BMI Config file
+
+        Parameters
+        ----------
+        output_path : Path
+            The path for the config file to be written to
+
+        Returns
+        -------
+        Path
+            The path to the written config file
+        """
+        file_output = self.to_bmi_config()
+        ueb_bmi_file = output_path / f"{self.catchment}_bmi_config_ueb.txt"
+        with open(ueb_bmi_file, "w") as f:
+            f.write("\n".join(file_output))
+        return ueb_bmi_file
+
+
+class CFEValues(str, enum.Enum):
+    """The default values & schemes to be used in UEB"""
+
+    FORCINGFILE = "BMI"
+    VERBOSITY = 1
+    SRFC_RUNOFF_SCHEME = "GIUH"
+    DEBUG = 0
+    NUM_TIMESTEPS = 1
+    ICE_CONTENT_THR = 0.15
+    SCHAAKE = "Schaake"
+    XINANJIANG = "Xinanjiang"
+    A_XINANJIANG_INFLECT = -0.2
+    B_XINANJIANG_SHAPE = 0.66
+    X_XINANJIANG_SHAPE = 0.02
+    SOIL_EXPON = 1
+    SOIL_EXPON_SECONDARY = 1
+    MAX_GIUH_STORAGE = 0.05
+    GW_STORAGE = 0.05
+    ALPHA_FC = 0.33
+    SOIL_STORAGE = 0.5
+    K_NASH = 0.003
+    K_LF = 0.01
+    NASH_STORAGE = [0.0, 0.0]
+    GIUH = [0.55, 0.25, 0.2]
+    URBAN_FRACT = 0.01
+    SOIL_DEPTH = 2
+    SOIL_WLTSMC = 0.439
+    SOIL_SMCMAX = 0.439
+    SOIL_SLOP = 0.05
+    SOIL_SATPSI = 0.355
+    SOIL_SATDK = 0.00000338
+    SOIL_B = 4.05
+    CGW = 0.000018
+    EXPON = 3
+    REFKDT = 1
+
+
+class CFE(BaseModel):
+    """Pydantic model for CFE module configuration"""
+
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+    catchment: str = Field(..., description="The catchment ID")
+    forcing_file: str = Field(default=CFEValues.FORCINGFILE.value, description="NA")
+    verbosity: int = Field(default=CFEValues.VERBOSITY.value, description="NA")
+    surface_partitioning_scheme: str = Field(..., description="Selects Xinanjiang or Schaake")
+    surface_runoff_scheme: str = Field(
+        default=CFEValues.SRFC_RUNOFF_SCHEME.value,
+        description="Accepts  1 or GIUH for GIUH and  2 or NASH_CASCADE for Nash Cascade; default is GIUH, version 1 is GIUH, Version 2 is Nash",
+    )
+    debug: int = Field(default=CFEValues.DEBUG.value, description="NA")
+    num_timesteps: int = Field(default=CFEValues.NUM_TIMESTEPS.value, description="NA")
+    is_sft_coupled: str = Field(
+        ...,
+        description="Optional. Turns on/off the CFE coupling with the SoilFreezeThaw. If this parameter is defined to be True (or 1) in the config file and surface_partitioning_scheme=Schaake, then ice_content_threshold also needs to be defined in the config file.",
+    )
+    ice_content_thresh: float = Field(
+        default=CFEValues.ICE_CONTENT_THR.value,
+        description="Optional. This represents the ice content above which soil is impermeable. If this is_sft_couple is defined to be True (or 1) in the config file and surface_partitioning_scheme=Schaake, then this also needs to be defined in the config file.",
+    )
+    soil_params_b: float = Field(
+        default=CFEValues.SOIL_B.value,
+        description="Beta exponent on Clapp-Hornberger (1978) soil water relations",
+    )
+    soil_params_satdk: float = Field(
+        default=CFEValues.SOIL_SATDK.value, description="Saturated hydraulic conductivity"
+    )
+    soil_params_satpsi: float = Field(
+        default=CFEValues.SOIL_SATPSI.value, description="Saturated capillary head"
+    )
+    soil_params_slop: float = Field(
+        default=CFEValues.SOIL_SLOP.value,
+        description="This factor (0-1) modifies the gradient of the hydraulic head at the soil bottom.  0=no-flow.",
+    )
+    soil_params_smcmax: float = Field(
+        default=CFEValues.SOIL_SMCMAX.value,
+        description="Saturated soil moisture content (Maximum soil moisture content)",
+    )
+    soil_params_wltsmc: float = Field(
+        default=CFEValues.SOIL_WLTSMC.value,
+        description="Wilting point soil moisture content (< soil_params.smcmax)",
+    )
+    soil_params_expon: float = Field(
+        default=CFEValues.SOIL_EXPON.value,
+        description="Optional; defaults to 1, This parameter defines the soil reservoirs to be linear, Use linear reservoirs",
+    )
+    soil_params_expon_secondary: float = Field(
+        default=CFEValues.SOIL_EXPON_SECONDARY.value,
+        description="	Optional; defaults to 1, This parameter defines the soil reservoirs to be linear, Use linear reservoirs",
+    )
+    max_gw_storage: float = Field(
+        default=CFEValues.MAX_GIUH_STORAGE.value, description="Maximum storage in the conceptual reservoir"
+    )
+    cgw: float = Field(default=CFEValues.CGW.value, description="Primary outlet coefficient")
+    expon: float = Field(
+        default=CFEValues.EXPON.value,
+        description="Exponent parameter for nonlinear ground water reservoir (1.0 for linear reservoir)",
+    )
+    gw_storage: float = Field(
+        default=CFEValues.GW_STORAGE.value,
+        description="Initial condition for groundwater reservoir - it is the ground water as a decimal fraction of the maximum groundwater storage (max_gw_storage) for the initial timestep",
+    )
+    alpha_fc: float = Field(
+        default=CFEValues.ALPHA_FC.value, description="Alpha at fc for clapp hornberger (field capacity)"
+    )
+    soil_storage: float = Field(
+        default=CFEValues.SOIL_STORAGE.value,
+        description="Initial condition for soil reservoir - it is the water in the soil as a decimal fraction of maximum soil water storage (smcmax x depth) for the initial timestep. Default = 0.5",
+    )
+    k_nash: float = Field(
+        default=CFEValues.K_NASH.value,
+        description="Nash Config param for lateral subsurface runoff (Nash discharge to storage ratio)",
+    )
+    k_lf: float = Field(default=CFEValues.K_LF.value, description="Nash Config param - primary reservoir")
+    nash_storage: list[float] = Field(
+        default=CFEValues.NASH_STORAGE.value, description="Nash Config param - secondary reservoir"
+    )
+    giuh_ordinates: list[float] = Field(
+        default=CFEValues.GIUH.value,
+        description="Giuh (geomorphological instantaneous unit hydrograph) ordinates in dt time steps",
+    )
+    a_Xinanjiang_inflection_point_parameter: str = Field(
+        default=CFEValues.A_XINANJIANG_INFLECT.value,
+        description="When surface_water_partitioning_scheme=Xinanjiang",
+    )
+    b_Xinanjiang_shape_parameter: str = Field(
+        default=CFEValues.B_XINANJIANG_SHAPE.value,
+        description="When surface_water_partitioning_scheme=Xinanjiang",
+    )
+    x_Xinanjiang_shape_parameter: str = Field(
+        default=CFEValues.X_XINANJIANG_SHAPE.value,
+        description="When surface_water_partitioning_scheme=Xinanjiang",
+    )
+    urban_decimal_fraction: float = Field(
+        default=CFEValues.URBAN_FRACT.value, description="When surface_water_partitioning_scheme=Xinanjiang"
+    )
+    refkdt: float = Field(
+        default=CFEValues.REFKDT.value,
+        description="Reference Soil Infiltration Parameter (used in runoff formulation)",
+    )
+    soil_params_depth: float = Field(default=CFEValues.SOIL_DEPTH.value, description="Soil depth")
+
+    def to_bmi_config(self) -> list[str]:
+        """Convert the model back to the original config file format"""
+        nash_storage = ",".join([str(n) for n in self.nash_storage])
+        giuh_ordinates = ",".join([str(giuh) for giuh in self.giuh_ordinates])
+        return [
+            f"aspect: {self.aspect}",
+            f"forcing_file: {self.forcing_file}",
+            f"verbosity: {self.verbosity}",
+            f"surface_partitioning_scheme: {self.surface_partitioning_scheme}",
+            f"surface_runoff_scheme: {self.surface_runoff_scheme}",
+            f"debug: {self.debug}",
+            f"num_timesteps: {self.num_timesteps}",
+            f"is_sft_coupled: {self.is_sft_coupled}",
+            f"ice_content_thresh: {self.ice_content_thresh}",
+            f"soil_params_b: {self.soil_params_satdk}",
+            f"soil_params_satdk: {self.soil_params_satdk}[m/s]",
+            f"soil_params_satpsi: {self.soil_params_satpsi}[m]",
+            f"soil_params_slop: {self.soil_params_slop}[m/m]",
+            f"soil_params_smcmax: {self.soil_params_smcmax}[m/m]",
+            f"soil_params_wltsmc: {self.soil_params_wltsmc}[m/m]",
+            f"soil_params_expon: {self.soil_params_expon}",
+            f"soil_params_expon_secondary: {self.soil_params_expon_secondary}",
+            f"max_gw_storage: {self.max_gw_storage}[m]",
+            f"cgw: {self.cgw}[m/hr]",
+            f"expon: {self.expon}",
+            f"gw_storage: {self.gw_storage}[m/m]",
+            f"alpha_fc: {self.alpha_fc}",
+            f"soil_storage: {self.soil_storage}[m/m]",
+            f"k_nash: {self.k_nash}[1/m]",
+            f"k_lf: {self.k_lf}",
+            f"nash_storage: {nash_storage}",
+            f"giuh_ordinates: {giuh_ordinates}",
+            f"a_Xinanjiang_inflection_point_parameter: {self.a_Xinanjiang_inflection_point_parameter}",
+            f"b_Xinanjiang_shape_parameter: {self.b_Xinanjiang_shape_parameter}",
+            f"x_Xinanjiang_shape_parameter: {self.x_Xinanjiang_shape_parameter}",
+            f"urban_decimal_fraction: {self.urban_decimal_fraction}",
+            f"refkdt: {self.refkdt}",
+            f"soil_params_depth: {self.soil_params_depth}[m]",
+        ]
+
+    def model_dump_config(self, output_path: Path) -> Path:
+        """Outputs the BaseModel to a BMI Config file
+
+        Parameters
+        ----------
+        output_path : Path
+            The path for the config file to be written to
+
+        Returns
+        -------
+        Path
+            The path to the written config file
+        """
+        file_output = self.to_bmi_config()
+        cfe_bmi_file = output_path / f"{self.catchment}_bmi_config_cfe.txt"
+        with open(cfe_bmi_file, "w") as f:
+            f.write("\n".join(file_output))
+        return cfe_bmi_file

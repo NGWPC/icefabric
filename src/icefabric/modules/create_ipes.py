@@ -4,17 +4,21 @@ import json
 import geopandas as gpd
 import pandas as pd
 import polars as pl
+from ambiance import Atmosphere
 from pyiceberg.catalog import Catalog
 from pyproj import Transformer
 
 from icefabric.hydrofabric import subset_hydrofabric
 from icefabric.schemas.hydrofabric import IdType
 from icefabric.schemas.modules import (
+    CFE,
     LASAM,
     LSTM,
     SFT,
     SMP,
+    UEB,
     CalibratableScheme,
+    CFEValues,
     IceFractionScheme,
     NoahOwpModular,
     SacSma,
@@ -24,6 +28,7 @@ from icefabric.schemas.modules import (
     Topmodel,
     Topoflow,
     TRoute,
+    UEBValues,
 )
 
 
@@ -762,3 +767,226 @@ def get_topoflow_parameters(
     Topoflow does not exist currently.
     """
     raise NotImplementedError("Topoflow not implemented yet")
+
+
+def get_ueb_parameters(
+    catalog: Catalog, namespace: str, identifier: str, envca: bool, upstream_dict: dict[str, list[str]]
+) -> list[UEB]:
+    """Creates the initial parameter estimates for the UEB module
+
+    Parameters
+    ----------
+    catalog : Catalog
+        the pyiceberg lakehouse catalog
+    namespace : HydrofabricDomains
+        the hydrofabric namespace
+    identifier : str
+        the gauge identifier
+    envca : bool, optional
+        If source is ENVCA, then set to True - otherwise False.
+
+    Returns
+    -------
+    list[UEB]
+        The list of all initial parameters for catchments using UEB
+    """
+    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
+        catalog=catalog,
+        identifier=identifier,
+        id_type=IdType.HL_URI,
+        namespace=namespace,
+        layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
+        upstream_dict=upstream_dict,
+    )
+    attr = {
+        "slope": "mean.slope",
+        "aspect": "circ_mean.aspect",
+        "elevation": "mean.elevation",
+        "lat": "centroid_y",
+        "lon": "centroid_x",
+    }
+
+    # Extraction of relevant features from divide attributes layer
+    # & convert to polar
+    divide_attr_df = pl.DataFrame(gauge["divide-attributes"])
+    expressions = [pl.col("divide_id")]
+    for param_name, prefix in attr.items():
+        # Find all columns that start with the prefix
+        matching_cols = [col for col in divide_attr_df.columns if col == prefix]
+        if matching_cols:
+            expressions.append(pl.concat([pl.col(col) for col in matching_cols]).alias(f"{param_name}"))
+        else:
+            # Default to 0.0 if no matching columns found
+            expressions.append(pl.lit(0.0).alias(f"{param_name}"))
+
+    result_df = divide_attr_df.select(expressions).to_pandas()
+
+    # Convert elevation from cm to m
+    result_df["elevation"] = result_df["elevation"] * 0.01
+
+    # Convert CRS to WGS84 (EPSG4326)
+    crs = gauge["divides"].crs
+    transformer = Transformer.from_crs(crs, 4326)
+    wgs84_latlon = transformer.transform(result_df["lon"], result_df["lat"])
+    result_df["lon"] = wgs84_latlon[0]
+    result_df["lat"] = wgs84_latlon[1]
+
+    # Default parameter values used only for CONUS
+    result_df["jan_temp_range"] = UEBValues.JAN_TEMP.value
+    result_df["feb_temp_range"] = UEBValues.FEB_TEMP.value
+    result_df["mar_temp_range"] = UEBValues.MAR_TEMP.value
+    result_df["apr_temp_range"] = UEBValues.APR_TEMP.value
+    result_df["may_temp_range"] = UEBValues.MAY_TEMP.value
+    result_df["jun_temp_range"] = UEBValues.JUN_TEMP.value
+    result_df["jul_temp_range"] = UEBValues.JUL_TEMP.value
+    result_df["aug_temp_range"] = UEBValues.AUG_TEMP.value
+    result_df["sep_temp_range"] = UEBValues.SEP_TEMP.value
+    result_df["oct_temp_range"] = UEBValues.OCT_TEMP.value
+    result_df["nov_temp_range"] = UEBValues.NOV_TEMP.value
+    result_df["dec_temp_range"] = UEBValues.DEC_TEMP.value
+
+    if namespace == "conus_hf" and not envca:
+        divides_list = result_df["divide_id"]
+        domain = namespace.split("_")[0]
+        table_name = f"divide_parameters.ueb_{domain}"
+        params_df = catalog.load_table(table_name).to_polars()
+        conus_param_df = params_df.filter(pl.col("divide_id").is_in(divides_list)).collect().to_pandas()
+        col2drop = [col for col in result_df.columns if col.endswith("_temp_range")]
+        result_df.drop(columns=col2drop, inplace=True)
+        result_df = pd.merge(conus_param_df, result_df, on="divide_id", how="left")
+        result_df.rename(
+            columns={
+                "b01": "jan_temp_range",
+                "b02": "feb_temp_range",
+                "b03": "mar_temp_range",
+                "b04": "apr_temp_range",
+                "b05": "may_temp_range",
+                "b06": "jun_temp_range",
+                "b07": "jul_temp_range",
+                "b08": "aug_temp_range",
+                "b09": "sep_temp_range",
+                "b10": "oct_temp_range",
+                "b11": "nov_temp_range",
+                "b12": "dec_temp_range",
+            },
+            inplace=True,
+        )
+
+    pydantic_models = []
+    for _, row_dict in result_df.iterrows():
+        model_instance = UEB(
+            catchment=row_dict["divide_id"],
+            aspect=row_dict["aspect"],
+            slope=row_dict["slope"],
+            longitude=row_dict["lon"],
+            latitude=row_dict["lat"],
+            elevation=row_dict["elevation"],
+            standard_atm_pressure=round(Atmosphere(row_dict["elevation"]).pressure[0], 4),
+            jan_temp_range=row_dict["jan_temp_range"],
+            feb_temp_range=row_dict["feb_temp_range"],
+            mar_temp_range=row_dict["mar_temp_range"],
+            apr_temp_range=row_dict["apr_temp_range"],
+            may_temp_range=row_dict["may_temp_range"],
+            jun_temp_range=row_dict["jun_temp_range"],
+            jul_temp_range=row_dict["jul_temp_range"],
+            aug_temp_range=row_dict["aug_temp_range"],
+            sep_temp_range=row_dict["sep_temp_range"],
+            oct_temp_range=row_dict["oct_temp_range"],
+            nov_temp_range=row_dict["nov_temp_range"],
+            dec_temp_range=row_dict["dec_temp_range"],
+        )
+        pydantic_models.append(model_instance)
+    return pydantic_models
+
+
+def get_cfe_parameters(
+    catalog: Catalog,
+    namespace: str,
+    identifier: str,
+    module: str,
+    upstream_dict: dict[str, list[str]],
+    sft_included: bool = False,
+) -> list[CFE]:
+    """Creates the initial parameter estimates for the CFE module
+
+    Parameters
+    ----------
+    catalog : Catalog
+        the pyiceberg lakehouse catalog
+    namespace : HydrofabricDomains
+        the hydrofabric namespace
+    identifier : str
+        the gauge identifier
+    module: str
+        the CFE module type (e.g. CFE-X, CFE-S) for which determines whether
+        to use Shaake or Xinanjiang for surface partitioning.
+    sft_included: bool
+        True if SFT is in the "dep_modules_included" definition as declared in HF API repo.
+
+    Returns
+    -------
+    list[CFE]
+        The list of all initial parameters for catchments using CFE
+    """
+    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
+        catalog=catalog,
+        identifier=identifier,
+        id_type=IdType.HL_URI,
+        namespace=namespace,
+        layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
+        upstream_dict=upstream_dict,
+    )
+
+    # CFE
+    df = pd.DataFrame(gauge["divide-attributes"])
+    divides_list = df["divide_id"]
+    domain = namespace.split("_")[0]
+    table_name = f"divide_parameters.cfe-x_{domain}"
+    params_df = catalog.load_table(table_name).to_polars()
+    conus_param_df = params_df.filter(pl.col("divide_id").is_in(divides_list)).collect().to_pandas()
+    df = pd.merge(conus_param_df, df, on="divide_id", how="left")
+
+    if module == "CFE-X":
+        surface_partitioning_scheme = CFEValues.XINANJIANG.value
+        is_sft_coupled = "NA"
+    elif module == "CFE-S":
+        surface_partitioning_scheme = CFEValues.SCHAAKE.value
+        a_Xinanjiang_inflection_point_parameter = "NA"
+        b_Xinanjiang_shape_parameter = "NA"
+        x_Xinanjiang_shape_parameter = "NA"
+        if sft_included:
+            is_sft_coupled = 1
+        else:
+            is_sft_coupled = 0
+    else:
+        raise ValueError(f"Passing unsupported module into endpoint: {module}")
+
+    pydantic_models = []
+    for _, row_dict in df.iterrows():
+        # Instantiate the Pydantic model for each row
+        model_instance = CFE(
+            catchment=row_dict["divide_id"],
+            surface_partitioning_scheme=surface_partitioning_scheme,
+            is_sft_coupled=str(is_sft_coupled),
+            soil_params_b=row_dict["mode.bexp_soil_layers_stag=1"],
+            soil_params_satdk=row_dict["geom_mean.dksat_soil_layers_stag=1"],
+            soil_params_satpsi=row_dict["geom_mean.psisat_soil_layers_stag=1"],
+            soil_params_slop=row_dict["mean.slope_1km"],
+            soil_params_smcmax=row_dict["mean.smcmax_soil_layers_stag=1"],
+            soil_params_wltsmc=row_dict["mean.smcwlt_soil_layers_stag=1"],
+            max_gw_storage=row_dict["mean.Zmax"],
+            cgw=row_dict["mean.Coeff"],
+            expon=row_dict["mode.Expon"],
+            a_Xinanjiang_inflection_point_parameter=str(row_dict["a_Xinanjiang_inflection_point_parameter"])
+            if module == "CFE-X"
+            else a_Xinanjiang_inflection_point_parameter,
+            b_Xinanjiang_shape_parameter=str(row_dict["b_Xinanjiang_shape_parameter"])
+            if module == "CFE-X"
+            else b_Xinanjiang_shape_parameter,
+            x_Xinanjiang_shape_parameter=str(row_dict["x_Xinanjiang_shape_parameter"])
+            if module == "CFE-X"
+            else x_Xinanjiang_shape_parameter,
+            refkdt=row_dict["mean.refkdt"],
+        )
+        pydantic_models.append(model_instance)
+    return pydantic_models

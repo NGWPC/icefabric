@@ -2,10 +2,12 @@
 
 from .hydrofabric import UPSTREAM_VPUS, HydrofabricDomains, IdType
 from .modules import (
+    CFE,
     LASAM,
     LSTM,
     SFT,
     SMP,
+    UEB,
     Albedo,
     CalibratableScheme,
     IceFractionScheme,
@@ -38,6 +40,8 @@ __all__ = [
     "LASAM",
     "NoahOwpModular",
     "TRoute",
+    "UEB",
+    "CFE",
     "Topmodel",
     "Topoflow",
     "FileType",

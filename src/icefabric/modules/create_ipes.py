@@ -948,12 +948,14 @@ def get_cfe_parameters(
 
     if module == "CFE-X":
         surface_partitioning_scheme = CFEValues.XINANJIANG.value
+        urban_decimal_fraction = CFEValues.URBAN_FRACT.value
         is_sft_coupled = "NA"
     elif module == "CFE-S":
         surface_partitioning_scheme = CFEValues.SCHAAKE.value
         a_Xinanjiang_inflection_point_parameter = "NA"
         b_Xinanjiang_shape_parameter = "NA"
         x_Xinanjiang_shape_parameter = "NA"
+        urban_decimal_fraction = "NA"
         if sft_included:
             is_sft_coupled = 1
         else:
@@ -975,7 +977,7 @@ def get_cfe_parameters(
             soil_params_smcmax=row_dict["mean.smcmax_soil_layers_stag=1"],
             soil_params_wltsmc=row_dict["mean.smcwlt_soil_layers_stag=1"],
             max_gw_storage=row_dict["mean.Zmax"],
-            cgw=row_dict["mean.Coeff"],
+            Cgw=row_dict["mean.Coeff"],
             expon=row_dict["mode.Expon"],
             a_Xinanjiang_inflection_point_parameter=str(row_dict["a_Xinanjiang_inflection_point_parameter"])
             if module == "CFE-X"
@@ -986,6 +988,7 @@ def get_cfe_parameters(
             x_Xinanjiang_shape_parameter=str(row_dict["x_Xinanjiang_shape_parameter"])
             if module == "CFE-X"
             else x_Xinanjiang_shape_parameter,
+            urban_decimal_fraction=str(urban_decimal_fraction),
             refkdt=row_dict["mean.refkdt"],
         )
         pydantic_models.append(model_instance)

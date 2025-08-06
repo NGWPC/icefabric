@@ -1,7 +1,6 @@
 import collections
 import json
 import os
-import pickle
 import re
 import warnings
 
@@ -54,38 +53,39 @@ class MapData:
         self.crs_dict: dict = collections.defaultdict(dict)
         self.consolidated_id2xs: geopandas.GeoDataFrame = geopandas.GeoDataFrame()
 
-        self.read_data_dirs()
-        self.cat_data_dirs(self.subfolder_key_prefix)
-        self.map_model2huc()
-        self.filter_model2huc_map(
-            keys_to_drop={"metrics", "low_flow", "high_flow", "eclipsed", "lengths", "coverage"}
-        )
+        # NOTE Commenting out as the manipulated states between these function calls may be needed. Not wise to run all data preprocessing inside the initialization function
+        # self.read_data_dirs()
+        # self.cat_data_dirs(self.subfolder_key_prefix)
+        # self.map_model2huc()
+        # self.filter_model2huc_map(
+        #     keys_to_drop={"metrics", "low_flow", "high_flow", "eclipsed", "lengths", "coverage"}
+        # )
 
-        # Generate maps of model_id & HUC # to xs (for both us & ds cross-section)
-        # to reach ID & "network_to_id" from each model @ HUC's json file
-        self.map_modelhuc_xs2ids()
+        # # Generate maps of model_id & HUC # to xs (for both us & ds cross-section)
+        # # to reach ID & "network_to_id" from each model @ HUC's json file
+        # self.map_modelhuc_xs2ids()
 
-        # Generate maps of model_id & HUC # to gpkg from each model @ HUC's geopackage
-        self.map_model2huc_gpkg()
+        # # Generate maps of model_id & HUC # to gpkg from each model @ HUC's geopackage
+        # self.map_model2huc_gpkg()
 
-        # Generate maps of HUC # to ripple gpkg
-        self.map_huc2ripple_gpkg()
+        # # Generate maps of HUC # to ripple gpkg
+        # self.map_huc2ripple_gpkg()
 
-        # Map IDs to each model's cross-section instance
-        self.map_model_xs2ids()
+        # # Map IDs to each model's cross-section instance
+        # self.map_model_xs2ids()
 
-        # [Optional: Per HUC, save each river's set of XS data as geoparquetss & geopackages]
+        # # [Optional: Per HUC, save each river's set of XS data as geoparquetss & geopackages]
         # self.save_xs_data()
 
-        # Save map of inherited CRS to HUC, model_id, river name
-        self.save_crs_map()
+        # # Save map of inherited CRS to HUC, model_id, river name
+        # self.save_crs_map()
 
-        # Consolidated all HEC RAS models' cross-sections featuring IDs
-        self.consolidate_id2xs_dfs()
+        # # Consolidated all HEC RAS models' cross-sections featuring IDs
+        # self.consolidate_id2xs_dfs()
 
-        # Save HEC RAS models' cross-sections consolidated by HUC as geoparquets & geopackages
-        # TODO: does this need to be called with a `xs_data_type` ?
-        self.save_xsbyhuc_data()
+        # # Save HEC RAS models' cross-sections consolidated by HUC as geoparquets & geopackages
+        # # TODO: does this need to be called with a `xs_data_type` ?
+        # self.save_xsbyhuc_data()
 
     def read_data_dirs(self) -> None:
         """
@@ -500,7 +500,7 @@ class MapData:
 
         return
 
-    def save_crs_map(self) -> None:
+    def save_crs_map(self, output_dir=None) -> None:
         """
         Consolidate HEC-RAS models cross-sections based on HUC & river & save to storage
 
@@ -513,6 +513,8 @@ class MapData:
         analyze & reference.
 
         """
+        if output_dir is None:
+            output_dir = os.getcwd()
         for (model_id, huc_num), _model_gpkg_dict in self.model_id2gpkg.items():
             # Generate data folder per HUC
             if not os.path.exists(f"{os.getcwd()}/xs_data/crs_map"):
@@ -532,9 +534,9 @@ class MapData:
                     }
                 )
 
-        # Save map of inherited CRS to HUC, model_id, river name
-        with open(f"{os.getcwd()}/xs_data/crs_map/crs_mapping.pickle", "wb") as handle:
-            pickle.dump(self.crs_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # Save map of inherited CRS to HUC, model_id, river name as JSON
+        with open(f"{output_dir}/xs_data/crs_map/crs_mapping.json", "w") as handle:
+            json.dump(self.crs_dict, handle, indent=2, ensure_ascii=False)
 
         return
 
@@ -578,13 +580,12 @@ class MapData:
 
         return
 
-    def save_xsbyhuc_data(self, xs_data_type: str) -> None:
+    def save_xsbyhuc_data(self, output_dir=None) -> None:
         """
         Consolidate HEC-RAS models cross-sections based on HUC & save to storage
 
         Args:
-            xs_data_type (str): Cross-section data type to be saved either 'mip' or 'ble' cross-section type.
-                                Options: 'mip' or 'ble'
+            output_dir (str, optional): Directory to save output files. Defaults to current working directory.
 
         Return: None
 
@@ -592,11 +593,15 @@ class MapData:
         a consistent standardized CRS.
 
         """
+        if output_dir is None:
+            output_dir = os.getcwd()
+
         unique_huc_nums = set(self.consolidated_id2xs["huc"])
         for huc_num in unique_huc_nums:
-            # Generate data folder per HUC
-            if not os.path.exists(f"{os.getcwd()}/xs_data/{xs_data_type}_{huc_num}"):
-                os.makedirs(f"{os.getcwd()}/xs_data/{xs_data_type}_{huc_num}")
+            # Generate data folder per HUC using the subfolder_key_prefix
+            output_folder = f"{output_dir}/xs_data/{self.subfolder_key_prefix}_{huc_num}"
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
 
             # Filter consolidated XS geopanda dataframe by HUC
             filterbyhuc = self.consolidated_id2xs[self.consolidated_id2xs["huc"] == huc_num]
@@ -604,15 +609,13 @@ class MapData:
             # Save XS as geoparquet per HUC
             filterbyhuc["thalweg"] = filterbyhuc["thalweg"].astype(str)
             filterbyhuc["xs_max_elevation"] = filterbyhuc["xs_max_elevation"].astype(str)
-            filterbyhuc.to_parquet(
-                f"{os.getcwd()}/xs_data/{xs_data_type}_{huc_num}/huc_{huc_num}.parquet", engine="pyarrow"
-            )
 
-            # Save XS as geopackage per HUC
-            filterbyhuc.to_file(
-                f"{os.getcwd()}/xs_data/{xs_data_type}_{huc_num}/huc_{huc_num}.gpkg", driver="GPKG"
-            )
+            # Define file paths using the subfolder_key_prefix
+            parquet_path = f"{output_folder}/huc_{huc_num}.parquet"
+            gpkg_path = f"{output_folder}/huc_{huc_num}.gpkg"
 
-            print(f"{xs_data_type}_{huc_num}")
+            # Save files
+            filterbyhuc.to_parquet(parquet_path, engine="pyarrow")
+            filterbyhuc.to_file(gpkg_path, driver="GPKG")
 
-        return
+            print(f"Saved: {self.subfolder_key_prefix}_{huc_num}")

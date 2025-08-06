@@ -1201,7 +1201,7 @@ class CFE(BaseModel):
     max_gw_storage: float = Field(
         default=CFEValues.MAX_GIUH_STORAGE.value, description="Maximum storage in the conceptual reservoir"
     )
-    cgw: float = Field(default=CFEValues.CGW.value, description="Primary outlet coefficient")
+    Cgw: float = Field(default=CFEValues.CGW.value, description="Primary outlet coefficient")
     expon: float = Field(
         default=CFEValues.EXPON.value,
         description="Exponent parameter for nonlinear ground water reservoir (1.0 for linear reservoir)",
@@ -1217,11 +1217,11 @@ class CFE(BaseModel):
         default=CFEValues.SOIL_STORAGE.value,
         description="Initial condition for soil reservoir - it is the water in the soil as a decimal fraction of maximum soil water storage (smcmax x depth) for the initial timestep. Default = 0.5",
     )
-    k_nash: float = Field(
+    K_nash: float = Field(
         default=CFEValues.K_NASH.value,
         description="Nash Config param for lateral subsurface runoff (Nash discharge to storage ratio)",
     )
-    k_lf: float = Field(default=CFEValues.K_LF.value, description="Nash Config param - primary reservoir")
+    K_lf: float = Field(default=CFEValues.K_LF.value, description="Nash Config param - primary reservoir")
     nash_storage: list[float] = Field(
         default=CFEValues.NASH_STORAGE.value, description="Nash Config param - secondary reservoir"
     )
@@ -1241,9 +1241,7 @@ class CFE(BaseModel):
         default=CFEValues.X_XINANJIANG_SHAPE.value,
         description="When surface_water_partitioning_scheme=Xinanjiang",
     )
-    urban_decimal_fraction: float = Field(
-        default=CFEValues.URBAN_FRACT.value, description="When surface_water_partitioning_scheme=Xinanjiang"
-    )
+    urban_decimal_fraction: str = Field(..., description="When surface_water_partitioning_scheme=Xinanjiang")
     refkdt: float = Field(
         default=CFEValues.REFKDT.value,
         description="Reference Soil Infiltration Parameter (used in runoff formulation)",
@@ -1264,22 +1262,22 @@ class CFE(BaseModel):
             f"num_timesteps: {self.num_timesteps}",
             f"is_sft_coupled: {self.is_sft_coupled}",
             f"ice_content_thresh: {self.ice_content_thresh}",
-            f"soil_params_b: {self.soil_params_satdk}",
-            f"soil_params_satdk: {self.soil_params_satdk}[m/s]",
-            f"soil_params_satpsi: {self.soil_params_satpsi}[m]",
-            f"soil_params_slop: {self.soil_params_slop}[m/m]",
-            f"soil_params_smcmax: {self.soil_params_smcmax}[m/m]",
-            f"soil_params_wltsmc: {self.soil_params_wltsmc}[m/m]",
-            f"soil_params_expon: {self.soil_params_expon}",
-            f"soil_params_expon_secondary: {self.soil_params_expon_secondary}",
+            f"soil_params.b: {self.soil_params_b}",
+            f"soil_params.satdk: {self.soil_params_satdk}[m/s]",
+            f"soil_params.satpsi: {self.soil_params_satpsi}[m]",
+            f"soil_params.slop: {self.soil_params_slop}[m/m]",
+            f"soil_params.smcmax: {self.soil_params_smcmax}[m/m]",
+            f"soil_params.wltsmc: {self.soil_params_wltsmc}[m/m]",
+            f"soil_params.expon: {self.soil_params_expon}",
+            f"soil_params.expon_secondary: {self.soil_params_expon_secondary}",
             f"max_gw_storage: {self.max_gw_storage}[m]",
-            f"cgw: {self.cgw}[m/hr]",
+            f"Cgw: {self.Cgw}[m/hr]",
             f"expon: {self.expon}",
             f"gw_storage: {self.gw_storage}[m/m]",
             f"alpha_fc: {self.alpha_fc}",
             f"soil_storage: {self.soil_storage}[m/m]",
-            f"k_nash: {self.k_nash}[1/m]",
-            f"k_lf: {self.k_lf}",
+            f"K_nash: {self.K_nash}[1/m]",
+            f"K_lf: {self.K_lf}",
             f"nash_storage: {nash_storage}",
             f"giuh_ordinates: {giuh_ordinates}",
             f"a_Xinanjiang_inflection_point_parameter: {self.a_Xinanjiang_inflection_point_parameter}",
@@ -1287,7 +1285,7 @@ class CFE(BaseModel):
             f"x_Xinanjiang_shape_parameter: {self.x_Xinanjiang_shape_parameter}",
             f"urban_decimal_fraction: {self.urban_decimal_fraction}",
             f"refkdt: {self.refkdt}",
-            f"soil_params_depth: {self.soil_params_depth}[m]",
+            f"soil_params.depth: {self.soil_params_depth}[m]",
         ]
 
     def model_dump_config(self, output_path: Path) -> Path:

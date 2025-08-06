@@ -870,7 +870,6 @@ class TRoute(BaseModel):
     log_param: dict = Field(default=log_param, description="Log Parameters")
     nwtopo_param: dict = Field(default=nwtopo_param, description="Network Topology Parameters")
     comp_param: dict = Field(default=comp_param, description="Compute Parameters")
-    output_param: dict = Field(default=output_param, description="Output Parameters")
     res_da: dict = Field(default=res_da, description="Res DA parameters for computation")
     stream_da: dict = Field(default=stream_da, description="Stream parameters for computation")
     output_param: dict = Field(default=output_param, description="Output Parameters")

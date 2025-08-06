@@ -266,19 +266,20 @@ def get_smp_parameters(
     water_depth_layers = "NA"
     water_table_depth = "NA"
 
-    if module == "CFE-S" or module == "CFE-X":
-        soil_storage_model = SoilScheme.CFE_SOIL_STORAGE.value
-        soil_storage_depth = SoilScheme.CFE_STORAGE_DEPTH.value
-    elif module == "TopModel":
-        soil_storage_model = SoilScheme.TOPMODEL_SOIL_STORAGE.value
-        water_table_based_method = SoilScheme.TOPMODEL_WATER_TABLE_METHOD.value
-    elif module == "LASAM":
-        soil_storage_model = SoilScheme.LASAM_SOIL_STORAGE.value
-        soil_moisture_profile_option = SoilScheme.LASAM_SOIL_MOISTURE.value
-        soil_depth_layers = SoilScheme.LASAM_SOIL_DEPTH_LAYERS.value
-        water_table_depth = SoilScheme.LASAM_WATER_TABLE_DEPTH.value
-    else:
-        raise ValueError(f"Passing unsupported module into endpoint: {module}")
+    if module:
+        if module == "CFE-S" or module == "CFE-X":
+            soil_storage_model = SoilScheme.CFE_SOIL_STORAGE.value
+            soil_storage_depth = SoilScheme.CFE_STORAGE_DEPTH.value
+        elif module == "TopModel":
+            soil_storage_model = SoilScheme.TOPMODEL_SOIL_STORAGE.value
+            water_table_based_method = SoilScheme.TOPMODEL_WATER_TABLE_METHOD.value
+        elif module == "LASAM":
+            soil_storage_model = SoilScheme.LASAM_SOIL_STORAGE.value
+            soil_moisture_profile_option = SoilScheme.LASAM_SOIL_MOISTURE.value
+            soil_depth_layers = SoilScheme.LASAM_SOIL_DEPTH_LAYERS.value
+            water_table_depth = SoilScheme.LASAM_WATER_TABLE_DEPTH.value
+        else:
+            raise ValueError(f"Passing unsupported module into endpoint: {module}")
 
     pydantic_models = []
     for row_dict in result_df.iter_rows(named=True):

@@ -9,7 +9,18 @@ from pydantic import BaseModel
 from pyiceberg.catalog import load_catalog
 
 from app.routers.hydrofabric.router import api_router as hydrofabric_api_router
-from app.routers.nwm_modules.router import sft_router, topoflow_router
+from app.routers.nwm_modules.router import (
+    lasam_router,
+    lstm_router,
+    noahowp_router,
+    sacsma_router,
+    sft_router,
+    smp_router,
+    snow17_router,
+    topmodel_router,
+    topoflow_router,
+    troute_router,
+)
 from app.routers.ras_xs.router import api_router as ras_api_router
 from app.routers.rise_wrappers.router import api_router as rise_api_wrap_router
 from app.routers.streamflow_observations.router import api_router as streamflow_api_router
@@ -19,6 +30,15 @@ tags_metadata = [
     {
         "name": "Hydrofabric Services",
         "description": "Data Querying functions for the Hydrofabric",
+    },
+    {
+        "name": "RISE",
+        "description": "An interface to the RISE API for querying reservoir outflow data",
+        "externalDocs": {"description": "Link to the RISE API", "url": "https://data.usbr.gov/rise-api"},
+    },
+    {
+        "name": "NWM Modules",
+        "description": "Functions that interact with NWM modules. Mainly supports IPE generation.",
     },
 ]
 
@@ -35,15 +55,6 @@ async def lifespan(app: FastAPI):
     catalog_path = os.getenv("CATALOG_PATH")
     app.state.catalog = load_catalog(catalog_path)
     yield
-
-
-tags_metadata = [
-    {
-        "name": "RISE",
-        "description": "An interface to the RISE API for querying reservoir outflow data",
-        "externalDocs": {"description": "Link to the RISE API", "url": "https://data.usbr.gov/rise-api"},
-    }
-]
 
 
 app = FastAPI(
@@ -67,6 +78,14 @@ class HealthCheck(BaseModel):
 app.include_router(hydrofabric_api_router, prefix="/v1")
 app.include_router(streamflow_api_router, prefix="/v1")
 app.include_router(sft_router, prefix="/v1")
+app.include_router(snow17_router, prefix="/v1")
+app.include_router(smp_router, prefix="/v1")
+app.include_router(lstm_router, prefix="/v1")
+app.include_router(lasam_router, prefix="/v1")
+app.include_router(noahowp_router, prefix="/v1")
+app.include_router(sacsma_router, prefix="/v1")
+app.include_router(troute_router, prefix="/v1")
+app.include_router(topmodel_router, prefix="/v1")
 app.include_router(topoflow_router, prefix="/v1")
 app.include_router(ras_api_router, prefix="/v1")
 app.include_router(rise_api_wrap_router, prefix="/v1")

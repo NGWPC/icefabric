@@ -206,9 +206,11 @@ examples/icechunk_data_viewer/martin/tiles/legends/*
 examples/icechunk_data_viewer/martin/tiles/legend.png
 tests/data/topo_tifs
 
-# all data files
-data
-*.gpkg
+# hydrofabric parquets
+data/hydrofabric
+
+# mip data
+data/mip_full_collection
 
 # R code
 .Rproj.user

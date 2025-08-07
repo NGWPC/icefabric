@@ -36,7 +36,7 @@ def get_catalog_and_table(data_source: DataSource):
         catalog = load_catalog("glue")
         table = catalog.load_table(f"{config['namespace']}.{config['table']}")
     except ClientError as e:
-        msg = "AWS Test account credentials expired. Can't access remote S3 endpoint"
+        msg = "AWS Test account credentials expired. Can't access remote S3 Table"
         print(msg)
         raise e
     return catalog, table, config

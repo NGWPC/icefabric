@@ -25,7 +25,7 @@ async def get_hydrofabric_subset_gpkg(
         examples=["wb-1010000", "01010000", "gages-01010000"],
         openapi_examples={
             "wb-id": {"summary": "Watershed ID", "value": "wb-4581"},
-            "hl_uri": {"summary": "USGS Gauge", "value": "Gages-01010000"},
+            "hl_uri": {"summary": "USGS Gauge", "value": "gages-01010000"},
             "poi": {"summary": "POI ID", "value": "1193"},
         },
     ),

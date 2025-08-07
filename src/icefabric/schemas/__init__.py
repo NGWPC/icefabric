@@ -1,6 +1,19 @@
 """Contains helper functions to support NWM modules"""
 
 from .hydrofabric import UPSTREAM_VPUS, HydrofabricDomains, IdType
+from .iceberg_tables.hydrofabric import (
+    DivideAttributes,
+    Divides,
+    FlowpathAttributes,
+    FlowpathAttributesML,
+    Flowpaths,
+    Hydrolocations,
+    Lakes,
+    Network,
+    Nexus,
+    POIs,
+)
+from .iceberg_tables.hydrofabric_snapshots import HydrofabricSnapshot
 from .iceberg_tables.ras_xs import ExtractedRasXS
 from .modules import (
     CFE,
@@ -26,6 +39,17 @@ from .topobathy import FileType, NGWPCLocations, NGWPCTestLocations
 
 __all__ = [
     "ExtractedRasXS",
+    "DivideAttributes",
+    "Divides",
+    "FlowpathAttributes",
+    "FlowpathAttributesML",
+    "Flowpaths",
+    "POIs",
+    "Network",
+    "Nexus",
+    "Lakes",
+    "Hydrolocations",
+    "HydrofabricSnapshot",
     "UPSTREAM_VPUS",
     "IdType",
     "HydrofabricDomains",

@@ -47,7 +47,7 @@ def build_table(file_dir):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="A script to build a pyiceberg catalog in the S3 endpoint")
+    parser = argparse.ArgumentParser(description="A script to build a pyiceberg catalog in the S3 Table")
 
     parser.add_argument("--files", help="The local file dir where the files are located")
 

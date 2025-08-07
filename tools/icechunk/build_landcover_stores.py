@@ -81,7 +81,7 @@ def build_landcover_store(virtual_files: str, output_path) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="A script to build a pyiceberg catalog in the S3 endpoint")
+    parser = argparse.ArgumentParser(description="A script to build a pyiceberg catalog in the S3 Table")
 
     parser.add_argument(
         "virtual_files", type=str, help="The Path to the files we're virtualizing into icechunk"

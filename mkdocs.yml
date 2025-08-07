@@ -63,6 +63,7 @@ nav:
     - Terraform S3 Glue Endpoint: user_guide/terraform.md
   - Data Support:
     - datasets/index.md
+    - Hydrofabric: datasets/hydrofabric.md
     - RAS XS: datasets/ras_xs.md
   - Module Support:
     - modules/index.md

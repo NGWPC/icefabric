@@ -39,7 +39,7 @@ def build_table(file_dir: str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="A script to build a pyiceberg catalog in the S3 endpoint for the FEMA-BLE data"
+        description="A script to build a pyiceberg catalog in the S3 Table for the FEMA-BLE data"
     )
 
     parser.add_argument("--files", help="The local file dir where the files are located")

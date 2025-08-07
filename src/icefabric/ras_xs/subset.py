@@ -44,7 +44,7 @@ def subset_xs(
         xs_table = catalog.load_table(f"{xstype.value}_xs.{identifier}")
 
     except ClientError as e:
-        msg = "AWS Test account credentials expired. Can't access remote S3 endpoint"
+        msg = "AWS Test account credentials expired. Can't access remote S3 Table"
         print(msg)
         raise e
 

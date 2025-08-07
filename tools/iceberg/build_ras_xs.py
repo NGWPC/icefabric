@@ -4,25 +4,32 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 import yaml
-from pyiceberg.catalog import Catalog, load_catalog
+from pyiceberg.catalog import load_catalog
 
 from icefabric.helpers import load_creds
 from icefabric.schemas import ExtractedRasXS
 
 load_creds(dir=Path.cwd())
+with open(os.environ["PYICEBERG_HOME"]) as f:
+    CONFIG = yaml.safe_load(f)
+WAREHOUSE = Path(CONFIG["catalog"]["sql"]["warehouse"].replace("file://", ""))
+WAREHOUSE.mkdir(parents=True, exist_ok=True)
 
-LOCATION = "s3://edfs-data/icefabric_catalog/extracted_ras_xs"
+LOCATION = {
+    "glue": "s3://edfs-data/icefabric_catalog",
+    "sql": CONFIG["catalog"]["sql"]["warehouse"],
+}
 NAMESPACE = "ras_xs"
 TABLE_NAME = "extracted"
 
 
-def build_table(catalog: Catalog, file_path: Path) -> None:
+def build_table(catalog_type: str, file_path: Path) -> None:
     """Build the RAS XS table in a PyIceberg warehouse.
 
     Parameters
     ----------
-    catalog : Catalog
-        The PyIceberg catalog object
+    catalog : str
+        The PyIceberg catalog type
     file_path : Path
         Path to the parquet file to upload to the warehouse
 
@@ -35,7 +42,7 @@ def build_table(catalog: Catalog, file_path: Path) -> None:
         raise FileNotFoundError(f"Cannot find file: {file_path}")
 
     print(f"Processing file: {file_path}")
-
+    catalog = load_catalog(catalog_type)
     catalog.create_namespace_if_not_exists(NAMESPACE)
 
     table_identifier = f"{NAMESPACE}.{TABLE_NAME}"
@@ -53,7 +60,7 @@ def build_table(catalog: Catalog, file_path: Path) -> None:
     iceberg_table = catalog.create_table(
         table_identifier,
         schema=schema,
-        location=LOCATION,
+        location=LOCATION[catalog_type],
     )
     iceberg_table.append(arrow_table)
 
@@ -62,7 +69,7 @@ def build_table(catalog: Catalog, file_path: Path) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Build a PyIceberg catalog in the S3 endpoint for FEMA-BLE data"
+        description="Build a PyIceberg catalog in the S3 Table for FEMA-BLE data"
     )
 
     parser.add_argument(
@@ -80,11 +87,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.catalog == "sql":
-        with open(os.environ["PYICEBERG_HOME"]) as f:
-            config = yaml.safe_load(f)
-        warehouse = Path(config["catalog"]["sql"]["warehouse"].replace("file://", ""))
-        warehouse.mkdir(parents=True, exist_ok=True)
-
-    catalog = load_catalog(args.catalog)
-    build_table(catalog=catalog, file_path=args.file)
+    build_table(catalog_type=args.catalog, file_path=args.file)

@@ -4,12 +4,15 @@ import argparse
 import os
 from pathlib import Path
 
+import pyarrow as pa
 import yaml
 from pyiceberg.catalog import load_catalog
+from pyiceberg.exceptions import NamespaceAlreadyExistsError
 from pyiceberg.transforms import IdentityTransform
 from tqdm import tqdm
 
 from icefabric.helpers import load_creds
+from icefabric.schemas import HydrofabricSnapshot
 
 load_creds(dir=Path.cwd())
 
@@ -33,8 +36,22 @@ def export(namespace: str, snapshot: int | None = None):
 
     glue_catalog = load_catalog("glue")
     local_catalog = load_catalog("sql")
-    local_catalog.create_namespace_if_not_exists(namespace)
+    try:
+        local_catalog.create_namespace(namespace)
+    except NamespaceAlreadyExistsError as e:
+        print("Cannot Export Catalog. Already exists")
+        raise NamespaceAlreadyExistsError from e
     namespace_tables = glue_catalog.list_tables(namespace=namespace)
+
+    # Saving new snapshots for local
+    snapshots = {}
+    if "hf" in namespace:
+        is_hf = True
+        domain = namespace.split("_")[0]
+        snapshots["domain"] = domain
+    else:
+        is_hf = False
+
     for _, table in tqdm(namespace_tables, desc=f"Exporting {namespace} tables", total=len(namespace_tables)):
         _table = glue_catalog.load_table(f"{namespace}.{table}").scan(snapshot_id=snapshot)
         _arrow = _table.to_arrow()
@@ -49,6 +66,18 @@ def export(namespace: str, snapshot: int | None = None):
                 with iceberg_table.update_spec() as update:
                     update.add_field("vpuid", IdentityTransform(), "vpuid_partition")
         iceberg_table.append(_arrow)
+        if is_hf:
+            snapshots[table] = iceberg_table.current_snapshot().snapshot_id
+
+    if is_hf:
+        local_catalog.create_namespace_if_not_exists("hydrofabric_snapshots")
+        tbl = local_catalog.create_table(
+            "hydrofabric_snapshots.id",
+            schema=HydrofabricSnapshot.schema(),
+        )
+        df = pa.Table.from_pylist([snapshots], schema=HydrofabricSnapshot.arrow_schema())
+        tbl.append(df)
+        tbl.manage_snapshots().create_tag(tbl.current_snapshot().snapshot_id, "base").commit()
     print(f"Exported {namespace} into local pyiceberg DB")
 
 
@@ -62,3 +91,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     export(namespace=args.namespace, snapshot=args.snapshot)
+    # export(namespace="conus_hf")

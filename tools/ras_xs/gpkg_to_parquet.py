@@ -35,6 +35,7 @@ def gpkg_to_parquet(input_file: Path, output_folder: Path, schema: str) -> None:
     output_folder.mkdir(parents=True, exist_ok=True)
 
     gdf = gpd.read_file(input_file)
+    gdf = gdf.drop_duplicates()  # drop duplicates
 
     # NOTE there will be an warning as we're overriding the geometry. This is fine for now
     gdf["geometry"] = gdf["geometry"].to_wkb()

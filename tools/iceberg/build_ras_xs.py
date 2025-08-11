@@ -7,7 +7,7 @@ import yaml
 from pyiceberg.catalog import load_catalog
 
 from icefabric.helpers import load_creds
-from icefabric.schemas import ExtractedRasXS
+from icefabric.schemas import ConflatedRasXS, RepresentativeRasXS
 
 load_creds(dir=Path.cwd())
 with open(os.environ["PYICEBERG_HOME"]) as f:
@@ -20,10 +20,9 @@ LOCATION = {
     "sql": CONFIG["catalog"]["sql"]["warehouse"],
 }
 NAMESPACE = "ras_xs"
-TABLE_NAME = "extracted"
 
 
-def build_table(catalog_type: str, file_path: Path) -> None:
+def build_table(catalog_type: str, file_path: Path, schema_type: str) -> None:
     """Build the RAS XS table in a PyIceberg warehouse.
 
     Parameters
@@ -32,6 +31,8 @@ def build_table(catalog_type: str, file_path: Path) -> None:
         The PyIceberg catalog type
     file_path : Path
         Path to the parquet file to upload to the warehouse
+    schema_type : str
+        The schema to validate against. Either representative XS or all conflated XS
 
     Raises
     ------
@@ -45,7 +46,7 @@ def build_table(catalog_type: str, file_path: Path) -> None:
     catalog = load_catalog(catalog_type)
     catalog.create_namespace_if_not_exists(NAMESPACE)
 
-    table_identifier = f"{NAMESPACE}.{TABLE_NAME}"
+    table_identifier = f"{NAMESPACE}.{schema_type}"
 
     if catalog.table_exists(table_identifier):
         print(f"Table {table_identifier} already exists. Skipping build")
@@ -55,7 +56,12 @@ def build_table(catalog_type: str, file_path: Path) -> None:
 
     # Load data and create table
     arrow_table = pq.read_table(file_path)
-    schema = ExtractedRasXS.schema()
+    if schema_type == "representative":
+        schema = RepresentativeRasXS.schema()
+    elif schema_type == "conflated":
+        schema = ConflatedRasXS.schema()
+    else:
+        raise ValueError("Schema not found for your inputted XS file")
 
     iceberg_table = catalog.create_table(
         table_identifier,
@@ -79,6 +85,13 @@ if __name__ == "__main__":
         help="Catalog type to use (default: sql for local build)",
     )
     parser.add_argument(
+        "--schema",
+        type=str,
+        choices=["representative", "conflated"],
+        required=True,
+        help="The schema to validate against. Either representative XS or all conflated XS",
+    )
+    parser.add_argument(
         "--file",
         type=Path,
         required=True,
@@ -87,4 +100,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    build_table(catalog_type=args.catalog, file_path=args.file)
+    build_table(catalog_type=args.catalog, file_path=args.file, schema_type=args.schema)

@@ -7,10 +7,10 @@ import geopandas as gpd
 import pyarrow as pa
 from pyarrow import parquet as pq
 
-from icefabric.schemas import ExtractedRasXS
+from icefabric.schemas import ConflatedRasXS, RepresentativeRasXS
 
 
-def gpkg_to_parquet(input_file: Path, output_folder: Path) -> None:
+def gpkg_to_parquet(input_file: Path, output_folder: Path, schema: str) -> None:
     """Convert geopackage to parquet file.
 
     Parameters
@@ -19,6 +19,8 @@ def gpkg_to_parquet(input_file: Path, output_folder: Path) -> None:
         Path to the geopackage file to convert
     output_folder : Path
         Directory where the parquet file will be saved
+    schema: str
+        The schema to validate against. Either representative XS or all conflated XS
 
     Raises
     ------
@@ -38,7 +40,14 @@ def gpkg_to_parquet(input_file: Path, output_folder: Path) -> None:
     gdf["geometry"] = gdf["geometry"].to_wkb()
 
     # Create PyArrow table with schema validation
-    table = pa.Table.from_pandas(gdf[ExtractedRasXS.columns()], schema=ExtractedRasXS.arrow_schema())
+    if schema == "representative":
+        table = pa.Table.from_pandas(
+            gdf[RepresentativeRasXS.columns()], schema=RepresentativeRasXS.arrow_schema()
+        )
+    elif schema == "conflated":
+        table = pa.Table.from_pandas(gdf[ConflatedRasXS.columns()], schema=ConflatedRasXS.arrow_schema())
+    else:
+        raise ValueError("Schema not found for your inputted XS file")
 
     # Write parquet file
     output_path = output_folder / f"{input_file.stem}.parquet"
@@ -52,6 +61,13 @@ if __name__ == "__main__":
 
     parser.add_argument("--gpkg", type=Path, required=True, help="Path to the geopackage file to convert")
     parser.add_argument(
+        "--schema",
+        type=str,
+        choices=["representative", "conflated"],
+        required=True,
+        help="The schema to validate against. Either representative XS or all conflated XS",
+    )
+    parser.add_argument(
         "--output-folder",
         type=Path,
         default=Path.cwd(),
@@ -59,4 +75,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    gpkg_to_parquet(input_file=args.gpkg, output_folder=args.output_folder)
+    gpkg_to_parquet(input_file=args.gpkg, output_folder=args.output_folder, schema=args.schema)

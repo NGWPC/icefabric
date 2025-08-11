@@ -14,7 +14,7 @@ from .iceberg_tables.hydrofabric import (
     POIs,
 )
 from .iceberg_tables.hydrofabric_snapshots import HydrofabricSnapshot
-from .iceberg_tables.ras_xs import ExtractedRasXS
+from .iceberg_tables.ras_xs import ConflatedRasXS, RepresentativeRasXS
 from .modules import (
     CFE,
     LASAM,
@@ -38,7 +38,8 @@ from .ras_xs import XsType
 from .topobathy import FileType, NGWPCLocations, NGWPCTestLocations
 
 __all__ = [
-    "ExtractedRasXS",
+    "ConflatedRasXS",
+    "RepresentativeRasXS",
     "DivideAttributes",
     "Divides",
     "FlowpathAttributes",

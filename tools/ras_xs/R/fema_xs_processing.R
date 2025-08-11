@@ -5,10 +5,9 @@
 # Converts FEMA flood model cross-sections to representative channel geometry features
 
 # Define path to FEMA BLE data and output directory
-fema <- './mip_full_collection/'
-ref_path <- "./sc_reference_fabric.gpkg"
-outdir <- glue::glue("./riverML3")
-outdir <- glue::glue("./riverML5")
+fema <- 'mip_full_collection/'
+ref_path <- "sc_reference_fabric.gpkg"
+outdir <- "riverML5"
 dir.create(outdir, showWarnings = FALSE)
 
 library(sf)
@@ -191,8 +190,7 @@ for (b in 1:length(ble)) {
   }
 }
 
-# Load and export final dataset
-
+# Load and export final dataset for representative XS
 xs <- purrr::map(list.files(outdir, full.names = TRUE),
           ~read_sf(.x, 'representative_xs'))
 
@@ -202,4 +200,16 @@ y <- nhdplusTools::get_vaa(c('ftype', 'streamorde')) |>
 out_xs <- bind_rows(xs) |>
   left_join(y, by = c('flowpath_id' = 'comid'))
 
-write_sf(out_xs, "riverML_ripple_beta.gpkg")
+write_sf(out_xs, "riverML_ripple_beta_representative.gpkg")
+
+# Load and export final dataset for all XS
+xs <- purrr::map(list.files(outdir, full.names = TRUE),
+                 ~read_sf(.x, 'XS'))
+
+y <- nhdplusTools::get_vaa(c('ftype', 'streamorde')) |>
+  mutate(comid = as.character(comid))
+
+out_xs <- bind_rows(xs) |>
+  left_join(y, by = c('flowpath_id' = 'comid'))
+
+write_sf(out_xs, "riverML_ripple_beta_all_xs.gpkg")

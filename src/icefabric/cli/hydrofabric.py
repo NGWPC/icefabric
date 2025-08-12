@@ -1,6 +1,5 @@
 """Contains all click CLI code for the hydrofabric"""
 
-import json
 from pathlib import Path
 
 import click
@@ -8,6 +7,7 @@ import geopandas as gpd
 
 from icefabric.builds import build_upstream_json
 from icefabric.cli import get_catalog
+from icefabric.hydrofabric import load_upstream_connections
 from icefabric.hydrofabric.subset import subset_hydrofabric
 from icefabric.schemas.hydrofabric import HydrofabricDomains, IdType
 
@@ -62,19 +62,7 @@ def subset(
     id_type_enum = IdType(id_type)
 
     # Create or load upstream lookup table
-    upstream_connections_path = (
-        Path(__file__).parents[3] / f"data/hydrofabric/{domain}_upstream_connections.json"
-    )
-    assert upstream_connections_path.exists(), (
-        f"Upstream Connections missing for {domain}. Please run `icefabric build-upstream-connections` to generate this file"
-    )
-
-    with open(upstream_connections_path) as f:
-        data = json.load(f)
-        print(
-            f"Loading upstream connections connected generated on: {data['_metadata']['generated_at']} from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
-        )
-        upstream_dict = data["upstream_connections"]
+    upstream_dict = load_upstream_connections(domain)
 
     layers_list = list(layers) if layers else ["divides", "flowpaths", "network", "nexus"]
 

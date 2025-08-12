@@ -370,7 +370,7 @@ class SacSma(BaseModel):
         return [
             f"hru_id: {self.hru_id}",
             f"hru_area: {self.hru_area}",
-            f"uztwm: {self.uztw}",
+            f"uztwm: {self.uztwm}",
             f"uzfwm: {self.uzfwm}",
             f"lztwm: {self.lztwm}",
             f"lzfpm: {self.lzfpm}",
@@ -627,7 +627,6 @@ class NoahOwpModular(BaseModel):
         sh2o = ",".join([str(h2o) for h2o in self.sh2o])
 
         return [
-            f"verbosity={self.verbosity}",
             f"dt={self.dt} [s]",
             f"startdate={self.startdate}",
             f"enddate={self.enddate}",

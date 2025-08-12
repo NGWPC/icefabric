@@ -36,6 +36,24 @@ class NWMModules(enum.Enum):
     CFE = "cfe"
 
 
+class SmpModules(str, enum.Enum):
+    """Enum class for defining acceptable inputs for the SMP 'module' variable"""
+
+    cfe_s = "CFE-S"
+    cfe_x = "CFE-X"
+    lasam = "LASAM"
+    topmodel = "TopModel"
+
+
+modules_with_extra_args = {
+    "sft": ["use_schaake"],
+    "snow17": ["envca"],
+    "sacsma": ["envca"],
+    "smp": ["module"],
+    "lasam": ["sft_included", "soil_params_file"],
+}
+
+
 config_mapper = {
     "sft": get_sft_parameters,
     "lstm": get_lstm_parameters,

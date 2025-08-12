@@ -1,8 +1,6 @@
-import json
 import pathlib
 import tempfile
 import uuid
-from pathlib import Path
 
 import geopandas as gpd
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,6 +9,7 @@ from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
 from app import get_catalog
+from icefabric.hydrofabric import load_upstream_connections
 from icefabric.hydrofabric.subset import subset_hydrofabric
 from icefabric.schemas.hydrofabric import HydrofabricDomains, IdType
 
@@ -69,23 +68,7 @@ async def get_hydrofabric_subset_gpkg(
 
     try:
         # Load upstream connections (same as CLI)
-        upstream_connections_path = (
-            Path(__file__).parents[3] / f"data/hydrofabric/{domain.value}_upstream_connections.json"
-        )
-
-        if not upstream_connections_path.exists():
-            raise HTTPException(
-                status_code=400,
-                detail=f"Upstream connections missing for {domain.value}. Please run `icefabric build-upstream-connections` to generate this file",
-            )
-
-        with open(upstream_connections_path) as f:
-            data = json.load(f)
-            print(
-                f"Loading upstream connections generated on: {data['_metadata']['generated_at']} "
-                f"from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
-            )
-            upstream_dict = data["upstream_connections"]
+        upstream_dict = load_upstream_connections(domain.value)
 
         # Create the subset (same as CLI logic)
         output_layers = subset_hydrofabric(

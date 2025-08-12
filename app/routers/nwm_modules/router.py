@@ -1,12 +1,8 @@
-import json
-from enum import Enum
-from pathlib import Path
-
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pyiceberg.catalog import Catalog
 
 from app import get_catalog
-from icefabric.modules import config_mapper
+from icefabric.modules import SmpModules, config_mapper
 from icefabric.schemas import HydrofabricDomains
 from icefabric.schemas.modules import (
     LASAM,
@@ -33,42 +29,7 @@ topmodel_router = APIRouter(prefix="/modules/topmodel")
 topoflow_router = APIRouter(prefix="/modules/topoflow")
 
 
-class SmpModules(str, Enum):
-    """Enum class for defining acceptable inputs for the SMP module variable"""
-
-    cfe_s = "CFE-S"
-    cfe_x = "CFE-X"
-    lasam = "LASAM"
-    topmodel = "TopModel"
-
-
-def load_upstream_connections(domain_val):
-    """Helper function to generate the upstream_dict"""
-    try:
-        # Load upstream connections (same as CLI)
-        upstream_connections_path = (
-            Path(__file__).parents[3] / f"data/hydrofabric/{domain_val}_upstream_connections.json"
-        )
-
-        if not upstream_connections_path.exists():
-            raise HTTPException(
-                status_code=400,
-                detail=f"Upstream connections missing for {domain_val}. Please run `icefabric build-upstream-connections` to generate this file",
-            )
-
-        with open(upstream_connections_path) as f:
-            data = json.load(f)
-            print(
-                f"Loading upstream connections generated on: {data['_metadata']['generated_at']} "
-                f"from snapshot id: {data['_metadata']['iceberg']['snapshot_id']}"
-            )
-            upstream_dict = data["upstream_connections"]
-    except HTTPException:
-        raise
-    return upstream_dict
-
-
-@sft_router.get("/", tags=["HF Modules"])
+@sft_router.get("/", tags=["NWM Modules"])
 async def get_sft_ipes(
     identifier: str = Query(
         ...,
@@ -102,17 +63,15 @@ async def get_sft_ipes(
     **Returns:**
     A list of SFT pydantic objects for each catchment
     """
-    upstream_dict = load_upstream_connections(domain.value)
     return config_mapper["sft"](
         catalog=catalog,
         namespace=domain.value,
         identifier=f"gages-{identifier}",
-        upstream_dict=upstream_dict,
         use_schaake=use_schaake,
     )
 
 
-@snow17_router.get("/", tags=["HF Modules"])
+@snow17_router.get("/", tags=["NWM Modules"])
 async def get_snow17_ipes(
     identifier: str = Query(
         ...,
@@ -146,17 +105,15 @@ async def get_snow17_ipes(
     **Returns:**
     A list of SNOW-17 pydantic objects for each catchment.
     """
-    upstream_dict = load_upstream_connections(domain.value)
     return config_mapper["snow17"](
         catalog=catalog,
         namespace=domain.value,
         identifier=f"gages-{identifier}",
-        upstream_dict=upstream_dict,
         envca=envca,
     )
 
 
-@smp_router.get("/", tags=["HF Modules"])
+@smp_router.get("/", tags=["NWM Modules"])
 async def get_smp_ipes(
     identifier: str = Query(
         ...,
@@ -190,17 +147,15 @@ async def get_smp_ipes(
     **Returns:**
     A list of SMP pydantic objects for each catchment.
     """
-    upstream_dict = load_upstream_connections(domain.value)
     return config_mapper["smp"](
         catalog=catalog,
         namespace=domain.value,
         identifier=f"gages-{identifier}",
-        upstream_dict=upstream_dict,
         module=module,
     )
 
 
-@lstm_router.get("/", tags=["HF Modules"])
+@lstm_router.get("/", tags=["NWM Modules"])
 async def get_lstm_ipes(
     identifier: str = Query(
         ...,
@@ -228,16 +183,14 @@ async def get_lstm_ipes(
     **Returns:**
     A list of LSTM pydantic objects for each catchment.
     """
-    upstream_dict = load_upstream_connections(domain.value)
     return config_mapper["lstm"](
         catalog=catalog,
         namespace=domain.value,
         identifier=f"gages-{identifier}",
-        upstream_dict=upstream_dict,
     )
 
 
-@lasam_router.get("/", tags=["HF Modules"])
+@lasam_router.get("/", tags=["NWM Modules"])
 async def get_lasam_ipes(
     identifier: str = Query(
         ...,
@@ -279,18 +232,16 @@ async def get_lasam_ipes(
     **Returns:**
     A list of LASAM pydantic objects for each catchment.
     """
-    upstream_dict = load_upstream_connections(domain.value)
     return config_mapper["lasam"](
         catalog=catalog,
         namespace=domain.value,
         identifier=f"gages-{identifier}",
-        upstream_dict=upstream_dict,
         sft_included=sft_included,
         soil_params_file=soil_params_file,
     )
 
 
-@noahowp_router.get("/", tags=["HF Modules"])
+@noahowp_router.get("/", tags=["NWM Modules"])
 async def get_noahowp_ipes(
     identifier: str = Query(
         ...,
@@ -318,16 +269,14 @@ async def get_noahowp_ipes(
     **Returns:**
     A list of Noah-OWP-Modular pydantic objects for each catchment.
     """
-    upstream_dict = load_upstream_connections(domain.value)
     return config_mapper["noah_owp"](
         catalog=catalog,
         namespace=domain.value,
         identifier=f"gages-{identifier}",
-        upstream_dict=upstream_dict,
     )
 
 
-@sacsma_router.get("/", tags=["HF Modules"])
+@sacsma_router.get("/", tags=["NWM Modules"])
 async def get_sacsma_ipes(
     identifier: str = Query(
         ...,
@@ -361,17 +310,15 @@ async def get_sacsma_ipes(
     **Returns:**
     A list of SAC-SMA pydantic objects for each catchment.
     """
-    upstream_dict = load_upstream_connections(domain.value)
     return config_mapper["sacsma"](
         catalog=catalog,
         namespace=domain.value,
         identifier=f"gages-{identifier}",
-        upstream_dict=upstream_dict,
         envca=envca,
     )
 
 
-@troute_router.get("/", tags=["HF Modules"])
+@troute_router.get("/", tags=["NWM Modules"])
 async def get_troute_ipes(
     identifier: str = Query(
         ...,
@@ -399,16 +346,14 @@ async def get_troute_ipes(
     **Returns:**
     A list of T-Route pydantic objects for each catchment.
     """
-    upstream_dict = load_upstream_connections(domain.value)
     return config_mapper["troute"](
         catalog=catalog,
         namespace=domain.value,
         identifier=f"gages-{identifier}",
-        upstream_dict=upstream_dict,
     )
 
 
-@topmodel_router.get("/", tags=["HF Modules"])
+@topmodel_router.get("/", tags=["NWM Modules"])
 async def get_topmodel_ipes(
     identifier: str = Query(
         ...,
@@ -436,17 +381,15 @@ async def get_topmodel_ipes(
     **Returns:**
     A list of TOPMODEL pydantic objects for each catchment.
     """
-    upstream_dict = load_upstream_connections(domain.value)
     return config_mapper["topmodel"](
         catalog=catalog,
         namespace=domain.value,
         identifier=f"gages-{identifier}",
-        upstream_dict=upstream_dict,
     )
 
 
 # TODO - Restore endpoint once the generation of IPEs for TopoFlow is possible/implemented
-# @topoflow_router.get("/", tags=["HF Modules"])
+# @topoflow_router.get("/", tags=["NWM Modules"])
 # async def get_topoflow_ipes(
 #     identifier: str = Query(
 #         ...,
@@ -474,16 +417,14 @@ async def get_topmodel_ipes(
 #     **Returns:**
 #     A list of TopoFlow pydantic objects for each catchment.
 #     """
-#     upstream_dict = load_upstream_connections(domain.value)
 #     return config_mapper["topoflow"](
 #         catalog=catalog,
 #         namespace=domain.value,
 #         identifier=f"gages-{identifier}",
-#         upstream_dict=upstream_dict,
 #     )
 
 
-@topoflow_router.get("/albedo", tags=["HF Modules"])
+@topoflow_router.get("/albedo", tags=["NWM Modules"])
 async def get_albedo(
     landcover_state: Albedo = Query(
         ...,

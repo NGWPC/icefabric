@@ -71,13 +71,15 @@ def export(namespace: str, snapshot: int | None = None):
 
     if is_hf:
         local_catalog.create_namespace_if_not_exists("hydrofabric_snapshots")
-        tbl = local_catalog.create_table(
-            "hydrofabric_snapshots.id",
-            schema=HydrofabricSnapshot.schema(),
-        )
+        if local_catalog.table_exists("hydrofabric_snapshots.id"):
+            tbl = local_catalog.load_table("hydrofabric_snapshots.id")
+        else:
+            tbl = local_catalog.create_table(
+                "hydrofabric_snapshots.id",
+                schema=HydrofabricSnapshot.schema(),
+            )
         df = pa.Table.from_pylist([snapshots], schema=HydrofabricSnapshot.arrow_schema())
         tbl.append(df)
-        tbl.manage_snapshots().create_tag(tbl.current_snapshot().snapshot_id, "base").commit()
     print(f"Exported {namespace} into local pyiceberg DB")
 
 

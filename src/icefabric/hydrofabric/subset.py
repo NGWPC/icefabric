@@ -3,6 +3,7 @@
 import geopandas as gpd
 import pandas as pd
 import polars as pl
+import rustworkx as rx
 from pyiceberg.catalog import Catalog
 from pyiceberg.expressions import EqualTo, In
 
@@ -11,14 +12,14 @@ from icefabric.hydrofabric.origin import find_origin
 from icefabric.schemas.hydrofabric import UPSTREAM_VPUS, IdType
 
 
-def get_upstream_segments(origin: str, upstream_dict: dict[str, list[str]]) -> set[str]:
+def get_upstream_segments(origin: str, graph: rx.PyDiGraph) -> set[str]:
     """Subsets the hydrofabric to find all upstream watershed boundaries upstream of the origin fp
 
     Parameters
     ----------
     origin: str
         The starting point where we're tracing upstream
-    upstream_dict: dict[str, list[str]]
+    graph: rx.PyDiGraph
         a dictionary which preprocesses all toid -> id relationships
 
     Returns
@@ -26,24 +27,22 @@ def get_upstream_segments(origin: str, upstream_dict: dict[str, list[str]]) -> s
     set[str]
         The watershed boundary connections that make up the subset
     """
-    upstream_ids = set()
-    stack = [origin]
+    indices = graph.node_indices()
+    data_list = graph.nodes()
+    node_to_index = dict(zip(data_list, indices, strict=False))
 
-    while stack:
-        current_id = stack.pop()
+    start_idx = node_to_index.get(origin)
 
-        if current_id in upstream_ids:
-            continue
+    if start_idx is None:
+        return set()
 
-        upstream_ids.add(current_id)
+    upstream_indices = rx.bfs_predecessors(graph, start_idx)
+    flattened = set()
+    for key, values in upstream_indices:
+        flattened.add(key)
+        flattened.update(values)
 
-        # Add all upstream segments to the stack
-        if current_id in upstream_dict:
-            for upstream_id in upstream_dict[current_id]:
-                if upstream_id not in upstream_ids:
-                    stack.append(upstream_id)
-
-    return upstream_ids
+    return flattened
 
 
 def subset_layers(
@@ -185,7 +184,7 @@ def subset_hydrofabric(
     id_type: IdType,
     layers: list[str],
     namespace: str,
-    upstream_dict: dict[str, list[str]],
+    graph: rx.PyDiGraph,
 ) -> dict[str, pd.DataFrame | gpd.GeoDataFrame]:
     """
     Main subset function using pre-computed upstream lookup
@@ -219,9 +218,12 @@ def subset_hydrofabric(
     vpu_id = origin_row.select(pl.col("vpuid")).item()
     print(f"Found origin flowpath: {origin_id}")
 
-    upstream_ids = get_upstream_segments(origin_id, upstream_dict)
+    upstream_ids = get_upstream_segments(origin_id, graph)
     print(f"Found {len(upstream_ids)} upstream segments")
-    upstream_ids.add(to_id)  # Adding the nexus point to ensure it's captured in the network table
+    if len(upstream_ids) == 0:
+        upstream_ids.add(origin_id)  # Ensuring the origin WB is captured
+    else:
+        upstream_ids.add(to_id)  # Adding the nexus point to ensure it's captured in the network table
 
     output_layers = subset_layers(
         catalog=catalog, namespace=namespace, layers=layers, upstream_ids=upstream_ids, vpu_id=vpu_id

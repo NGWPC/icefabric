@@ -9,8 +9,7 @@ from fastapi.responses import FileResponse
 from pyiceberg.expressions import EqualTo
 from starlette.background import BackgroundTask
 
-from app import get_catalog
-from icefabric.hydrofabric import load_upstream_connections
+from app import get_catalog, get_graphs
 from icefabric.hydrofabric.subset import subset_hydrofabric
 from icefabric.schemas import (
     DivideAttributes,
@@ -34,20 +33,17 @@ async def get_hydrofabric_subset_gpkg(
     identifier: str = FastAPIPath(
         ...,
         description="Identifier to start tracing from (e.g., catchment ID, POI ID, HL_URI)",
-        examples=["wb-1010000", "01010000", "gages-01010000"],
         openapi_examples={
-            "wb-id": {"summary": "Watershed ID", "value": "wb-4581"},
             "hl_uri": {"summary": "USGS Gauge", "value": "gages-01010000"},
-            "poi": {"summary": "POI ID", "value": "1193"},
+            "wb-id": {"summary": "Watershed ID", "value": "wb-4581"},
         },
     ),
     id_type: IdType = Query(
         IdType.HL_URI,
         description="The type of identifier being used",
         openapi_examples={
-            "wb-id": {"summary": "Watershed ID", "value": IdType.ID},
             "hl_uri": {"summary": "USGS Gauge", "value": IdType.HL_URI},
-            "poi": {"summary": "POI ID", "value": IdType.POI_ID},
+            "wb-id": {"summary": "Watershed ID", "value": IdType.ID},
         },
     ),
     domain: HydrofabricDomains = Query(
@@ -59,6 +55,7 @@ async def get_hydrofabric_subset_gpkg(
         examples=["divides", "flowpaths", "network", "nexus", "lakes", "pois", "hydrolocations"],
     ),
     catalog=Depends(get_catalog),
+    network_graphs=Depends(get_graphs),
 ):
     """
     Get hydrofabric subset as a geopackage file (.gpkg)
@@ -80,8 +77,6 @@ async def get_hydrofabric_subset_gpkg(
     tmp_path = temp_dir / f"subset_{identifier}_{unique_id}.gpkg"
 
     try:
-        # Load upstream connections (same as CLI)
-        upstream_dict = load_upstream_connections(domain.value)
 
         # Create the subset (same as CLI logic)
         output_layers = subset_hydrofabric(
@@ -90,7 +85,7 @@ async def get_hydrofabric_subset_gpkg(
             id_type=id_type,
             layers=layers or ["divides", "flowpaths", "network", "nexus"],
             namespace=domain.value,
-            upstream_dict=upstream_dict,
+            graph=network_graphs[domain],
         )
 
         # Check if we got any data

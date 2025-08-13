@@ -24,6 +24,7 @@ from app.routers.nwm_modules.router import (
 from app.routers.ras_xs.router import api_router as ras_api_router
 from app.routers.rise_wrappers.router import api_router as rise_api_wrap_router
 from app.routers.streamflow_observations.router import api_router as streamflow_api_router
+from icefabric.builds import load_upstream_json
 from icefabric.helpers import load_creds
 
 tags_metadata = [
@@ -53,7 +54,14 @@ async def lifespan(app: FastAPI):
         The FastAPI app instance
     """
     catalog_path = os.getenv("CATALOG_PATH")
-    app.state.catalog = load_catalog(catalog_path)
+    catalog = load_catalog(catalog_path)
+    hydrofabric_namespaces = ["conus_hf", "ak_hf", "gl_hf", "hi_hf", "prvi_hf"]
+    app.state.catalog = catalog
+    app.state.network_graphs = load_upstream_json(
+        catalog=catalog,
+        namespaces=hydrofabric_namespaces,
+        output_path=Path(__file__).parents[1] / "data",
+    )
     yield
 
 

@@ -5,11 +5,13 @@ from pathlib import Path
 import click
 import geopandas as gpd
 
-from icefabric.builds import build_upstream_json
+from icefabric.builds.graph_connectivity import load_upstream_json
 from icefabric.cli import get_catalog
-from icefabric.hydrofabric import load_upstream_connections
+from icefabric.helpers import load_creds
 from icefabric.hydrofabric.subset import subset_hydrofabric
 from icefabric.schemas.hydrofabric import HydrofabricDomains, IdType
+
+load_creds(dir=Path(__file__).parents[2])
 
 
 @click.command()
@@ -60,19 +62,23 @@ def subset(
 ):
     """Subsets the hydrofabric based on a unique identifier"""
     id_type_enum = IdType(id_type)
+    _catalog = get_catalog(catalog)
 
-    # Create or load upstream lookup table
-    upstream_dict = load_upstream_connections(domain)
+    connectivity_graphs = load_upstream_json(
+        catalog=_catalog,
+        namespaces=["domain"],
+        output_path=Path(__file__).parents[2] / "data",
+    )
 
     layers_list = list(layers) if layers else ["divides", "flowpaths", "network", "nexus"]
 
     output_layers = subset_hydrofabric(
-        catalog=get_catalog(catalog),
+        catalog=_catalog,
         identifier=identifier,
         id_type=id_type_enum,
         layers=layers_list,
         namespace=domain,
-        upstream_dict=upstream_dict,
+        graph=connectivity_graphs[domain],
     )
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -85,33 +91,3 @@ def subset(
                 print(f"Warning: {table_name} layer is empty")
 
     click.echo(f"Hydrofabric file created successfully in the following folder: {output_file}")
-
-
-@click.command()
-@click.option(
-    "--catalog",
-    type=click.Choice(["glue", "sql"], case_sensitive=False),
-    default="glue",
-    help="The pyiceberg catalog type",
-)
-@click.option(
-    "--domain",
-    type=click.Choice([e.value for e in HydrofabricDomains], case_sensitive=False),
-    required=True,
-    help="The domain you are querying",
-)
-@click.option(
-    "--output-path",
-    "-o",
-    type=click.Path(path_type=Path),
-    default=Path.cwd(),
-    help="Output path of the upstream connections json",
-)
-def build_upstream_connections(
-    catalog: str,
-    domain: str,
-    output_path: Path,
-):
-    """Creates a JSON file which documents the upstream connections from a particular basin"""
-    build_upstream_json(catalog=get_catalog(catalog), namespace=domain, output_path=output_path)
-    click.echo(f"Upstream json file created for {domain} in the following folder: {output_path}")

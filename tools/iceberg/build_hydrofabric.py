@@ -98,11 +98,14 @@ def build_hydrofabric(catalog_type: str, file_dir: str, domain: str):
 
     snapshot_namespace = "hydrofabric_snapshots"
     catalog.create_namespace_if_not_exists(snapshot_namespace)
-    tbl = catalog.create_table(
-        f"{snapshot_namespace}.id",
-        schema=HydrofabricSnapshot.schema(),
-        location=f"{LOCATION[catalog_type]}/{snapshot_namespace}",
-    )
+    if catalog.table_exists(snapshot_namespace):
+        tbl = catalog.load_table(snapshot_namespace)
+    else:
+        tbl = catalog.create_table(
+            f"{snapshot_namespace}.id",
+            schema=HydrofabricSnapshot.schema(),
+            location=f"{LOCATION[catalog_type]}/{snapshot_namespace}",
+        )
     df = pa.Table.from_pylist([snapshots], schema=HydrofabricSnapshot.arrow_schema())
     tbl.append(df)
     tbl.manage_snapshots().create_tag(tbl.current_snapshot().snapshot_id, "base").commit()

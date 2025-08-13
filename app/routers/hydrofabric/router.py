@@ -6,11 +6,24 @@ import geopandas as gpd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import Path as FastAPIPath
 from fastapi.responses import FileResponse
+from pyiceberg.expressions import EqualTo
 from starlette.background import BackgroundTask
 
 from app import get_catalog
 from icefabric.hydrofabric import load_upstream_connections
 from icefabric.hydrofabric.subset import subset_hydrofabric
+from icefabric.schemas import (
+    DivideAttributes,
+    Divides,
+    FlowpathAttributes,
+    FlowpathAttributesML,
+    Flowpaths,
+    Hydrolocations,
+    Lakes,
+    Network,
+    Nexus,
+    POIs,
+)
 from icefabric.schemas.hydrofabric import HydrofabricDomains, IdType
 
 api_router = APIRouter(prefix="/hydrofabric")
@@ -165,3 +178,54 @@ async def get_hydrofabric_subset_gpkg(
             ) from None
         else:
             raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}") from None
+
+
+@api_router.get("/history", tags=["Hydrofabric Services"])
+async def get_hydrofabric_history(
+    domain: HydrofabricDomains = Query(
+        HydrofabricDomains.CONUS, description="The iceberg namespace used to query the hydrofabric"
+    ),
+    catalog=Depends(get_catalog),
+):
+    """
+    Get Hydrofabric domain snapshot history from Iceberg
+
+    This endpoint takes a domain of hydrofabric data and querys for the
+    hydrofabric snapshot history from Iceberg. Returns each layer's
+    history for the chosen domain. Each snapshot is summarized.
+
+    **Parameters:**
+    - **domain**: Hydrofabric domain/namespace to query
+
+    **Returns:** A JSON representation of the domain's snapshot history
+    """
+    return_dict = {"history": []}
+    layers = [
+        ("divide-attributes", DivideAttributes),
+        ("divides", Divides),
+        ("flowpath-attributes-ml", FlowpathAttributesML),
+        ("flowpath-attributes", FlowpathAttributes),
+        ("flowpaths", Flowpaths),
+        ("hydrolocations", Hydrolocations),
+        ("lakes", Lakes),
+        ("network", Network),
+        ("nexus", Nexus),
+        ("pois", POIs),
+    ]
+    snapshots_table = catalog.load_table("hydrofabric_snapshots.id")
+    domain_table = snapshots_table.scan(row_filter=EqualTo("domain", domain.replace("_hf", ""))).to_polars()
+    if domain_table.is_empty():
+        raise HTTPException(
+            status_code=404,
+            detail=f"No snapshot history found for domain '{domain.value}'",
+        )
+    for e_in, entry in enumerate(domain_table.iter_rows()):
+        return_dict["history"].append({"domain": entry[0], "layer_updates": []})
+        for l_in, layer_id in enumerate(entry[1:]):
+            layer_name = layers[l_in][0]
+            tab = catalog.load_table(f"{domain.value}.{layer_name}")
+            snap_obj = tab.snapshot_by_id(layer_id)
+            layer_update = {"layer_name": layer_name, "snapshot_id": layer_id, "snapshot_summary": snap_obj}
+            return_dict["history"][e_in]["layer_updates"].append(layer_update)
+
+    return return_dict

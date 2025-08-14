@@ -7,7 +7,10 @@ from icefabric.schemas.hydrofabric import IdType
 
 
 def find_origin(
-    network_table: LazyFrame, identifier: str | float, id_type: IdType = IdType.HL_URI
+    network_table: LazyFrame,
+    identifier: str | float,
+    id_type: IdType = IdType.HL_URI,
+    return_all: bool = False,
 ) -> pl.DataFrame:
     """Find an origin point in the hydrofabric network.
 
@@ -23,6 +26,8 @@ def find_origin(
         The unique identifier you want to find the origin of
     id_type : IdType, optional
         The network table column you can query from, by default "hl_uri"
+    return_all: bool, False
+        Returns all origin points (for subsetting)
 
     Returns
     -------
@@ -50,17 +55,18 @@ def find_origin(
 
     origin = origin_candidates.unique()
 
-    # Find the record with minimum hydroseq if column exists
-    if "hydroseq" in origin.columns:
-        # Check if there are multiple unique hydroseq values
-        unique_hydroseq = origin.select(pl.col("hydroseq").unique())
-        if unique_hydroseq.height > 1:
-            # Sort by hydroseq and take the first row (minimum)
-            origin = origin.sort("hydroseq").slice(0, 1)
+    if not return_all:
+        # Find the record with minimum hydroseq if column exists
+        if "hydroseq" in origin.columns:
+            # Check if there are multiple unique hydroseq values
+            unique_hydroseq = origin.select(pl.col("hydroseq").unique())
+            if unique_hydroseq.height > 1:
+                # Sort by hydroseq and take the first row (minimum)
+                origin = origin.sort("hydroseq").slice(0, 1)
 
-    # Check for multiple origins after processing
-    if origin.height > 1:
-        origin_ids = origin.get_column("id").to_list()
-        raise ValueError(f"Multiple origins found: {origin_ids}")
+        # Check for multiple origins after processing
+        if origin.height > 1:
+            origin_ids = origin.get_column("id").to_list()
+            raise ValueError(f"Multiple origins found: {origin_ids}")
 
     return origin

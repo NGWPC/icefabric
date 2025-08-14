@@ -212,18 +212,20 @@ def subset_hydrofabric(
     print(f"Starting subset for {identifier}")
 
     network_table = catalog.load_table(f"{namespace}.network").to_polars()
-    origin_row = find_origin(network_table, identifier, id_type)
-    origin_id = origin_row.select(pl.col("id")).item()
-    to_id = origin_row.select(pl.col("toid")).item()
-    vpu_id = origin_row.select(pl.col("vpuid")).item()
-    print(f"Found origin flowpath: {origin_id}")
-
-    upstream_ids = get_upstream_segments(origin_id, graph)
-    print(f"Found {len(upstream_ids)} upstream segments")
-    if len(upstream_ids) == 0:
-        upstream_ids.add(origin_id)  # Ensuring the origin WB is captured
-    else:
-        upstream_ids.add(to_id)  # Adding the nexus point to ensure it's captured in the network table
+    origin_row = find_origin(network_table, identifier, id_type, return_all=True)
+    origin_ids = origin_row.select(pl.col("id")).to_series()
+    to_ids = origin_row.select(pl.col("toid")).to_series()
+    vpu_id = origin_row.select(pl.col("vpuid")).to_series()[0]  # only need the first
+    upstream_ids = set()
+    for origin_id, to_id in zip(origin_ids, to_ids, strict=False):
+        print(f"Found origin flowpath: {origin_id}")
+        _upstream_ids = get_upstream_segments(origin_id, graph)
+        upstream_ids |= _upstream_ids  # in-place union
+        if len(upstream_ids) == 0:
+            upstream_ids.add(origin_id)  # Ensuring the origin WB is captured
+        else:
+            upstream_ids.add(to_id)  # Adding the nexus point to ensure it's captured in the network table
+        print(f"Tracking {len(upstream_ids)} total upstream segments")
 
     output_layers = subset_layers(
         catalog=catalog, namespace=namespace, layers=layers, upstream_ids=upstream_ids, vpu_id=vpu_id

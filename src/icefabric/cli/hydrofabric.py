@@ -11,7 +11,7 @@ from icefabric.helpers import load_creds
 from icefabric.hydrofabric.subset import subset_hydrofabric
 from icefabric.schemas.hydrofabric import HydrofabricDomains, IdType
 
-load_creds(dir=Path(__file__).parents[2])
+load_creds(dir=Path(__file__).parents[3])
 
 
 @click.command()
@@ -66,8 +66,8 @@ def subset(
 
     connectivity_graphs = load_upstream_json(
         catalog=_catalog,
-        namespaces=["domain"],
-        output_path=Path(__file__).parents[2] / "data",
+        namespaces=[domain],
+        output_path=Path(__file__).parents[3] / "data",
     )
 
     layers_list = list(layers) if layers else ["divides", "flowpaths", "network", "nexus"]

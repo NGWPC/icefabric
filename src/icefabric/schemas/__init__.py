@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from .hydrofabric import UPSTREAM_VPUS, HydrofabricDomains, IdType
+from .iceberg_tables.conus_reference import ReferenceDivides, ReferenceFlowpaths
 from .iceberg_tables.hydrofabric import (
     DivideAttributes,
     Divides,
@@ -42,6 +43,8 @@ from .topobathy import FileType, NGWPCLocations, NGWPCTestLocations
 
 __all__ = [
     "ConflatedRasXS",
+    "ReferenceDivides",
+    "ReferenceFlowpaths",
     "RepresentativeRasXS",
     "DivideAttributes",
     "Divides",

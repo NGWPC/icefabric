@@ -6,6 +6,7 @@ import click
 from dotenv import load_dotenv
 
 from icefabric._version import __version__
+from icefabric.builds.graph_connectivity import load_upstream_json
 from icefabric.cli import get_catalog
 from icefabric.helpers.io import _create_config_zip
 from icefabric.modules import NWMModules, SmpModules, config_mapper, modules_with_extra_args
@@ -38,15 +39,16 @@ def validate_options(ctx, param, value):
     help="The Gauge ID to subset the Hydrofabric from and get upstream catchment information",
 )
 @click.option(
-    "--module",
+    "--nwm-module",
     "nwm_module",
     type=click.Choice([module.value for module in NWMModules], case_sensitive=False),
     help="The module to create initial parameter config files for",
 )
 @click.option(
     "--domain",
-    type=click.Choice([domain.name.lower() for domain in HydrofabricDomains], case_sensitive=False),
-    help="The domain at which you are running your model",
+    type=click.Choice([e.value for e in HydrofabricDomains], case_sensitive=False),
+    required=True,
+    help="The domain you are querying",
 )
 @click.option(
     "--catalog",
@@ -71,10 +73,18 @@ def validate_options(ctx, param, value):
 )
 @click.option(
     "--smp-extra-module",
-    "module",
+    "extra_module",
     type=click.Choice(SmpModules, case_sensitive=False),
     default=None,
     help="(SMP only) - Name of another module to be used alongisde SMP to fill out additional parameters.",
+    callback=validate_options,
+)
+@click.option(
+    "--cfe-version",
+    "cfe_version",
+    type=click.Choice(["CFE-X", "CFE-S"], case_sensitive=False),
+    default=None,
+    help="the CFE module type (e.g. CFE-X, CFE-S) for which determines whether to use Shaake or Xinanjiang for surface partitioning.",
     callback=validate_options,
 )
 @click.option(
@@ -101,12 +111,13 @@ def validate_options(ctx, param, value):
 def params(
     gauge: str,
     nwm_module: str,
-    domain: HydrofabricDomains,
+    domain: str,
     catalog: str,
     use_schaake: IceFractionScheme,
     envca: bool,
-    module: SmpModules,
+    extra_module: SmpModules,
     sft_included: bool,
+    cfe_version: str,
     soil_params_file: str,
     output: Path,
 ):
@@ -119,11 +130,18 @@ def params(
         IceFractionScheme[use_schaake.upper()] if use_schaake else IceFractionScheme.XINANJIANG
     )  # Defaults to Xinanjiang
     use_schaake = True if use_schaake == IceFractionScheme.SCHAAKE else False
+    _catalog = get_catalog(catalog)
+    graph = load_upstream_json(
+        catalog=_catalog,
+        namespaces=[domain],
+        output_path=Path(__file__).parents[3] / "data",
+    )[domain]
 
     ipe_kwargs = {}
-    ipe_kwargs["catalog"] = get_catalog(catalog)
-    ipe_kwargs["namespace"] = HydrofabricDomains[domain.upper()].value
+    ipe_kwargs["catalog"] = _catalog
+    ipe_kwargs["namespace"] = domain
     ipe_kwargs["identifier"] = f"gages-{gauge}"
+    ipe_kwargs["graph"] = graph
 
     if nwm_module in modules_with_extra_args:
         for extra_arg in modules_with_extra_args[nwm_module]:

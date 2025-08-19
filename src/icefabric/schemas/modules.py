@@ -1251,7 +1251,6 @@ class CFE(BaseModel):
         nash_storage = ",".join([str(n) for n in self.nash_storage])
         giuh_ordinates = ",".join([str(giuh) for giuh in self.giuh_ordinates])
         return [
-            f"aspect: {self.aspect}",
             f"forcing_file: {self.forcing_file}",
             f"verbosity: {self.verbosity}",
             f"surface_partitioning_scheme: {self.surface_partitioning_scheme}",

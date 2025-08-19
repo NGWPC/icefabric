@@ -50,6 +50,7 @@ modules_with_extra_args = {
     "snow17": ["envca"],
     "sacsma": ["envca"],
     "smp": ["module"],
+    "cfe": ["cfe_version"],
     "lasam": ["sft_included", "soil_params_file"],
 }
 

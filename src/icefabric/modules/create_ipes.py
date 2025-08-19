@@ -211,7 +211,7 @@ def get_smp_parameters(
     namespace: str,
     identifier: str,
     graph: rx.PyDiGraph,
-    module: str | None = None,
+    extra_module: str | None = None,
 ) -> list[SMP]:
     """Creates the initial parameter estimates for the SMP module
 
@@ -267,20 +267,20 @@ def get_smp_parameters(
     water_depth_layers = "NA"
     water_table_depth = "NA"
 
-    if module:
-        if module == "CFE-S" or module == "CFE-X":
+    if extra_module:
+        if extra_module == "CFE-S" or extra_module == "CFE-X":
             soil_storage_model = SoilScheme.CFE_SOIL_STORAGE.value
             soil_storage_depth = SoilScheme.CFE_STORAGE_DEPTH.value
-        elif module == "TopModel":
+        elif extra_module == "TopModel":
             soil_storage_model = SoilScheme.TOPMODEL_SOIL_STORAGE.value
             water_table_based_method = SoilScheme.TOPMODEL_WATER_TABLE_METHOD.value
-        elif module == "LASAM":
+        elif extra_module == "LASAM":
             soil_storage_model = SoilScheme.LASAM_SOIL_STORAGE.value
             soil_moisture_profile_option = SoilScheme.LASAM_SOIL_MOISTURE.value
             soil_depth_layers = SoilScheme.LASAM_SOIL_DEPTH_LAYERS.value
             water_table_depth = SoilScheme.LASAM_WATER_TABLE_DEPTH.value
         else:
-            raise ValueError(f"Passing unsupported module into endpoint: {module}")
+            raise ValueError(f"Passing unsupported module into endpoint: {extra_module}")
 
     pydantic_models = []
     for row_dict in result_df.iter_rows(named=True):
@@ -770,7 +770,11 @@ def get_topoflow_parameters(
 
 
 def get_ueb_parameters(
-    catalog: Catalog, namespace: str, identifier: str, envca: bool, upstream_dict: dict[str, list[str]]
+    catalog: Catalog,
+    namespace: str,
+    identifier: str,
+    envca: bool,
+    graph: rx.PyDiGraph,
 ) -> list[UEB]:
     """Creates the initial parameter estimates for the UEB module
 
@@ -796,7 +800,7 @@ def get_ueb_parameters(
         id_type=IdType.HL_URI,
         namespace=namespace,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
-        upstream_dict=upstream_dict,
+        graph=graph,
     )
     attr = {
         "slope": "mean.slope",
@@ -903,8 +907,8 @@ def get_cfe_parameters(
     catalog: Catalog,
     namespace: str,
     identifier: str,
-    module: str,
-    upstream_dict: dict[str, list[str]],
+    cfe_version: str,
+    graph: rx.PyDiGraph,
     sft_included: bool = False,
 ) -> list[CFE]:
     """Creates the initial parameter estimates for the CFE module
@@ -917,7 +921,7 @@ def get_cfe_parameters(
         the hydrofabric namespace
     identifier : str
         the gauge identifier
-    module: str
+    cfe_version: str
         the CFE module type (e.g. CFE-X, CFE-S) for which determines whether
         to use Shaake or Xinanjiang for surface partitioning.
     sft_included: bool
@@ -934,7 +938,7 @@ def get_cfe_parameters(
         id_type=IdType.HL_URI,
         namespace=namespace,
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
-        upstream_dict=upstream_dict,
+        graph=graph,
     )
 
     # CFE
@@ -946,11 +950,11 @@ def get_cfe_parameters(
     conus_param_df = params_df.filter(pl.col("divide_id").is_in(divides_list)).collect().to_pandas()
     df = pd.merge(conus_param_df, df, on="divide_id", how="left")
 
-    if module == "CFE-X":
+    if cfe_version == "CFE-X":
         surface_partitioning_scheme = CFEValues.XINANJIANG.value
         urban_decimal_fraction = CFEValues.URBAN_FRACT.value
         is_sft_coupled = "NA"
-    elif module == "CFE-S":
+    elif cfe_version == "CFE-S":
         surface_partitioning_scheme = CFEValues.SCHAAKE.value
         a_Xinanjiang_inflection_point_parameter = "NA"
         b_Xinanjiang_shape_parameter = "NA"
@@ -961,7 +965,7 @@ def get_cfe_parameters(
         else:
             is_sft_coupled = 0
     else:
-        raise ValueError(f"Passing unsupported module into endpoint: {module}")
+        raise ValueError(f"Passing unsupported cfe_version into endpoint: {cfe_version}")
 
     pydantic_models = []
     for _, row_dict in df.iterrows():
@@ -980,13 +984,13 @@ def get_cfe_parameters(
             Cgw=row_dict["mean.Coeff"],
             expon=row_dict["mode.Expon"],
             a_Xinanjiang_inflection_point_parameter=str(row_dict["a_Xinanjiang_inflection_point_parameter"])
-            if module == "CFE-X"
+            if cfe_version == "CFE-X"
             else a_Xinanjiang_inflection_point_parameter,
             b_Xinanjiang_shape_parameter=str(row_dict["b_Xinanjiang_shape_parameter"])
-            if module == "CFE-X"
+            if cfe_version == "CFE-X"
             else b_Xinanjiang_shape_parameter,
             x_Xinanjiang_shape_parameter=str(row_dict["x_Xinanjiang_shape_parameter"])
-            if module == "CFE-X"
+            if cfe_version == "CFE-X"
             else x_Xinanjiang_shape_parameter,
             urban_decimal_fraction=str(urban_decimal_fraction),
             refkdt=row_dict["mean.refkdt"],

@@ -39,6 +39,12 @@ from .modules import (
     TRoute,
 )
 from .ras_xs import XsType
+from .rise_parameters import (
+    PARAM_CONV,
+    CatItemParams,
+    CatRecParams,
+    LocItemParams,
+)
 from .topobathy import FileType, NGWPCLocations, NGWPCTestLocations
 
 __all__ = [
@@ -81,4 +87,8 @@ __all__ = [
     "NGWPCLocations",
     "NGWPCTestLocations",
     "XsType",
+    "PARAM_CONV",
+    "CatItemParams",
+    "CatRecParams",
+    "LocItemParams",
 ]

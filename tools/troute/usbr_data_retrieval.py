@@ -131,7 +131,7 @@ def write_ds(df: pd.DataFrame, params: dict[str, Any], location_id: str, info: s
         )
 
         discharge_quality = xr.DataArray(
-            data=[1],  # Single quality value
+            data=[100],  # Single quality value
             dims=["stationIdInd"],
             attrs={
                 "long_name": "Discharge quality flag",

@@ -1,14 +1,12 @@
 """A simple script to convert the v2.2 hydrofabric to parquet"""
 
 import argparse
-import re
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
 from typing import Any
 
 import httpx
-import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -41,33 +39,6 @@ def valid_date(s: str) -> datetime:
 
 
 """
-RFC
----
->>> xr.open_dataset("/Users/taddbindas/projects/NGWPC/icefabric/data/2023-04-01_00.60min.BCRT2.RFCTimeSeries.ncdf")
-<python-input-1>:1: FutureWarning: In a future version, xarray will not decode timedelta values based on the presence of a timedelta-like units attribute by default. Instead it will rely on the presence of a timedelta64 dtype attribute, which is now xarray's default way of encoding timedelta64 values. To continue decoding timedeltas based on the presence of a timedelta-like units attribute, users will need to explicitly opt-in by passing True or CFTimedeltaCoder(decode_via_units=True) to decode_timedelta. To silence this warning, set decode_timedelta to True, False, or a 'CFTimedeltaCoder' instance.
-  xr.open_dataset("/Users/taddbindas/projects/NGWPC/icefabric/data/2023-04-01_00.60min.BCRT2.RFCTimeSeries.ncdf")
-<xarray.Dataset> Size: 1kB
-Dimensions:              (nseries: 1, forecastInd: 289)
-Dimensions without coordinates: nseries, forecastInd
-Data variables:
-    stationId            |S5 5B ...
-    issueTimeUTC         (nseries) |S19 19B ...
-    discharges           (nseries, forecastInd) float32 1kB ...
-    synthetic_values     (nseries, forecastInd) int8 289B ...
-    totalCounts          (nseries) int16 2B ...
-    observedCounts       (nseries) int16 2B ...
-    forecastCounts       (nseries) int16 2B ...
-    timeSteps            (nseries) timedelta64[ns] 8B ...
-    discharge_qualities  (nseries) int16 2B ...
-    queryTime            (nseries) datetime64[ns] 8B ...
-Attributes:
-    fileUpdateTimeUTC:           2023-04-03_00:42:00
-    sliceStartTimeUTC:           2023-03-30_00:00:00
-    sliceTimeResolutionMinutes:  60
-    missingValue:                -999.99
-    newest_forecast:             0
-    NWM_version_number:          v2.1
-
 USGS:
 ----
 >>> xr.open_dataset("/Users/taddbindas/projects/NGWPC/icefabric/data/2023-04-01_00_00_00.15min.usgsTimeSlice.ncdf")
@@ -113,80 +84,91 @@ def write_ds(df: pd.DataFrame, params: dict[str, Any], location_id: str, info: s
 
         # Creates an extended hourly range from 00:00 of first day to 00:00 of day after last day
         start_date = df_indexed.index.min().normalize()  # gets YYYY-MM-DD 00:00:00
-        end_date = df_indexed.index.max().normalize() + pd.Timedelta(days=2)  # gets YYYY-MM-DD 00:00:00
-        hourly_index = pd.date_range(start=start_date, end=end_date, freq="h")[
+        end_date = df_indexed.index.max().normalize() + pd.Timedelta(days=1)  # gets YYYY-MM-DD 00:00:00
+        interpolated_index = pd.date_range(start=start_date, end=end_date, freq="15min")[
             :-1
         ]  # Remove the final timestamp to end at 23:00
 
         # Reindex with nearest interpolation
-        df_extended = df_indexed.reindex(hourly_index, method="nearest")
+        df_extended = df_indexed.reindex(interpolated_index, method="nearest")
         df = df_extended.reset_index()
+        df = df.rename(columns={"Datetime (UTC)": "Datetime (UTC)"})  # Ensure column name is preserved
+
+        # Convert hourly to 15-minute intervals
+        df["index"] = pd.to_datetime(df["index"])
+        df_indexed = df.set_index("index")
     else:
         raise ValueError(f"Cannot interpolate non-daily values. Timestep is: {timestep}")
-    stationId = xr.DataArray(
-        data=location_id.encode("utf-8"),  # Convert to bytes like |S5
-        dims=[],
-        attrs={"long_name": info, "units": "-"},
-    )
-    discharges = xr.DataArray(
-        data=df["Result"].values.reshape(1, -1)
-        * 0.0283168,  # Reshape to (nseries, forecastInd). Convert to cms
-        dims=["nseries", "forecastInd"],
-        name="discharges",
-        attrs={
-            "long_name": "Obsverved and forecasted discharges. There are 48 hours of observed values before issue time (T0), that is the start time is T0 - 48 hours. Values after T0 (including T0) are forecasts that genenrally extend to 10 days, that is T0 + 240 hours. The total length of dischargs is 12 days in general except in cases where forecasts or observations that are longer than 10 days or 2 days respectively are available.",
-            "units": "m^3/s",
-        },
-    )
-    timeSteps = xr.DataArray(
-        data=[pd.Timedelta(hours=1).value],  # This gives nanoseconds
-        dims=["nseries"],
-        name="timeSteps",
-        attrs={"long_name": "Frequency/temporal resolution of forecast values"},
-    )
-    discharge_quality = xr.DataArray(
-        data=[100],
-        dims=["nseries"],
-        attrs={
-            "long_name": "Discharge quality 0 to 100 to be scaled by 100.",
-            "units": "-",
-            "multfactor": 0.01,
-        },
-    )
-    queryTime = xr.DataArray(data=[np.datetime64("now", "ns")], dims=["nseries"])
-    # Create the dataset
-    ds = xr.Dataset(
-        data_vars={
-            "stationId": stationId,
-            "discharges": discharges,
-            "timeSteps": timeSteps,
-            "discharge_quality": discharge_quality,
-            "queryTime": queryTime,
-        },
-        attrs={
-            "fileUpdateTimeUTC": pd.Timestamp("now").strftime("%Y-%m-%d_%H:%M:%S"),
-            "sliceStartTimeUTC": pd.Timestamp(start_date).strftime("%Y-%m-%d_%H:%M:%S"),  # Use start_date
-            "sliceTimeResolutionMinutes": 60,
-            "usbr_catalog_item_id": params["itemId"],
-        },
-    )
-    ds.to_netcdf(output_folder / f"{params['filename']}.nc")
 
+    # Create a separate file for each 15-minute timestamp
+    for timestamp, row in df_indexed.iterrows():
+        # Format timestamp for filename: YYYY-MM-DD_HH:MM:SS
+        time_str = timestamp.strftime("%Y-%m-%d_%H:%M:%S")
+        file_name = f"{time_str}.15min.usbrTimeSlice.ncdf"
 
-def create_filename_from_item_title(item_title: str, start_date: str, end_date: str) -> str:
-    """Create a clean filename from item title and dates."""
-    clean_title = re.sub(r'[/\\:*?"<>|]', "_", item_title)
-    clean_title = re.sub(r"\s+", " ", clean_title)  # Multiple spaces to single
-    clean_title = clean_title.replace(" - ", "_").replace(" ", "_")
-    clean_title = re.sub(r"_+", "_", clean_title)  # Multiple underscores to single
-    clean_title = clean_title.strip("_")
-    clean_title = clean_title.replace("_Time_Series_Data", "")
-    clean_title = clean_title.replace("_Data", "")
+        # Create arrays for this single timestamp
+        stationId = xr.DataArray(
+            data=[str(location_id).encode("utf-8")],  # Single station as array
+            dims=["stationIdInd"],
+            attrs={"long_name": info, "units": "-"},
+        )
 
-    if len(clean_title) > 60:
-        clean_title = clean_title[:60].rstrip("_")
+        time_array = xr.DataArray(
+            data=[time_str.encode("utf-8")],  # Single timestamp as array
+            dims=["stationIdInd"],
+            attrs={"long_name": "YYYY-MM-DD_HH:mm:ss UTC", "units": "UTC"},
+        )
 
-    return f"{clean_title}_{start_date}_to_{end_date}"
+        if row["Units"] == "cfs":
+            row["Result"] = row["Result"] * 0.0283168
+        discharge = xr.DataArray(
+            data=[row["Result"]],  # Convert to cms, single value as array
+            dims=["stationIdInd"],
+            attrs={
+                "long_name": "Discharge",
+                "units": "m^3/s",
+            },
+        )
+
+        discharge_quality = xr.DataArray(
+            data=[1],  # Single quality value
+            dims=["stationIdInd"],
+            attrs={
+                "long_name": "Discharge quality flag",
+                "units": "-",
+            },
+        )
+
+        queryTime = xr.DataArray(
+            data=[int(pd.Timestamp.now().timestamp())],  # Unix timestamp as integer
+            dims=["stationIdInd"],
+            attrs={
+                "long_name": "Query time as unix timestamp",
+                "units": "seconds since 1970-01-01",
+            },
+        )
+
+        # Create the dataset matching USGS TimeSlice format
+        ds = xr.Dataset(
+            data_vars={
+                "stationId": stationId,
+                "time": time_array,
+                "discharge": discharge,
+                "discharge_quality": discharge_quality,
+                "queryTime": queryTime,
+            },
+            attrs={
+                "fileUpdateTimeUTC": pd.Timestamp.now().strftime("%Y-%m-%d_%H:%M:%S"),
+                "sliceCenterTimeUTC": time_str,
+                "sliceTimeResolutionMinutes": 15,
+                "usbr_catalog_item_id": params.get("itemId", ""),
+            },
+        )
+
+        # Save individual file
+        output_file = output_folder / file_name
+        ds.to_netcdf(output_file)
+        print(f"Created: {output_file}")
 
 
 def result_to_file(location_id: str, start_date: str, end_date: str, output_folder: Path) -> None:
@@ -238,8 +220,15 @@ def result_to_file(location_id: str, start_date: str, end_date: str, output_fold
             item_response = make_sync_get_req_to_rise(f"{EXT_RISE_BASE_URL}/{item_id}")
             if item_response["status_code"] == 200:
                 attributes = item_response["detail"]["data"]["attributes"]
+                parameter_group = attributes["parameterGroup"]
                 parameter_unit = attributes["parameterUnit"]
-                if parameter_unit == "cfs":
+                parameter_name = attributes["parameterName"]
+                if (
+                    parameter_group == "Lake/Reservoir Outflow"
+                    and parameter_name == "Lake/Reservoir Release - Total"
+                    and parameter_unit == "cfs"
+                ):
+                    # Currently only supporting reservoir releases in cfs
                     valid_items.append(attributes["_id"])
                     info.append(attributes["itemTitle"])
             else:
@@ -250,47 +239,48 @@ def result_to_file(location_id: str, start_date: str, end_date: str, output_fold
             print(msg)
             raise KeyError(msg) from e
 
-    for item, _info in zip(valid_items, info, strict=True):
-        file_name = create_filename_from_item_title(
-            item_title=_info, start_date=start_date, end_date=end_date
-        )
-        # Build parameters
-        params = {
-            "type": "csv",
-            "itemId": item,
-            "before": end_date,
-            "after": start_date,
-            "filename": file_name,
-            "order": "ASC",
-        }
+    # Asserts to ensure we only have one item found.
+    assert len(valid_items) > 0, "Cannot find reservoir data. No releases found for location"
+    assert len(valid_items) == 1, (
+        "Cannot determine correct catalog id. Multiple entries. Please see development team"
+    )
 
-        # Build the URL
-        base_url = f"{EXT_RISE_BASE_URL}/result/download"
-        param_string = "&".join([f"{k}={v}" for k, v in params.items()])
-        download_url = f"{base_url}?{param_string}"
+    item = valid_items[0]
+    _info = info[0]
+    # Build parameters
+    params = {
+        "type": "csv",
+        "itemId": item,
+        "before": end_date,
+        "after": start_date,
+        "order": "ASC",
+    }
 
-        # download the csv, write the xarray files
-        response = httpx.get(download_url, headers=RISE_HEADERS, timeout=15).content
-        csv_string = response.decode("utf-8")
-        lines = csv_string.split("\n")
-        start_row = None
-        for i, line in enumerate(lines):
-            if "#SERIES DATA#" in line:
-                start_row = i + 1  # Use the row after "#SERIES DATA#" as the header
-                break
+    # Build the URL
+    base_url = f"{EXT_RISE_BASE_URL}/result/download"
+    param_string = "&".join([f"{k}={v}" for k, v in params.items()])
+    download_url = f"{base_url}?{param_string}"
 
-        if start_row is not None:
-            df = pd.read_csv(StringIO(csv_string), skiprows=start_row)
-        else:
-            raise NotImplementedError("Series Data not found. Throwing error.")
-        write_ds(df, params, location_id=location_id, info=_info, output_folder=output_folder)
-        output_filename = output_folder / f"{params['filename']}.nc"
-        print(f"Output file saved to: {output_filename}")
+    # download the csv, write the xarray files
+    response = httpx.get(download_url, headers=RISE_HEADERS, timeout=15).content
+    csv_string = response.decode("utf-8")
+    lines = csv_string.split("\n")
+    start_row = None
+    for i, line in enumerate(lines):
+        if "#SERIES DATA#" in line:
+            start_row = i + 1  # Use the row after "#SERIES DATA#" as the header
+            break
+
+    if start_row is not None:
+        df = pd.read_csv(StringIO(csv_string), skiprows=start_row)
+    else:
+        raise NotImplementedError("Series Data not found. Throwing error.")
+    write_ds(df, params, location_id=location_id, info=_info, output_folder=output_folder)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Convert USBR reservoir outflows into data to be used in RFC-DA"
+        description="Convert USBR reservoir outflows into data to be used in the USBR Persistence"
     )
 
     parser.add_argument(
@@ -303,13 +293,13 @@ if __name__ == "__main__":
         "--start-date",
         type=str,
         required=True,
-        help="The start time for pulling streamflow outflows",
+        help="The start time for pulling reservoir release data",
     )
     parser.add_argument(
         "--end-date",
         type=str,
         required=True,
-        help="The end time for pulling streamflow outflows",
+        help="The end time for pulling reservoir release data",
     )
     parser.add_argument(
         "--output-folder",

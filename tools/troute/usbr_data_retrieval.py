@@ -119,19 +119,17 @@ def write_ds(df: pd.DataFrame, params: dict[str, Any], location_id: str, info: s
             attrs={"long_name": "YYYY-MM-DD_HH:mm:ss UTC", "units": "UTC"},
         )
 
-        if row["Units"] == "cfs":
-            row["Result"] = row["Result"] * 0.0283168
         discharge = xr.DataArray(
-            data=[row["Result"]],  # Convert to cms, single value as array
+            data=[row["Result"]],  # single value as array
             dims=["stationIdInd"],
             attrs={
                 "long_name": "Discharge",
-                "units": "m^3/s",
+                "units": "ft^3/s",
             },
         )
 
         discharge_quality = xr.DataArray(
-            data=[100],  # Single quality value
+            data=[100],
             dims=["stationIdInd"],
             attrs={
                 "long_name": "Discharge quality flag",

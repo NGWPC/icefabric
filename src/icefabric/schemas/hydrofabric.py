@@ -22,6 +22,7 @@ class IdType(str, Enum):
     HF_ID = "hf_id"
     ID = "id"
     POI_ID = "poi_id"
+    VPU_ID = "vpu_id"
 
 
 class HydrofabricDomains(str, Enum):

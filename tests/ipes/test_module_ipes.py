@@ -132,7 +132,7 @@ def test_smp_parameters(mock_catalog, sample_graph, test_identifiers, module_typ
             catalog,
             namespace,
             identifier,
-            module=module_type,
+            extra_module=module_type,
             graph=sample_graph,
         )
 

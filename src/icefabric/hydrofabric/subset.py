@@ -63,14 +63,14 @@ def subset_layers(
     layers : list[str]
         The layers to read into a file
     upstream_ids : set[str]
-        _description_
+        Upstream IDs queried
     vpu_id : str
-        _description_
+        VPU of query
 
     Returns
     -------
     dict[str, pd.DataFrame | gpd.GeoDataFrame]
-        _description_
+        Dictionary of layer name to dataframe
     """
     # Ensuring there are always divides, flowpaths, network, and nexus layers
     if layers is None:
@@ -178,6 +178,119 @@ def subset_layers(
     return output_layers
 
 
+def subset_hydrofabric_vpu(
+    catalog: Catalog,
+    namespace: str,
+    layers: list[str],
+    vpu_id: str,
+) -> dict[str, pd.DataFrame | gpd.GeoDataFrame]:
+    """Subsets layers by VPU ID
+
+    Parameters
+    ----------
+    catalog : Catalog
+        The pyiceberg catalog
+    namespace : str
+        the domain / namespace we're reading from in the catalog
+    layers : list[str]
+        The layers to read into a file
+    vpu_id : str
+        Desired VPU
+
+    Returns
+    -------
+    dict[str, pd.DataFrame | gpd.GeoDataFrame]
+        Dictionary of layer name to dataframe
+    """
+    # Ensuring there are always divides, flowpaths, network, and nexus layers
+    if layers is None:
+        layers = []
+    layers.extend(["divides", "flowpaths", "network", "nexus"])
+    layers = list(set(layers))
+
+    # Use single VPU filter
+    vpu_filter = EqualTo("vpuid", vpu_id)
+
+    print("Subsetting network layer")
+    network = catalog.load_table(f"{namespace}.network").scan(row_filter=vpu_filter).to_polars()
+    filtered_network = network.with_columns(
+        pl.col("poi_id").map_elements(lambda x: str(int(x)) if x is not None else None, return_dtype=pl.Utf8)
+    )
+    valid_hf_id = (
+        filtered_network.select(pl.col("hf_id").drop_nulls().unique().cast(pl.Float64)).to_series().to_list()
+    )
+    assert filtered_network.height > 0, "No network records found"
+
+    print("Subsetting flowpaths layer")
+    filtered_flowpaths = catalog.load_table(f"{namespace}.flowpaths").scan(row_filter=vpu_filter).to_polars()
+
+    assert filtered_flowpaths.height > 0, "No flowpaths found"
+    filtered_flowpaths_geo = to_geopandas(filtered_flowpaths.to_pandas())
+
+    print("Subsetting nexus layer")
+    nexus = catalog.load_table(f"{namespace}.nexus").scan(row_filter=vpu_filter).to_polars()
+    filtered_nexus_points = nexus.with_columns(
+        pl.col("poi_id").map_elements(lambda x: str(int(x)) if x is not None else None, return_dtype=pl.Utf8)
+    )
+    filtered_nexus_points_geo = to_geopandas(filtered_nexus_points.to_pandas())
+
+    print("Subsetting divides layer")
+    valid_divide_ids = (
+        filtered_network.filter(pl.col("divide_id").is_not_null()).get_column("divide_id").unique().to_list()
+    )
+    assert valid_divide_ids, "No valid divide_ids found"
+    divides = catalog.load_table(f"{namespace}.divides").scan(row_filter=vpu_filter).to_polars()
+    filtered_divides_geo = to_geopandas(divides.to_pandas())
+
+    output_layers = {
+        "flowpaths": filtered_flowpaths_geo,
+        "nexus": filtered_nexus_points_geo,
+        "divides": filtered_divides_geo,
+        "network": filtered_network.to_pandas(),  # Convert to pandas for final output
+    }
+
+    if "lakes" in layers:
+        print("Subsetting lakes layer")
+        lakes = catalog.load_table(f"{namespace}.lakes").scan(row_filter=vpu_filter).to_polars()
+        filtered_lakes = lakes.filter(pl.col("hf_id").is_in(valid_hf_id))
+        filtered_lakes_geo = to_geopandas(filtered_lakes.to_pandas())
+        output_layers["lakes"] = filtered_lakes_geo
+
+    if "divide-attributes" in layers:
+        print("Subsetting divide-attributes layer")
+        divides_attr = (
+            catalog.load_table(f"{namespace}.divide-attributes").scan(row_filter=vpu_filter).to_polars()
+        )
+        filtered_divide_attr = divides_attr.filter(pl.col("divide_id").is_in(valid_divide_ids))
+        output_layers["divide-attributes"] = filtered_divide_attr.to_pandas()
+
+    if "flowpath-attributes" in layers:
+        print("Subsetting flowpath-attributes layer")
+        output_layers["flowpath-attributes"] = (
+            catalog.load_table(f"{namespace}.flowpath-attributes").scan(row_filter=vpu_filter).to_pandas()
+        )
+
+    if "flowpath-attributes-ml" in layers:
+        print("Subsetting flowpath-attributes-ml layer")
+        output_layers["flowpath-attributes-ml"] = (
+            catalog.load_table(f"{namespace}.flowpath-attributes-ml").scan(row_filter=vpu_filter).to_pandas()
+        )
+
+    if "pois" in layers:
+        print("Subsetting pois layer")
+        output_layers["pois"] = (
+            catalog.load_table(f"{namespace}.pois").scan(row_filter=vpu_filter).to_pandas()
+        )
+
+    if "hydrolocations" in layers:
+        print("Subsetting hydrolocations layer")
+        output_layers["hydrolocations"] = (
+            catalog.load_table(f"{namespace}.hydrolocations").scan(row_filter=vpu_filter).to_pandas()
+        )
+
+    return output_layers
+
+
 def subset_hydrofabric(
     catalog: Catalog,
     identifier: str | float,
@@ -206,8 +319,8 @@ def subset_hydrofabric(
 
     Returns
     -------
-    Dict[str, pl.LazyFrame]
-        Dictionary of layer names to their subsetted lazy frames
+    Dict[str, pd.DataFrame | gpd.GeoDataFrame]
+        Dictionary of layer names to their subsetted dataframes
     """
     print(f"Starting subset for {identifier}")
 

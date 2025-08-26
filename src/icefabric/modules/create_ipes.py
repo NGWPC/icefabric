@@ -223,7 +223,7 @@ def get_smp_parameters(
         the hydrofabric namespace
     identifier : str
         the gauge identifier
-    module : str, optional
+    extra_module : str, optional
         A setting to determine if a module should be specified to obtain additional SMP parameters.
         Available modules declared for addt'l SMP parameters: 'CFE-S', 'CFE-X', 'LASAM', 'TopModel'
 

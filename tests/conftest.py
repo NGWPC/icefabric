@@ -22,7 +22,7 @@ Unified Mock PyIceberg Catalog Test Suite for Hydrofabric v2.2 Data using Rustwo
 
 # Load the sample graph from the actual graph file
 SAMPLE_GRAPH: rx.PyDiGraph = rx.from_node_link_json_file(
-    str(Path(__file__).parent / "data/hi_hf_graph_network.json"),
+    str(Path(__file__).parents[1] / "data/hi_hf_graph_network.json"),
     edge_attrs=read_edge_attrs,
     node_attrs=read_node_attrs,
 )  # type: ignore

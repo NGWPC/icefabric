@@ -6,11 +6,13 @@ import geopandas as gpd
 import pandas as pd
 import polars as pl
 import pytest
+from pandas.testing import assert_series_equal
 
 from icefabric.builds.graph_connectivity import load_upstream_json
 from icefabric.hydrofabric.subset import (
     get_upstream_segments,
     subset_hydrofabric,
+    subset_hydrofabric_vpu,
     subset_layers,
 )
 from icefabric.schemas.hydrofabric import IdType
@@ -219,6 +221,68 @@ class TestSubsetHydrofabric:
                     raise
         else:
             pytest.skip("No HL_URI records found in mock data")
+
+    def test_vpu_id_subsetting(self, mock_catalog: MockCatalog) -> None:
+        """Test VPUID subsetting"""
+        catalog = mock_catalog("glue")
+
+        network_table = catalog.load_table("mock_hf.network").to_polars()
+        vpu_records = network_table.filter(pl.col("vpuid").is_not_null()).collect()
+
+        if vpu_records.height > 0:
+            test_vpu = vpu_records["vpuid"][-1]
+
+            try:
+                result = subset_hydrofabric_vpu(
+                    catalog=catalog,
+                    layers=["network", "flowpaths", "nexus", "divides"],
+                    namespace="mock_hf",
+                    vpu_id=test_vpu,
+                )
+
+                # Should have valid structure if successful and rows with only requested vpu
+                assert isinstance(result, dict)
+                assert "network" in result
+                assert len(result["network"]) > 0
+                assert_series_equal(
+                    result["network"]["vpuid"],
+                    pd.Series(
+                        name="vpuid",
+                        data=[test_vpu for _i in range(len(result["network"]["vpuid"].index))],
+                        index=result["network"]["vpuid"].index,
+                    ),
+                )
+
+            except ValueError as e:
+                if "No origin found" not in str(e):
+                    raise
+        else:
+            pytest.skip("No VPUID records found in mock data")
+
+    def test_vpu_id_subsetting__none(self, mock_catalog: MockCatalog) -> None:
+        """Test VPUID subsetting - no rows found (invalid vpu)"""
+        catalog = mock_catalog("glue")
+
+        network_table = catalog.load_table("mock_hf.network").to_polars()
+        vpu_records = network_table.filter(pl.col("vpuid").is_not_null()).collect()
+
+        if vpu_records.height > 0:
+            # create fake vpu and assert it's not a valid vpu
+            # if this assertion fails, check mock data
+            vpus = vpu_records.select(pl.col("vpuid").unique()).to_series().to_list()
+            test_vpu = "fake_vpu"
+            assert test_vpu not in vpus
+
+            with pytest.raises(AssertionError):
+                _result = subset_hydrofabric_vpu(
+                    catalog=catalog,
+                    layers=["network", "flowpaths", "nexus", "divides"],
+                    namespace="mock_hf",
+                    vpu_id=test_vpu,
+                )
+
+        else:
+            pytest.skip("No VPUID records found in mock data")
 
     def test_upstream_tracing_completeness(
         self, test_wb_id: str, mock_catalog: MockCatalog, tmp_path: Path

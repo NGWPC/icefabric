@@ -49,5 +49,14 @@ class HydrofabricDomains(str, Enum):
     PRVI = "prvi_hf"
 
 
+class StreamflowDataSources(str, Enum):
+    """The data sources used for hourly streamflow data"""
+
+    USGS = "USGS"
+    ENVCA = "ENVCA"
+    CADWR = "CADWR"
+    TXDOT = "TXDOT"
+
+
 # For catchments that may extend in many VPUs
 UPSTREAM_VPUS: dict[str, list[str]] = {"08": ["11", "10U", "10L", "08", "07", "05"]}

@@ -1,12 +1,12 @@
 import argparse
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, status
 from pydantic import BaseModel
 from pyiceberg.catalog import load_catalog
+from pyprojroot import here
 
 from app.routers.hydrofabric.router import api_router as hydrofabric_api_router
 from app.routers.nwm_modules.router import (
@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
     app.state.network_graphs = load_upstream_json(
         catalog=catalog,
         namespaces=hydrofabric_namespaces,
-        output_path=Path(__file__).parents[1] / "data",
+        output_path=here() / "data",
     )
     yield
 
@@ -127,5 +127,5 @@ if __name__ == "__main__":
 
     os.environ["CATALOG_PATH"] = args.catalog
 
-    load_creds(dir=Path.cwd())
+    load_creds()
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")

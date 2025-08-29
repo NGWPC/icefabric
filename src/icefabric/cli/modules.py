@@ -4,6 +4,7 @@ from pathlib import Path
 
 import click
 from dotenv import load_dotenv
+from pyprojroot import here
 
 from icefabric._version import __version__
 from icefabric.builds.graph_connectivity import load_upstream_json
@@ -134,7 +135,7 @@ def params(
     graph = load_upstream_json(
         catalog=_catalog,
         namespaces=[domain],
-        output_path=Path(__file__).parents[3] / "data",
+        output_path=here() / "data",
     )[domain]
 
     ipe_kwargs = {}

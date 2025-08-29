@@ -6,7 +6,7 @@ from pyiceberg.table import Table
 
 from icefabric.helpers import load_creds
 
-load_creds(dir=Path.cwd())
+load_creds()
 
 
 def migrate_table_in_place(

@@ -22,7 +22,7 @@ from icefabric.schemas import (
     POIs,
 )
 
-load_creds(dir=Path.cwd())
+load_creds()
 
 
 def gpkg_to_parquet(input_file: Path, output_folder: Path) -> None:

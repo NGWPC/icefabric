@@ -11,8 +11,10 @@ from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 from pyiceberg.catalog import Catalog, load_catalog
 from pyiceberg.expressions import EqualTo, In
+from pyprojroot import here
 
 from app.main import app
+from icefabric.builds import load_upstream_json
 from icefabric.builds.graph_connectivity import read_edge_attrs, read_node_attrs
 from icefabric.schemas import NGWPCTestLocations
 
@@ -22,7 +24,7 @@ Unified Mock PyIceberg Catalog Test Suite for Hydrofabric v2.2 Data using Rustwo
 
 # Load the sample graph from the actual graph file
 SAMPLE_GRAPH: rx.PyDiGraph = rx.from_node_link_json_file(
-    str(Path(__file__).parents[1] / "data/hi_hf_graph_network.json"),
+    str(here() / "data/hi_hf_graph_network.json"),
     edge_attrs=read_edge_attrs,
     node_attrs=read_node_attrs,
 )  # type: ignore
@@ -707,7 +709,7 @@ env_path = Path.cwd() / ".env"
 load_dotenv(dotenv_path=env_path)
 pyiceberg_file = Path.cwd() / ".pyiceberg.yaml"
 if pyiceberg_file.exists():
-    os.environ["PYICEBERG_HOME"] = str(Path(__file__).parents[1])
+    os.environ["PYICEBERG_HOME"] = str(here())
 else:
     raise FileNotFoundError(
         "Cannot find .pyiceberg.yaml. Please download this from NGWPC confluence or create "
@@ -733,19 +735,19 @@ sample_hf_uri = [
 
 test_ic_rasters = [f for f in NGWPCTestLocations._member_names_ if "TOPO" in f]
 local_ic_rasters = [
-    Path(__file__).parent / "data/topo_tifs/nws-nos-surveys/Albemarle_Sound_NOS_NCEI",
-    Path(__file__).parent / "data/topo_tifs/nws-nos-surveys/Chesapeake_Bay_NOS_NCEI",
-    Path(__file__).parent / "data/topo_tifs/nws-nos-surveys/Mobile_Bay_NOS_NCEI",
-    Path(__file__).parent / "data/topo_tifs/nws-nos-surveys/Tangier_Sound_NOS_NCEI",
-    Path(__file__).parent / "data/topo_tifs/tbdem_alaska_10m",
-    Path(__file__).parent / "data/topo_tifs/tbdem_alaska_30m",
-    Path(__file__).parent / "data/topo_tifs/tbdem_conus_atlantic_gulf_30m",
-    Path(__file__).parent / "data/topo_tifs/tbdem_conus_pacific_30m",
-    Path(__file__).parent / "data/topo_tifs/tbdem_great_lakes_30m",
-    Path(__file__).parent / "data/topo_tifs/tbdem_hawaii_10m",
-    Path(__file__).parent / "data/topo_tifs/tbdem_hawaii_30m",
-    Path(__file__).parent / "data/topo_tifs/tbdem_pr_usvi_10m",
-    Path(__file__).parent / "data/topo_tifs/tbdem_pr_usvi_30m",
+    here() / "tests/data/topo_tifs/nws-nos-surveys/Albemarle_Sound_NOS_NCEI",
+    here() / "tests/data/topo_tifs/nws-nos-surveys/Chesapeake_Bay_NOS_NCEI",
+    here() / "tests/data/topo_tifs/nws-nos-surveys/Mobile_Bay_NOS_NCEI",
+    here() / "tests/data/topo_tifs/nws-nos-surveys/Tangier_Sound_NOS_NCEI",
+    here() / "tests/data/topo_tifs/tbdem_alaska_10m",
+    here() / "tests/data/topo_tifs/tbdem_alaska_30m",
+    here() / "tests/data/topo_tifs/tbdem_conus_atlantic_gulf_30m",
+    here() / "tests/data/topo_tifs/tbdem_conus_pacific_30m",
+    here() / "tests/data/topo_tifs/tbdem_great_lakes_30m",
+    here() / "tests/data/topo_tifs/tbdem_hawaii_10m",
+    here() / "tests/data/topo_tifs/tbdem_hawaii_30m",
+    here() / "tests/data/topo_tifs/tbdem_pr_usvi_10m",
+    here() / "tests/data/topo_tifs/tbdem_pr_usvi_30m",
 ]
 
 
@@ -818,13 +820,20 @@ def gauge_hf_uri(request) -> str:
 @pytest.fixture
 def testing_dir() -> Path:
     """Returns the testing data dir"""
-    return Path(__file__).parent / "data/"
+    return here() / "tests/data/"
 
 
 @pytest.fixture(scope="session")
 def remote_client():
     """Create a test client for the FastAPI app with real Glue catalog."""
-    app.state.catalog = load_catalog("glue")  # defaulting to use the glue
+    catalog = load_catalog("glue")
+    hydrofabric_namespaces = ["conus_hf", "ak_hf", "gl_hf", "hi_hf", "prvi_hf"]
+    app.state.catalog = catalog
+    app.state.network_graphs = load_upstream_json(
+        catalog=catalog,
+        namespaces=hydrofabric_namespaces,
+        output_path=here() / "data",
+    )
     return TestClient(app)
 
 
@@ -838,14 +847,14 @@ def client():
 @pytest.fixture
 def local_usgs_streamflow_csv():
     """Returns a locally downloaded CSV file from a specific gauge and time"""
-    file_path = Path(__file__).parent / "data/usgs_01010000_data_from_20211231_1400_to_20220101_1400.csv"
+    file_path = here() / "tests/data/usgs_01010000_data_from_20211231_1400_to_20220101_1400.csv"
     return pd.read_csv(file_path)
 
 
 @pytest.fixture
 def local_usgs_streamflow_parquet():
     """Returns a locally downloaded Parquet file from a specific gauge and time"""
-    file_path = Path(__file__).parent / "data/usgs_01010000_data_from_20211231_1400_to_20220101_1400.parquet"
+    file_path = here() / "tests/data/usgs_01010000_data_from_20211231_1400_to_20220101_1400.parquet"
     return pd.read_parquet(file_path)
 
 

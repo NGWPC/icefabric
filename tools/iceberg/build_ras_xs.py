@@ -9,7 +9,7 @@ from pyiceberg.catalog import load_catalog
 from icefabric.helpers import load_creds
 from icefabric.schemas import ConflatedRasXS, RepresentativeRasXS
 
-load_creds(dir=Path.cwd())
+load_creds()
 with open(os.environ["PYICEBERG_HOME"]) as f:
     CONFIG = yaml.safe_load(f)
 WAREHOUSE = Path(CONFIG["catalog"]["sql"]["warehouse"].replace("file://", ""))

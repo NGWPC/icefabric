@@ -1,5 +1,4 @@
 import argparse
-from pathlib import Path
 
 import pyarrow.parquet as pq
 from pyiceberg.catalog import load_catalog
@@ -8,7 +7,7 @@ from pyiceberg.transforms import IdentityTransform
 from icefabric.helpers import load_creds
 from icefabric.schemas import ReferenceDivides, ReferenceFlowpaths
 
-load_creds(dir=Path.cwd())
+load_creds()
 
 
 def build_table(catalog_type: str, file_dir: str):

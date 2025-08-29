@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import rasterio
 from dotenv import load_dotenv
+from pyprojroot import here
 
 from icefabric.builds import IcechunkRepo
 from icefabric.schemas import NGWPCTestLocations
@@ -19,12 +20,12 @@ def test_topobathy(ic_raster: str) -> None:
     Corrupted rasters will load correctly in xarray but incorrectly in rasterio and cannot be exported.
     This test checks that when exported, a dataset has values that are non-no data.
     """
-    data_dir = Path(__file__).parent / "data"
+    data_dir = here() / "tests/data"
     os.makedirs(data_dir, exist_ok=True)
 
     temp_path = data_dir / "temp_raster.tif"
 
-    local_creds_file = Path(__file__).parents[2] / ".env"
+    local_creds_file = here() / ".env"
     if local_creds_file.exists is False:
         pytest.skip("Skipping as AWS creds are not available")
 
@@ -59,7 +60,7 @@ def test_local_topobathy(local_ic_raster: Path) -> None:
     local_ic_raster : str
         _description_
     """
-    data_dir = Path(__file__).parent / "data"
+    data_dir = here() / "tests/data"
     os.makedirs(data_dir, exist_ok=True)
 
     temp_path = data_dir / "temp_raster.tif"

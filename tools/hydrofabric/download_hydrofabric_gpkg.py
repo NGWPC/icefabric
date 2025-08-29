@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from icefabric.helpers import load_creds
 
-load_creds(dir=Path.cwd())
+load_creds()
 
 
 def download_hydrofabric(catalog: Catalog, namespace: str, output_folder: Path, crs: str) -> None:

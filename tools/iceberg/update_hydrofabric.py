@@ -27,7 +27,7 @@ from icefabric.schemas import (
 )
 
 # Loading credentials, setting path to save outputs
-load_creds(dir=Path.cwd())
+load_creds()
 with open(os.environ["PYICEBERG_HOME"]) as f:
     CONFIG = yaml.safe_load(f)
 

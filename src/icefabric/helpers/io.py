@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from pyprojroot import here
 from tqdm import tqdm
 
 from icefabric.schemas.modules import NWMProtocol
@@ -43,7 +44,7 @@ def _create_config_zip(configs: list[NWMProtocol], output_path: Path, **kwargs):
                 f.write(file_path, archive_name)
 
 
-def load_pyiceberg_config(cwd: Path) -> dict[str, Any]:
+def load_pyiceberg_config() -> dict[str, Any]:
     """Reads a .pyiceberg.yaml config file to memory
 
     Parameters
@@ -64,10 +65,10 @@ def load_pyiceberg_config(cwd: Path) -> dict[str, Any]:
         Error parsing the YAML file
     """
     try:
-        with open(cwd / ".pyiceberg.yaml", encoding="utf-8") as file:
+        with open(here() / ".pyiceberg.yaml", encoding="utf-8") as file:
             data = yaml.safe_load(file)
             return data if data is not None else {}
     except FileNotFoundError as e:
-        raise FileNotFoundError(f".pyiceberg YAML file not found in cwd: {cwd}") from e
+        raise FileNotFoundError(f".pyiceberg YAML file not found in pwd: {here()}") from e
     except yaml.YAMLError as e:
         raise yaml.YAMLError(f"Error parsing .pyiceberg YAML file: {e}") from e

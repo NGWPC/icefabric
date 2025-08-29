@@ -3,9 +3,9 @@ import pytest
 
 @pytest.mark.slow
 def test_subset_hl_uri(remote_client, gauge_hf_uri: str):
-    """Test: GET /streamflow_observations/usgs/csv"""
+    """Test: /v1/hydrofabric/{gauge_hf_uri}/gpkg"""
     response = remote_client.get(
-        f"/v1/hydrofabric/{gauge_hf_uri}/gpkg",
+        f"/v1/hydrofabric/{gauge_hf_uri}/gpkg?id_type=hl_uri&domain=conus_hf&layers=divides&layers=flowpaths&layers=network&layers=nexus"
     )
-    # Only checking assert since there are already tests in the tools
-    assert response.status_code == 200, "Incorrect response"
+
+    assert response.status_code == 200, f"Request failed with status {response.status_code}: {response.text}"

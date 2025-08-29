@@ -4,6 +4,7 @@ from pathlib import Path
 
 import click
 import geopandas as gpd
+from pyprojroot import here
 
 from icefabric.builds.graph_connectivity import load_upstream_json
 from icefabric.cli import get_catalog
@@ -11,7 +12,7 @@ from icefabric.helpers import load_creds
 from icefabric.hydrofabric.subset import subset_hydrofabric, subset_hydrofabric_vpu
 from icefabric.schemas.hydrofabric import HydrofabricDomains, IdType
 
-load_creds(dir=Path(__file__).parents[3])
+load_creds()
 
 
 @click.command()
@@ -67,7 +68,7 @@ def subset(
     connectivity_graphs = load_upstream_json(
         catalog=_catalog,
         namespaces=[domain],
-        output_path=Path(__file__).parents[3] / "data",
+        output_path=here() / "data",
     )
 
     layers_list = list(layers) if layers else ["divides", "flowpaths", "network", "nexus"]

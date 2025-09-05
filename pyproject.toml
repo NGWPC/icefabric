@@ -162,6 +162,9 @@ lint.ignore = [
   "E722",
 ]
 
+[tool.ruff.lint.isort]
+known-first-party = ["app", "icefabric"]
+
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 

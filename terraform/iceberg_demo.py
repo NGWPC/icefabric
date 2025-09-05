@@ -1,3 +1,4 @@
+# ruff: noqa: BLE001
 import os
 
 from pyiceberg.catalog import load_catalog

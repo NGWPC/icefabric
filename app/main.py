@@ -1,11 +1,13 @@
 import argparse
-import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, status
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pyiceberg.catalog import load_catalog
+from pyiceberg.exceptions import NoSuchTableError
 from pyprojroot import here
 
 from app.routers.hydrofabric.router import api_router as hydrofabric_api_router
@@ -43,6 +45,17 @@ tags_metadata = [
     },
 ]
 
+parser = argparse.ArgumentParser(description="The FastAPI App instance for querying versioned EDFS data")
+
+# Glue = S3 Tables; Sql is a local iceberg catalog
+parser.add_argument(
+    "--catalog",
+    choices=["glue", "sql"],
+    help="The catalog information for querying versioned EDFS data",
+    default="glue",
+)  # Setting the default to read from S3
+args, _ = parser.parse_known_args()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -53,15 +66,20 @@ async def lifespan(app: FastAPI):
     app: FastAPI
         The FastAPI app instance
     """
-    catalog_path = os.getenv("CATALOG_PATH")
-    catalog = load_catalog(catalog_path)
-    hydrofabric_namespaces = ["conus_hf", "ak_hf", "gl_hf", "hi_hf", "prvi_hf"]
+    load_creds()
+    catalog = load_catalog(args.catalog)
+    hydrofabric_namespaces = ["conus_hf", "ak_hf", "hi_hf", "prvi_hf"]
     app.state.catalog = catalog
-    app.state.network_graphs = load_upstream_json(
-        catalog=catalog,
-        namespaces=hydrofabric_namespaces,
-        output_path=here() / "data",
-    )
+    try:
+        app.state.network_graphs = load_upstream_json(
+            catalog=catalog,
+            namespaces=hydrofabric_namespaces,
+            output_path=here() / "data",
+        )
+    except NoSuchTableError:
+        raise NotImplementedError(
+            "Cannot load API as the Hydrofabric Database/Namespace cannot be connected to. Please ensure you are have access to the correct hydrofabric namespaces"
+        ) from None
     yield
 
 
@@ -98,8 +116,7 @@ app.include_router(topoflow_router, prefix="/v1")
 app.include_router(ras_api_router, prefix="/v1")
 app.include_router(rise_api_wrap_router, prefix="/v1")
 
-
-@app.head(
+@app.get(
     "/health",
     tags=["Health"],
     summary="Perform a Health Check",
@@ -107,25 +124,28 @@ app.include_router(rise_api_wrap_router, prefix="/v1")
     status_code=status.HTTP_200_OK,
     response_model=HealthCheck,
 )
+
+@app.head(
+    "/health",
+    tags=["Health"],
+    summary="Perform a Health Check",
+    response_description="Return HTTP Status Code 200 (OK)",
+    status_code=status.HTTP_200_OK,
+)
+
 def get_health() -> HealthCheck:
-    """Returns a HeatlhCheck for the server"""
+    """Returns a HealthCheck for the server"""
     return HealthCheck(status="OK")
 
+# Mount static files for mkdocs at the root
+# This tells FastAPI to serve the static documentation files at the '/' URL
+# We only mount the directory if it exists (only after 'mkdocs build' has run)
+# This prevents the app from crashing during tests or local development.
+docs_dir = Path("static/docs")
+if docs_dir.is_dir():
+    app.mount("/", StaticFiles(directory=docs_dir, html=True), name="static")
+else:
+    print("INFO: Documentation directory 'static/docs' not found. Docs will not be served.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="The FastAPI App instance for querying versioned EDFS data")
-
-    # Glue = S3 Tables; Sql is a local iceberg catalog
-    parser.add_argument(
-        "--catalog",
-        choices=["glue", "sql"],
-        help="The catalog information for querying versioned EDFS data",
-        default="glue",
-    )  # Setting the default to read from S3
-
-    args = parser.parse_args()
-
-    os.environ["CATALOG_PATH"] = args.catalog
-
-    load_creds()
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")

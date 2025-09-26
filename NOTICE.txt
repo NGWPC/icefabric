@@ -1,0 +1,14 @@
+--
+
+The Hydrofabric data used in this repo is credited to Lynker and its contributors
+
+Johnson, J. M. (2022). National Hydrologic Geospatial Fabric (hydrofabric) for the Next Generation (NextGen) Hydrologic Modeling Framework,
+HydroShare http://www.hydroshare.org/resource/129787b468aa4d55ace7b124ed27dbde
+
+--
+
+Inspiration and assistance in the creation, and storage of network graphs comes from the following repos. Credit to the authors:
+- https://github.com/DeepGroundwater/ddr/blob/master/engine/adjacency.py
+- https://github.com/CIROH-UA/NGIAB_data_preprocess/blob/main/modules/data_processing/graph_utils.py
+
+--

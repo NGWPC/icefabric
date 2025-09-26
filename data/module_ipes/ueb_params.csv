@@ -1,0 +1,66 @@
+name,description,units,data_type,calibratable,source,min,max,default_value,divide_attr_name,source_file
+USic,Energy content initial condition,kg m-3,double,False,const,,,0,,
+WSis,Snow water equivalent initial condition,m,double,False,const,,,0,,
+Tic,Snow surface dimensionless age initial condition,NULL,double,False,const,,,0,,
+WCic,Snow water equivalent dimensionless age initial condition,m,double,False,const,,,0,,
+df,Drift factor multiplier,NULL,double,True,const,0.5,6,1,,
+apr,Average atmospheric pressure,Pa,double,True,iceberg,30000,101325,,atm_pres,
+Aep,Albedo extinction coefficient,m,double,False,const,NULL,NULL,0.1,,
+cc,Canopy coverage fraction,NULL,double,True,const,0,0.8,0.4,,
+hcan,Canopy height,m,integer,True,const,0,10,5,,
+lai,Leaf area index,NULL,integer,True,const,0,4,2,,
+sbar,Maximum snow load held per unit branch area,kg/m^2,double,False,const,,,6.6,,
+ycage,Forest age flag for wind speed profile parameterization,NULL,double,False,const,2,3,2.5,,
+Slope,A 2-D grid that contains the slope at each grid point,degrees,double,False,attr,,,,mean.slope,
+aspect,A 2-D grid that contains the aspect at each grid point,degrees,double,False,attr,,,,circ_mean.aspect,
+latitude,A 2-D grid that contains the latitude at each grid point,degrees,double,False,attr,,,,centroid_y,
+subalb,The fraction of shortwave radiation (fraction 0-1) reflected by the substrate beneath the snow (ground or glacier),NULL,double,True,const,0.25,0.7,0.25,,
+subtype,Type of beneath snow substrate ,NULL,integer,False,const,0,3,0,,
+gsurf,The fraction of surface melt that runs off (e.g. from a glacier),NULL,double,False,const,,,0,,
+b01,Monthly mean of daily temperature range for January used in Bristow Campbell formulas for atmospheric transmissivity,C,double,False,iceberg,,,,,ueb_deltat
+b02,Monthly mean of daily temperature range for February used in Bristow Campbell formulas for atmospheric transmissivity,C,double,False,iceberg,,,,,ueb_deltat
+b03,Monthly mean of daily temperature range for March used in Bristow Campbell formulas for atmospheric transmissivity,C,double,False,iceberg,,,,,ueb_deltat
+b04,Monthly mean of daily temperature range for April used in Bristow Campbell formulas for atmospheric transmissivity,C,double,False,iceberg,,,,,ueb_deltat
+b05,Monthly mean of daily temperature range for May used in Bristow Campbell formulas for atmospheric transmissivity,C,double,False,iceberg,,,,,ueb_deltat
+b06,Monthly mean of daily temperature range for June used in Bristow Campbell formulas for atmospheric transmissivity,C,double,False,iceberg,,,,,ueb_deltat
+b07,Monthly mean of daily temperature range for July used in Bristow Campbell formulas for atmospheric transmissivity,C,double,False,iceberg,,,,,ueb_deltat
+b08,Monthly mean of daily temperature range for August used in Bristow Campbell formulas for atmospheric transmissivity,C,double,False,iceberg,,,,,ueb_deltat
+b09,Monthly mean of daily temperature range for September used in Bristow Campbell formulas for atmospheric transmissivity,C,double,False,iceberg,,,,,ueb_deltat
+b10,Monthly mean of daily temperature range for October used in Bristow Campbell formulas for atmospheric transmissivity,C,double,False,iceberg,,,,,ueb_deltat
+b11,Monthly mean of daily temperature range for November used in Bristow Campbell formulas for atmospheric transmissivity,C,double,False,iceberg,,,,,ueb_deltat
+b12,Monthly mean of daily temperature range for December used in Bristow Campbell formulas for atmospheric transmissivity,C,double,False,iceberg,,,,,ueb_deltat
+ts_last,Snow surface temperature one day prior to the model starting time,C,double,False,const,,,-9999,,ueb_deltat
+longitude,A 2-D grid that contains the longitude at each grid,degrees,double,False,attr,,,,centroid_x,
+ems,Emissivity of snow,NULL,double,True,const,0.98,0.99,0.99,,
+cg,Ground heat capacity,KJ/kg/˚C,double,True,const,2.09,2.12,2.09,,
+zo,Roughness length,m,double,True,const,0.0002,0.014,0.01,,
+rho,Snow density,kg/m3,double,True,const,100,600,300,,
+rhog,Soil density,kg/m3,double,True,const,1100,1700,1700,,
+ks,Snow saturated hydraulic conductivity,m/hr,integer,True,const,0,20,20,,
+de,Thermally active soil depth,m,double,True,const,0.1,0.4,0.1,,
+avo,Visual new snow albedo,,double,True,const,0.85,0.95,0.95,,
+irad,Radiation control flag,NULL,integer,False,const,0,2,2,,
+ireadalb,Albedo reading control flag,NULL,integer,False,const,0,1,0,,
+tr,Rain threshold temperature,˚C,double,False,const,,,3,,
+ts,Snow threshold temperature,˚C,double,False,const,,,-1,,
+z,Air measurement height,m,double,False,const,,,2,,
+lc,Liquid holding capacity,NULL,double,False,const,,,0.05,,
+anir0,NIR new snow albedo,NULL,double,False,const,,,0.65,,
+lans,Thermal conductivity of surface snow,kJ/ m/C/ hr,double,False,const,,,1,,
+lang,Thermal conductivity of soil,kJ/ m/C/ hr,double,False,const,,,4,,
+wlf,Low frequency surface temperature parameter,rad/hr,double,False,const,,,0.0654,,
+rd1,Damping depth adjustment parameter,NULL,double,False,const,,,1,,
+dnews,New snow threshold depth,m,double,False,const,,,0.001,,
+emc,Canopy emissivity,NULL,double,False,const,,,0.98,,
+alpha,Shortwave leaf scattering coefficient,NULL,double,False,const,,,0.5,,
+alphal,Scattering coefficient for long wave radiation,NULL,double,False,const,,,0,,
+g,Leaf orientation geometry factor,degree,double,False,const,,,0.5,,
+uc,Unloading rate coefficient,hr-1,double,False,const,,,0.00463,,
+as,Cloudy atmospheric transmissivity,NULL,double,False,const,,,0.25,,
+bs,Clear sky atmospheric transmissivity increment,NULL,double,False,const,,,0.5,,
+lambda,Clear sky direct radiation fraction,NULL,double,False,const,,,0.857,,
+rimax,Richardson number upper bound,NULL,double,False,const,,,0.16,,
+wcoeff,Forest wind decay coefficient,NULL,double,False,const,,,0.5,,
+a,Transmissivity parameter,NULL,double,False,const,,,0.8,,
+c,Transmissivity exponent,NULL,double,False,const,,,2.4,,
+

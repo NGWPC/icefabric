@@ -1,0 +1,14 @@
+name,description,units,data_type,calibratable,source_file,min,max,nwm_name,default_value
+end_time,Simulation duration. If no unit is specified defaults to hour.,"s, sec, h, hr, d, day",double,FALSE,const,NULL,NULL,NULL,NULL
+soil_params.quartz,"soil quartz content, used in soil thermal conductivity function of Peters-Lidard",m,double,FALSE,const,NULL,NULL,NULL,NULL
+ice_fraction_scheme,"runoff scheme used in the soil reservoir models (e.g. CFE), options: Schaake and Xinanjiang",NULL,int,FALSE,const,NULL,NULL,NULL,NULL
+soil_z,vertical resolution of the soil column (computational domain of the SFT model),m,double,FALSE,const,NULL,NULL,NULL,NULL
+soil_temperature,initial soil temperature for the discretized column,K,double,FALSE,const,NULL,NULL,NULL,NULL
+soil_moisture_content,initial soil total (liquid + ice) moisture content for the discretized column,NULL,double,FALSE,const,NULL,NULL,NULL,NULL
+soil_liquid_content,initial soil liquid moisture content for the discretized column,NULL,double,FALSE,const,NULL,NULL,NULL,NULL
+bottom_boundary_temp,"temperature at the bottom boundary (BC) of the domain, if not specified, the default BC is zero-geothermal flux",K,double,FALSE,const,NULL,NULL,NULL,NULL
+top_boundary_temp,"temperature at the top/surface boundary of the domain, if not specified, then other options include: 1) read from a file, or 2) provided through coupling",K,double,FALSE,const,NULL,NULL,NULL,NULL
+sft_standalone,true for standalone model run; default is false,NULL,boolean,FALSE,const,NULL,NULL,NULL,NULL
+soil_moisture_bmi,If true soil_moisture_profile is set by the SoilMoistureProfile module through the BMI; if false then config file must provide soil_moisture_content and soil_liquid_content,NULL,boolean,FALSE,const,NULL,NULL,NULL,NULL
+dt,Size of a simulation timestep. If no unit is specified defaults to hour.,"s, sec, h, hr, d, day",double,FALSE,const,NULL,NULL,NULL,NULL
+verbosity,"high, low, or none",NULL,NULL,FALSE,const,NULL,NULL,NULL,NULL

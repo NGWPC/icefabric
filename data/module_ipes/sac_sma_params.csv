@@ -1,0 +1,20 @@
+name,description,units,data_type,calibratable,source,min,max,default_value,divide_attr_name,source_file
+hru_id,Identification string for each hrus,NULL,char,False,const,25,125,NA,divide_id,
+hru_area,Area of each HRU,NULL,double,False,attr,10,100,NA,areasqkm,
+uztwm,upper zone tension water maximum storage,mm,double,True,iceberg,25,125,75,,sac_sma_params
+uzfwm,Maximum upper zone free water,mm,double,True,iceberg,10,100,30,,sac_sma_params
+lztwm,Maximum lower zone tension water,mm,double,True,iceberg,75,300,150,,sac_sma_params
+lzfsm,"Maximum lower zone free water, secondary (aka supplemental)",mm,double,True,iceberg,15,300,150,,sac_sma_params
+lzfpm,"Maximum lower zone free water, primary",mm,double,True,iceberg,40,600,300,,sac_sma_params
+adimp,Additional impervious area due to saturation,decimal percent,double,True,const,0,0.2,0,,
+uzk,Upper zone recession coefficient,per day ,double,True,iceberg,0.2,0.5,0.3,,sac_sma_params
+lzpk,"Lower zone recession coefficient, primary",decimal percent,double,True,iceberg,0.001,0.015,0.01,,sac_sma_params
+lzsk,"Lower zone recession coefficient, secondary (aka supplemental)",decimal percent,double,True,iceberg,0.03,0.2,0.1,,sac_sma_params
+zperc,Minimum percolation rate coefficient,NULL,double,True,iceberg,20,300,10,,sac_sma_params
+rexp,Percolation equation exponent,NULL,double,True,iceberg,1.4,3.5,2,,sac_sma_params
+pctim,impervious  fraction of the watershed area ,decimal percent,double,True,const,0,0.05,0,,
+pfree,fraction of water percolating from upper zone directly to lower zone free water storage. ,decimal percent,double,True,iceberg,0,0.5,0.1,,sac_sma_params
+riva,Percent of the basin that is riparian area,decimal percent,double,True,const,0,0.2,0,,
+side,Portion of the baseflow which does not go to the stream,decimal percent,double,False,const,0,0.2,0,,
+rserv,Percent of lower zone free water not transferable to the lower zone tension water,decimal percent,double,False,const,0.2,0.4,0.3,,
+

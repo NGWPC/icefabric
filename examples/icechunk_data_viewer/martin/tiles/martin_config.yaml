@@ -1,0 +1,8 @@
+pmtiles:
+  sources:
+    alaska: /tiles/alaska.pmtiles
+    atlantic: /tiles/conus_atlantic_gulf.pmtiles
+    pacific: /tiles/conus_pacific.pmtiles
+    great_lakes: /tiles/great_lakes.pmtiles
+    hawaii: /tiles/hawaii.pmtiles
+    pr_usvi: /tiles/pr_usvi.pmtiles

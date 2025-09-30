@@ -1,0 +1,66 @@
+site_name: Icefabric
+site_description: A version controlled method for storing multi-dimensional and tabular data through Pyiceberg and icechunk
+repo_url: https://github.com/NGWPC/icefabric
+repo_name: NGWPC/icefabric
+theme:
+  name: material
+  features:
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - scheme: light blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - admonition
+  - footnotes
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.mark
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+
+nav:
+  - Home:
+    - index.md
+    - Description: description.md
+  - User Guide:
+    - user_guide/index.md
+    - API: user_guide/icefabric_api.md
+    - Tools: user_guide/icefabric_tools.md
+    - Terraform S3 Glue Endpoint: user_guide/terraform.md
+  - Module Support: 
+    - modules/index.md
+    - SFT: modules/sft.md

@@ -1,0 +1,16 @@
+variable,description
+actual_evapotranspiration,volume of AET
+giuh_runoff,volume of giuh runoff
+groundwater_to_stream_recharge,outgoing water from ground reservoir to stream channel
+infiltration,volume of infiltrated water
+mass_balance,mass balance error
+percolation,volume of water leaving soil through the bottom of the domain (ground water recharge)
+potential_evapotranspiration,volume of PET
+precipitation,total precipitation
+soil_depth_layers,Soil depth layers
+soil_depth_wetting_fronts,Soil depth wetting fronts
+soil_moisture_wetting_fronts,Soil moisture wetting front
+soil_num_wetting_fronts,Number of soil wetting fronts
+soil_storage,volume of water left
+surface_runoff,volume of water surface runoff
+total_discharge,total outgoing water

@@ -1,14 +1,14 @@
-# icefabric
+# Welcome to Icefabric
 
-<img src="docs/img/icefabric.png" alt="icefabric" width="50%"/>
+!!! warning "In Progress"
+    These docs are a work in progress and will continously be updated
 
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+# Icefabric
 
+An [Apache Iceberg](https://py.iceberg.apache.org/)/[Icechunk](https://icechunk.io/en/latest/) implementation of the Hydrofabric to disseminate continental hydrologic data
 
-An [Apache Iceberg](https://py.iceberg.apache.org/) implementation of the Hydrofabric to disseminate continental hydrologic data
-
-> [!NOTE]
-> To run any of the functions in this repo your AWS test account credentials need to be in your `.env` file and your `.pyiceberg.yaml` settings need to up to date with `AWS_DEFAULT_REGION="us-east-1"` set
+!!! note
+    To run any of the functions in this repo your AWS test account credentials + `AWS_DEFAULT_REGION="us-east-1"` need to be in your `.env` file and your `.pyiceberg.yaml` settings need to up to date
 
 ### Getting Started
 This repo is managed through [UV](https://docs.astral.sh/uv/getting-started/installation/) and can be installed through:
@@ -44,7 +44,7 @@ To ensure that icefabric follows the specified structure, be sure to install the
 ### Documentation
 To build the user guide documentation for Icefabric locally, run the following commands:
 ```sh
-uv pip install ".[docs]"
+uv sync --extra docs
 mkdocs serve -a localhost:8080
 ```
 Docs will be spun up at localhost:8080/

@@ -1,0 +1,10 @@
+services:
+  martin:
+      image: ghcr.io/maplibre/martin:v0.17.0
+      ports:
+        - 3000:3000
+      environment:
+        - RUST_LOG=debug
+      volumes:
+        - "./tiles:/tiles"
+      command: -c /tiles/martin_config.yaml

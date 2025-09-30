@@ -1,0 +1,25 @@
+name,description,units,data_type,calibratable,source,min,max,default_value,divide_attr_name,source_file
+soil_params.b,beta exponent on Clapp-Hornberger (1978) soil water relations,NULL,double,True,attr,2,15,4.05,mode.bexp_soil_layers_stag=1,
+soil_params.satdk,saturated hydraulic conductivity,m/s,double,True,attr,0.000000195,0.00141,0.00000338,geom_mean.dksat_soil_layers_stag=1,
+soil_params.satpsi,saturated capillary head,m,double,True,attr,0.036,0.955,0.355,geom_mean.psisat_soil_layers_stag=1,
+soil_params.slop,this factor (0-1) modifies the gradient of the hydraulic head at the soil bottom.  0=no-flow.,m/m,double,True,attr,0.0000598,1,0.05,mean.slope_1km,
+soil_params.smcmax,saturated soil moisture content (Maximum soil moisture content),m/m,double,True,attr,0.16,0.58,0.439,mean.smcmax_soil_layers_stag=1,
+soil_params.wltsmc,wilting point soil moisture content (< soil_params.smcmax),m/m,double,True,attr,0.05,0.3,0.439,mean.smcwlt_soil_layers_stag=1,
+soil_params.expon,"optional; defaults to 1, This parameter defines the soil reservoirs to be linear, Use linear reservoirs",NULL,double,False,const,NULL,NULL,1,,
+soil_params.expon_secondary,"optional; defaults to 1, This parameter defines the soil reservoirs to be linear, Use linear reservoirs ",NULL,double,False,const,NULL,NULL,1,,
+max_gw_storage,maximum storage in the conceptual reservoir,m,double,True,attr,0.01,0.25,0.05,mean.Zmax,
+Cgw,the primary outlet coefficient,m/hr,double,True,attr,0.0000018,0.0018,0.000018,mean.Coeff,
+expon,exponent parameter for nonlinear ground water reservoir (1.0 for linear reservoir),NULL,double,True,attr,1,8,3,mode.Expon,
+gw_storage,initial condition for groundwater reservoir - it is the ground water as a decimal fraction of the maximum groundwater storage (max_gw_storage) for the initial timestep,m/m,double,False,const,NULL,NULL,0.05,,
+alpha_fc,alpha at fc for clapp hornberger (field capacity),NULL,double,False,const,NULL,NULL,0.33,,
+soil_storage,initial condition for soil reservoir - it is the water in the soil as a decimal fraction of maximum soil water storage (smcmax x depth) for the initial timestep. Default = 0.5,m/m,double,False,const,NULL,NULL,0.5,,
+K_nash,Nash Config param for lateral subsurface runoff (Nash discharge to storage ratio),1/m,double,True,const,0,1,0.003,,
+K_lf,Nash Config param - primary reservoir,NULL,double,True,const,0,1,0.01,,
+nash_storage,Nash Config param - secondary reservoir ,NULL,double,False,const,NULL,NULL,"0.0,0.0",,
+giuh_ordinates,Giuh (geomorphological instantaneous unit hydrograph) ordinates in dt time steps,NULL,double,False,const,NULL,NULL,"0.55, 0.25, 0.2",,
+a_Xinanjiang_inflection_point_parameter,when surface_water_partitioning_scheme=Xinanjiang ,NULL,double,True,iceberg,-0.5,0.5,-0.2,AXAJ,CFE-X_params
+b_Xinanjiang_shape_parameter,when surface_water_partitioning_scheme=Xinanjiang ,NULL,double,True,iceberg,0.01,10,0.66,BXAJ,CFE-X_params
+x_Xinanjiang_shape_parameter,when surface_water_partitioning_scheme=Xinanjiang ,NULL,double,True,iceberg,0.01,10,0.02,XXAJ,CFE-X_params
+urban_decimal_fraction,when surface_water_partitioning_scheme=Xinanjiang,NULL,double ,False,const,0,1,0.01,,
+refkdt,Reference Soil Infiltration Parameter (used in runoff formulation),NULL,double,True,attr,0.1,4,1,mean.refkdt,
+soil_params.depth,soil depth,m,double,False,const,NULL,NULL,2,,

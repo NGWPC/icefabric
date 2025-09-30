@@ -1,0 +1,8 @@
+name,description,units,data_type,calibratable,source,min,max,nwm_name,default_value,divide_attr_name,source_file
+soil_z,vertical resolution of the soil moisture profile (depths from the surface),m,double,FALSE,NULL,NULL,NULL,NULL,NULL,,
+soil_storage_depth,"depth of the soil reservoir model (e.g., CFE). Note: this depth can be different from the depth of the soil moisture profile which is based on soil_z",m,double,FALSE,NULL,NULL,NULL,NULL,NULL,,
+soil_storage_model,"if conceptual, conceptual models are used for computing the soil moisture profile (e.g., CFE). If layered, layered-based soil moisture models are used (e.g., LGAR). If topmodel, topmodel's variables are used",NULL,string,FALSE,NULL,NULL,NULL,NULL,NULL,,
+soil_moisture_profile_option,constant for layered-constant profile. linear for linearly interpolated values between two consecutive layers. Needed if soil_storage_model = layered.,NULL,string,FALSE,NULL,NULL,NULL,NULL,NULL,,
+soil_depth_layers,Absolute depth of soil layers. Needed if soil_storage_model = layered.,NULL,double,FALSE,NULL,NULL,NULL,NULL,NULL,,
+soil_moisture_fraction_depth,**user specified depth for the soil moisture fraction (default is 40 cm),m,double,FALSE,NULL,NULL,NULL,NULL,NULL,,
+water_table_based_method,"Needed if soil_storage_model = topmodel. flux-based uses an iterative scheme, and deficit-based uses catchment deficit to compute soil moisture profile",NULL,string,FALSE,NULL,NULL,NULL,NULL,NULL,,

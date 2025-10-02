@@ -8,7 +8,7 @@ import xarray as xr
 from tqdm import tqdm
 from virtualizarr import open_virtual_dataset
 
-from icefabric.helpers import (
+from icefabric.helpers.icechunk import (
     add_time_dim_to_datasets,
     extract_dates_from_archival_files,
 )

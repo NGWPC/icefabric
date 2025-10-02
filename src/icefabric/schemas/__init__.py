@@ -45,7 +45,6 @@ from .rise_parameters import (
     CatRecParams,
     LocItemParams,
 )
-from .topobathy import FileType, NGWPCLocations, NGWPCTestLocations
 
 __all__ = [
     "ConflatedRasXS",
@@ -83,9 +82,6 @@ __all__ = [
     "CFE",
     "Topmodel",
     "Topoflow",
-    "FileType",
-    "NGWPCLocations",
-    "NGWPCTestLocations",
     "XsType",
     "PARAM_CONV",
     "CatItemParams",

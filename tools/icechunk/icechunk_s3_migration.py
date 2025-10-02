@@ -3,7 +3,7 @@ import os
 
 from dotenv import load_dotenv
 
-from icefabric.schemas import NGWPCLocations
+from icefabric.schemas.icechunk import NGWPCLocations
 
 from .icechunk_testing import topo_push_test
 

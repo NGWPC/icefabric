@@ -13,9 +13,10 @@ An [Apache Iceberg](https://py.iceberg.apache.org/)/[Icechunk](https://icechunk.
 ### Getting Started
 This repo is managed through [UV](https://docs.astral.sh/uv/getting-started/installation/) and can be installed through:
 ```sh
-uv sync
+uv sync --all-extras
 source .venv/bin/activate
 ```
+Note: Functionality is split into `optional-dependencies` in `pyproject.toml`. If you only require base functionality, install as `uv sync`. If you require some extras (e.g. `icechunk`, `io`), you can specify `uv sync --extra icechunk --extra io` as needed. For local develpoment, `--all-extras` is recommended for complete functionality.
 
 ### Running the API locally
 To run the API locally, ensure your `.env` file in your project root has the right credentials, then run

@@ -7,9 +7,9 @@ file virtualization/concatenation & uploading/appending/retrieving data to/from 
 
 from dotenv import load_dotenv
 
-import icefabric.helpers.nc_conv_utils as ncc_utils
-from icefabric.builds import IcechunkRepo, S3Path
-from icefabric.helpers import (
+import icefabric.helpers.icechunk.nc_conv_utils as ncc_utils
+from icefabric.builds.icechunk_s3_module import IcechunkRepo, S3Path
+from icefabric.helpers.icechunk import (
     get_archival_weather_files,
     load_tiff_file,
     virtualize_and_concat_archival_files_on_time,

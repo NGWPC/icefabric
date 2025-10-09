@@ -11,7 +11,7 @@ packages = ["src/icefabric", "app", "tools"]
 
 [project]
 name = "icefabric"
-version = "2025.7.1"
+version = "2025.10.1"
 description = "An Apache Iceberg + Icechunk implementation of Hydrofabric data services"
 readme = "README.md"
 requires-python = ">=3.11"

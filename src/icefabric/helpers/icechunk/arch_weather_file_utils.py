@@ -16,7 +16,7 @@ from tqdm import tqdm
 from virtualizarr import open_virtual_dataset
 
 from icefabric.builds.icechunk_s3_module import S3Path
-from icefabric.schemas.topobathy import FileType
+from icefabric.schemas.icechunk.topobathy import FileType
 
 
 def load_tiff_file(fp: str, attr_name: str) -> xr.Dataset | xr.DataArray | list[xr.Dataset]:

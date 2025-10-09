@@ -3,7 +3,7 @@ import os
 from tqdm import tqdm
 
 from icefabric.builds.icechunk_s3_module import IcechunkRepo
-from icefabric.schemas.topobathy import NGWPCLocations
+from icefabric.schemas.icechunk.topobathy import NGWPCLocations
 
 
 def convert_topobathy_to_tiff(output_dir: str, ic_rasters: list[str]) -> None:

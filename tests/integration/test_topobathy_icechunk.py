@@ -7,8 +7,8 @@ import rasterio
 from dotenv import load_dotenv
 from pyprojroot import here
 
-from icefabric.builds import IcechunkRepo
-from icefabric.schemas import NGWPCTestLocations
+from icefabric.builds.icechunk_s3_module import IcechunkRepo
+from icefabric.schemas.icechunk import NGWPCTestLocations
 
 load_dotenv()
 

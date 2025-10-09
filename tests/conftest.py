@@ -16,7 +16,7 @@ from pyprojroot import here
 from app.main import app
 from icefabric.builds import load_upstream_json
 from icefabric.builds.graph_connectivity import read_edge_attrs, read_node_attrs
-from icefabric.schemas import NGWPCTestLocations
+from icefabric.schemas.icechunk import NGWPCTestLocations
 
 """
 Unified Mock PyIceberg Catalog Test Suite for Hydrofabric v2.2 Data using RustworkX Graph
@@ -827,7 +827,7 @@ def testing_dir() -> Path:
 def remote_client():
     """Create a test client for the FastAPI app with real Glue catalog."""
     catalog = load_catalog("glue")
-    hydrofabric_namespaces = ["conus_hf", "ak_hf", "gl_hf", "hi_hf", "prvi_hf"]
+    hydrofabric_namespaces = ["conus_hf", "ak_hf", "hi_hf", "prvi_hf"]
     app.state.catalog = catalog
     app.state.network_graphs = load_upstream_json(
         catalog=catalog,

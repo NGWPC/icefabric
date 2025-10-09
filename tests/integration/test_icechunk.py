@@ -1,8 +1,8 @@
 import pytest
 import xarray as xr
 
-from icefabric.builds import IcechunkRepo
-from icefabric.schemas import NGWPCTestLocations
+from icefabric.builds.icechunk_s3_module import IcechunkRepo
+from icefabric.schemas.icechunk import NGWPCTestLocations
 
 ic_list = NGWPCTestLocations._member_names_
 params = [pytest.param(getattr(NGWPCTestLocations, name), id=f"Icechunk {name}") for name in ic_list]

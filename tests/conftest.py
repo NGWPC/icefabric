@@ -7,14 +7,16 @@ import polars as pl
 import pyarrow as pa
 import pytest
 import rustworkx as rx
+import xarray as xr
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
+from icechunk import Repository, in_memory_storage
+from icechunk.xarray import to_icechunk
 from pyiceberg.catalog import Catalog, load_catalog
 from pyiceberg.expressions import EqualTo, In
 from pyprojroot import here
 
 from app.main import app
-from icefabric.builds import load_upstream_json
 from icefabric.builds.graph_connectivity import read_edge_attrs, read_node_attrs
 from icefabric.schemas.icechunk import NGWPCTestLocations
 
@@ -799,6 +801,35 @@ def temp_graph_file(tmp_path):
     return graph_file
 
 
+@pytest.fixture
+def mock_streamflow_api(mocker):
+    """Creates an in memory iceberg table for streamflow to be used in steamflow API's `get_data_and_repo_hist`"""
+    repo = Repository.create(in_memory_storage())
+    session = repo.writable_session("main")
+    ds = xr.open_zarr(here() / "tests/data/streamflow.zarr")
+    to_icechunk(ds, session)
+    ds = xr.open_zarr(session.store, consolidated=False)
+
+    mocked = mocker.patch(
+        "app.routers.streamflow_observations.router.get_data_and_repo_hist", return_value=(ds, repo)
+    )
+
+    return mocked
+
+
+@pytest.fixture
+def mock_streamflow_cli(mocker):
+    """Creates in memory iceberg table for streamflow to be used with streamflow CLI's `icechunk.Repository.open`"""
+    repo = Repository.create(in_memory_storage())
+    session = repo.writable_session("main")
+    ds = xr.open_zarr(here() / "tests/data/streamflow.zarr")
+    to_icechunk(ds, session)
+
+    mocked = mocker.patch("icechunk.Repository.open", return_value=repo)
+
+    return mocked
+
+
 @pytest.fixture(params=test_ic_rasters)
 def ic_raster(request) -> str:
     """Returns AWS S3 icechunk stores/rasters for checking correctness"""
@@ -823,18 +854,18 @@ def testing_dir() -> Path:
     return here() / "tests/data/"
 
 
-@pytest.fixture(scope="session")
-def remote_client():
-    """Create a test client for the FastAPI app with real Glue catalog."""
-    catalog = load_catalog("glue")
-    hydrofabric_namespaces = ["conus_hf", "ak_hf", "hi_hf", "prvi_hf"]
-    app.state.catalog = catalog
-    app.state.network_graphs = load_upstream_json(
-        catalog=catalog,
-        namespaces=hydrofabric_namespaces,
-        output_path=here() / "data",
-    )
-    return TestClient(app)
+# @pytest.fixture(scope="session")
+# def remote_client():
+#     """Create a test client for the FastAPI app with real Glue catalog."""
+#     catalog = load_catalog("glue")
+#     hydrofabric_namespaces = ["conus_hf", "ak_hf", "hi_hf", "prvi_hf"]
+#     app.state.catalog = catalog
+#     app.state.network_graphs = load_upstream_json(
+#         catalog=catalog,
+#         namespaces=hydrofabric_namespaces,
+#         output_path=here() / "data",
+#     )
+#     return TestClient(app)
 
 
 @pytest.fixture(scope="session")

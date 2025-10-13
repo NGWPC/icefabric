@@ -56,25 +56,25 @@ docs = [
 app = [
   "fastapi[standard]>=0.115.12",
   "pydantic==2.11.5",
-  "pydantic-settings==2.9.1",
+  "pydantic-settings==2.10.1",
   "python-dotenv==1.1.0",
 ]
 cli = [
-  "dask==2025.5.1",
+  "dask==2025.9.1",
   "click==8.2.1",
 ]
 examples = [
-  "folium==0.19.5",
+  "folium==0.20.0",
   "httpx==0.28.1",
   "ipykernel==6.29.5",
-  "ipywidgets==8.1.6",
-  "jupyterlab==4.4.3",
+  "ipywidgets==8.1.7",
+  "jupyterlab==4.4.9",
   "jupytergis==0.5.0",
-  "mapclassify==2.9.0",
-  "matplotlib==3.10.3",
+  "mapclassify==2.10.0",
+  "matplotlib==3.10.6",
 ]
 icechunk_extras = [
-  "dask==2025.5.1",
+  "dask==2025.9.1",
   "netCDF4==1.7.2",
   "tifffile==2025.5.21",
   "rioxarray==0.19.0",
@@ -83,7 +83,7 @@ icechunk_extras = [
 
 [dependency-groups]
 dev = [
-  "pre-commit==3.8.0",
+  "pre-commit==4.2.0",
   "ruff==0.11.13",
   "black==25.1.0",
   "mypy==1.15.0",

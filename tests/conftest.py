@@ -813,8 +813,7 @@ def mock_streamflow_api(mocker, tmpdir):
       "timestamp": "2025-09-20T07:00:53.334882+00:00"
     }
     """
-    store_path = f"{tmpdir}"
-    repo = Repository.create(storage=local_filesystem_storage(store_path))
+    repo = Repository.create(storage=local_filesystem_storage(tmpdir))
     session = repo.writable_session("main")
     data = xr.open_zarr(here() / "tests/data/streamflow.zarr", consolidated=False)
     to_icechunk(data, session=session, mode="w")
@@ -838,8 +837,7 @@ def mock_streamflow_cli(mocker, tmpdir):
       "timestamp": "2025-09-20T07:00:53.334882+00:00"
     }
     """
-    store_path = f"{tmpdir}"
-    repo = Repository.create(storage=local_filesystem_storage(store_path))
+    repo = Repository.create(storage=local_filesystem_storage(tmpdir))
     session = repo.writable_session("main")
     data = xr.open_zarr(here() / "tests/data/streamflow.zarr", consolidated=False)
     to_icechunk(data, session=session, mode="w")

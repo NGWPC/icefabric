@@ -4,7 +4,6 @@ import pandas as pd
 import pytest
 
 
-@pytest.mark.integration
 def test_available_endpoint(mock_streamflow_api, client):
     """Test: GET /streamflow_observations/available"""
     response = client.get("/v1/streamflow_observations/available?limit=50")
@@ -91,6 +90,20 @@ def test_observation_parquet(mock_streamflow_cli, local_usgs_streamflow_parquet,
     df = pd.read_parquet(BytesIO(response.content))
     assert local_usgs_streamflow_parquet.equals(df)
     mock_streamflow_cli.assert_called_once()
+
+
+# @pytest.mark.integration
+# def test_observation_parquet(mocker, local_usgs_streamflow_parquet, client):
+#     """Test: GET /streamflow_observations/{identifier}/{type}"""
+#     mock_streamflow_cli = mocker.patch("icefabric.cli.streamflow.get_dataset", side_effect=roundtrip_ds)
+#     response = client.get(
+#         "/v1/streamflow_observations/01010000/parquet?start_date=2021-12-31%2014%3A00%3A00&end_date=2022-01-01%2014%3A00%3A00",
+#     )
+
+#     assert response.status_code == 200
+#     df = pd.read_parquet(BytesIO(response.content))
+#     assert local_usgs_streamflow_parquet.equals(df)
+#     mock_streamflow_cli.assert_called_once()
 
 
 @pytest.mark.integration

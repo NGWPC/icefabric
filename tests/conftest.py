@@ -10,7 +10,7 @@ import rustworkx as rx
 import xarray as xr
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
-from icechunk import Repository, in_memory_storage
+from icechunk import Repository, local_filesystem_storage
 from icechunk.xarray import to_icechunk
 from pyiceberg.catalog import Catalog, load_catalog
 from pyiceberg.expressions import EqualTo, In
@@ -801,8 +801,8 @@ def temp_graph_file(tmp_path):
     return graph_file
 
 
-@pytest.fixture
-def mock_streamflow_api(mocker):
+@pytest.fixture(scope="function")
+def mock_streamflow_api(mocker, tmpdir):
     """Creates an in memory iceberg table for streamflow to be used in steamflow API's `get_data_and_repo_hist`
     Dataset includes:
         ds.sel(time=slice("2021-12-31 12:00:00", "2022-01-01 14:00:00"), id=['01010000', '01031500'])
@@ -813,21 +813,20 @@ def mock_streamflow_api(mocker):
       "timestamp": "2025-09-20T07:00:53.334882+00:00"
     }
     """
-    repo = Repository.create(in_memory_storage())
+    store_path = f"{tmpdir}"
+    repo = Repository.create(storage=local_filesystem_storage(store_path))
     session = repo.writable_session("main")
-    ds = xr.open_zarr(here() / "tests/data/streamflow.zarr", consolidated=False)
-    to_icechunk(ds, session)
+    data = xr.open_zarr(here() / "tests/data/streamflow.zarr", consolidated=False)
+    to_icechunk(data, session=session, mode="w")
     ds = xr.open_zarr(session.store, consolidated=False)
 
-    mocked = mocker.patch(
+    return mocker.patch(
         "app.routers.streamflow_observations.router.get_data_and_repo_hist", return_value=(ds, repo)
     )
 
-    return mocked
 
-
-@pytest.fixture
-def mock_streamflow_cli(mocker):
+@pytest.fixture(scope="function")
+def mock_streamflow_cli(mocker, tmpdir):
     """Creates an in memory iceberg table for streamflow to be used in steamflow CLI's `get_dataset`
 
     Dataset includes:
@@ -839,15 +838,14 @@ def mock_streamflow_cli(mocker):
       "timestamp": "2025-09-20T07:00:53.334882+00:00"
     }
     """
-    repo = Repository.create(in_memory_storage())
+    store_path = f"{tmpdir}"
+    repo = Repository.create(storage=local_filesystem_storage(store_path))
     session = repo.writable_session("main")
-    ds = xr.open_zarr(here() / "tests/data/streamflow.zarr", consolidated=False)
-    to_icechunk(ds, session)
+    data = xr.open_zarr(here() / "tests/data/streamflow.zarr", consolidated=False)
+    to_icechunk(data, session=session, mode="w")
     ds = xr.open_zarr(session.store, consolidated=False)
 
-    mocked = mocker.patch("icefabric.cli.streamflow.get_dataset", return_value=ds)
-
-    return mocked
+    return mocker.patch("icefabric.cli.streamflow.get_dataset", return_value=ds)
 
 
 @pytest.fixture(params=test_ic_rasters)

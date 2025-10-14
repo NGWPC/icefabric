@@ -5,13 +5,6 @@ from pyiceberg.catalog import Catalog
 from rustworkx import PyDiGraph
 
 
-def get_logger(request: Request) -> Logger:
-    """Gets the application logger from the app state"""
-    if not hasattr(request.app.state, "catalog") or request.app.state.catalog is None:
-        raise HTTPException(status_code=500, detail="Logger not loaded")
-    return request.app.state.main_logger
-
-
 def get_catalog(request: Request) -> Catalog:
     """Gets the pyiceberg catalog reference from the app state
 

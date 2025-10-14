@@ -803,10 +803,19 @@ def temp_graph_file(tmp_path):
 
 @pytest.fixture
 def mock_streamflow_api(mocker):
-    """Creates an in memory iceberg table for streamflow to be used in steamflow API's `get_data_and_repo_hist`"""
+    """Creates an in memory iceberg table for streamflow to be used in steamflow API's `get_data_and_repo_hist`
+    Dataset includes:
+        ds.sel(time=slice("2021-12-31 12:00:00", "2022-01-01 14:00:00"), id=['01010000', '01031500'])
+    from:
+    {
+      "snapshot_id": "NVR3S5HRVCJC2NMJZSNG",
+      "commit_message": "Uploaded all USGS/ENVCA/CADWR/TXDOT gages to the store",
+      "timestamp": "2025-09-20T07:00:53.334882+00:00"
+    }
+    """
     repo = Repository.create(in_memory_storage())
     session = repo.writable_session("main")
-    ds = xr.open_zarr(here() / "tests/data/streamflow.zarr")
+    ds = xr.open_zarr(here() / "tests/data/streamflow.zarr", consolidated=False)
     to_icechunk(ds, session)
     ds = xr.open_zarr(session.store, consolidated=False)
 
@@ -819,13 +828,24 @@ def mock_streamflow_api(mocker):
 
 @pytest.fixture
 def mock_streamflow_cli(mocker):
-    """Creates in memory iceberg table for streamflow to be used with streamflow CLI's `icechunk.Repository.open`"""
+    """Creates an in memory iceberg table for streamflow to be used in steamflow CLI's `get_dataset`
+
+    Dataset includes:
+        ds.sel(time=slice("2021-12-31 12:00:00", "2022-01-01 14:00:00"), id=['01010000', '01031500'])
+    from:
+    {
+      "snapshot_id": "NVR3S5HRVCJC2NMJZSNG",
+      "commit_message": "Uploaded all USGS/ENVCA/CADWR/TXDOT gages to the store",
+      "timestamp": "2025-09-20T07:00:53.334882+00:00"
+    }
+    """
     repo = Repository.create(in_memory_storage())
     session = repo.writable_session("main")
-    ds = xr.open_zarr(here() / "tests/data/streamflow.zarr")
+    ds = xr.open_zarr(here() / "tests/data/streamflow.zarr", consolidated=False)
     to_icechunk(ds, session)
+    ds = xr.open_zarr(session.store, consolidated=False)
 
-    mocked = mocker.patch("icechunk.Repository.open", return_value=repo)
+    mocked = mocker.patch("icefabric.cli.streamflow.get_dataset", return_value=ds)
 
     return mocked
 
@@ -854,20 +874,6 @@ def testing_dir() -> Path:
     return here() / "tests/data/"
 
 
-# @pytest.fixture(scope="session")
-# def remote_client():
-#     """Create a test client for the FastAPI app with real Glue catalog."""
-#     catalog = load_catalog("glue")
-#     hydrofabric_namespaces = ["conus_hf", "ak_hf", "hi_hf", "prvi_hf"]
-#     app.state.catalog = catalog
-#     app.state.network_graphs = load_upstream_json(
-#         catalog=catalog,
-#         namespaces=hydrofabric_namespaces,
-#         output_path=here() / "data",
-#     )
-#     return TestClient(app)
-
-
 @pytest.fixture(scope="session")
 def client():
     """Create a test client for the FastAPI app with mock catalog."""
@@ -878,14 +884,26 @@ def client():
 @pytest.fixture
 def local_usgs_streamflow_csv():
     """Returns a locally downloaded CSV file from a specific gauge and time"""
-    file_path = here() / "tests/data/usgs_01010000_data_from_20211231_1400_to_20220101_1400.csv"
+    file_path = here() / "tests/data/hourly_streamflow_data_01010000_from_20211231_1400_to_20220101_1400.csv"
+    return pd.read_csv(file_path)
+
+
+@pytest.fixture
+def local_usgs_streamflow_csv__no_headers():
+    """Returns a locally downloaded CSV file from a specific gauge and time"""
+    file_path = (
+        here()
+        / "tests/data/hourly_streamflow_data_01010000_from_20211231_1400_to_20220101_1400_no_headers.csv"
+    )
     return pd.read_csv(file_path)
 
 
 @pytest.fixture
 def local_usgs_streamflow_parquet():
     """Returns a locally downloaded Parquet file from a specific gauge and time"""
-    file_path = here() / "tests/data/usgs_01010000_data_from_20211231_1400_to_20220101_1400.parquet"
+    file_path = (
+        here() / "tests/data/hourly_streamflow_data_01010000_from_20211231_1400_to_20220101_1400.parquet"
+    )
     return pd.read_parquet(file_path)
 
 

@@ -1,4 +1,4 @@
-from io import StringIO
+from io import BytesIO, StringIO
 
 import pandas as pd
 import pytest
@@ -55,15 +55,10 @@ def test_info_endpoint(mock_streamflow_api, client):
 
 
 @pytest.mark.integration
-def test_observation_endpoint(mock_streamflow_cli, local_usgs_streamflow_csv, client):
-    """Test: GET /streamflow_observations/{identifier}/"""
+def test_observation_csv(mock_streamflow_cli, local_usgs_streamflow_csv, client):
+    """Test: GET /streamflow_observations/{identifier}/{type}"""
     response = client.get(
-        "/v1/streamflow_observations/01031500/csv",
-        params={
-            "start_date": "2021-12-31T14:00:00",
-            "end_date": "2022-01-01T14:00:00",
-            "include_headers": True,
-        },
+        "/v1/streamflow_observations/01010000/csv?start_date=2021-12-31%2014%3A00%3A00&end_date=2022-01-01%2014%3A00%3A00&include_headers=true",
     )
 
     assert response.status_code == 200
@@ -72,42 +67,50 @@ def test_observation_endpoint(mock_streamflow_cli, local_usgs_streamflow_csv, cl
     mock_streamflow_cli.assert_called_once()
 
 
-# NOTE: To be updated in next test PR. Commentd out because failing due to endpoing update
+@pytest.mark.integration
+def test_observation_csv__no_headers(mock_streamflow_cli, local_usgs_streamflow_csv__no_headers, client):
+    """Test: GET /streamflow_observations/{identifier}/{type}"""
+    response = client.get(
+        "/v1/streamflow_observations/01010000/csv?start_date=2021-12-31%2014%3A00%3A00&end_date=2022-01-01%2014%3A00%3A00&include_headers=false",
+    )
+
+    assert response.status_code == 200
+    df = pd.read_csv(StringIO(response.text))
+    assert local_usgs_streamflow_csv__no_headers.equals(df)
+    mock_streamflow_cli.assert_called_once()
 
 
-# @pytest.mark.integration
-# def test_csv_generation(remote_client, local_usgs_streamflow_csv):
-#     """Test: GET /streamflow_observations/usgs/csv"""
-#     response = remote_client.get(
-#         "/v1/streamflow_observations/usgs/csv",
-#         params={
-#             "identifier": "01010000",
-#             "start_date": "2021-12-31T14:00:00",
-#             "end_date": "2022-01-01T14:00:00",
-#         },
-#     )
+@pytest.mark.integration
+def test_observation_parquet(mock_streamflow_cli, local_usgs_streamflow_parquet, client):
+    """Test: GET /streamflow_observations/{identifier}/{type}"""
+    response = client.get(
+        "/v1/streamflow_observations/01010000/parquet?start_date=2021-12-31%2014%3A00%3A00&end_date=2022-01-01%2014%3A00%3A00",
+    )
 
-#     assert response.status_code in [200, 500]
-
-#     if response.status_code == 200:
-#         df = pd.read_csv(StringIO(response.text))
-#         assert local_usgs_streamflow_csv.equals(df)
+    assert response.status_code == 200
+    df = pd.read_parquet(BytesIO(response.content))
+    assert local_usgs_streamflow_parquet.equals(df)
+    mock_streamflow_cli.assert_called_once()
 
 
-# @pytest.mark.integration
-# def test_parquet_generation(remote_client, local_usgs_streamflow_parquet):
-#     """Test: GET /streamflow_observations/usgs/parquet"""
-#     response = remote_client.get(
-#         "/v1/streamflow_observations/usgs/parquet",
-#         params={
-#             "identifier": "01010000",
-#             "start_date": "2021-12-31T14:00:00",
-#             "end_date": "2022-01-01T14:00:00",
-#         },
-#     )
+@pytest.mark.integration
+def test_observation__404(mock_streamflow_cli, client):
+    """Test: GET /streamflow_observations/{identifier}/{type} 404 missing data
+    Demo data is 2021-12-31 -> 2022-01-01"""
+    response = client.get(
+        "/v1/streamflow_observations/01010000/parquet?start_date=2020-12-31%2014%3A00%3A00&end_date=2021-01-01%2014%3A00%3A00",
+    )
 
-#     assert response.status_code in [200, 500]
+    assert response.status_code == 404
+    mock_streamflow_cli.assert_called_once()
 
-#     if response.status_code == 200:
-#         df = pd.read_parquet(BytesIO(response.content))
-#         assert local_usgs_streamflow_parquet.equals(df)
+
+@pytest.mark.integration
+def test_observation__422(mock_streamflow_cli, client):
+    """Test: GET /streamflow_observations/{identifier}/{type} 422 invalid response"""
+    response = client.get(
+        "/v1/streamflow_observations/0101000/fake?start_date=2021-12-31%2014%3A00%3A00&end_date=2022-01-01%2014%3A00%3A00",
+    )
+
+    assert response.status_code == 422
+    mock_streamflow_cli.assert_not_called()

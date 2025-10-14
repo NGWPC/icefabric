@@ -1,18 +1,17 @@
+import logging
 import os
 import re
 from datetime import datetime
-from logging import Logger
 
 import icechunk
 import numpy as np
 import xarray as xr
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, HTTPException, Path, Query
 from fastapi.background import BackgroundTasks
 from fastapi.responses import FileResponse
 from werkzeug.utils import secure_filename
 
-from app import get_logger
 from icefabric.cli.streamflow import (
     BUCKET,
     PREFIX,
@@ -21,6 +20,8 @@ from icefabric.cli.streamflow import (
     streamflow_observations,
 )
 from icefabric.schemas.hydrofabric import StreamflowOutputFormats
+
+logger = logging.getLogger(__name__)
 
 api_router = APIRouter(prefix="/streamflow_observations")
 
@@ -188,7 +189,6 @@ async def get_data_time_range(
     include_headers: bool | None = Query(
         True, description="Include CSV headers. Only applies if return format is CSV. Defaults to True."
     ),
-    logger: Logger = Depends(get_logger),
 ):
     """
     GET ID Data in Time Range

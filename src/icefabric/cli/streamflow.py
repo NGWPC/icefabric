@@ -7,6 +7,7 @@ import icechunk
 import numpy as np
 import polars as pl
 import xarray as xr
+from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -39,6 +40,19 @@ def validate_file_extension(ctx, param, value):
             "Output file path must have a CSV ('.csv') or parquet ('.parquet') extension."
         )
     return value
+
+
+def get_dataset():
+    """Get repo/data from icechunk for a given data source"""
+    try:
+        storage_config = icechunk.s3_storage(bucket=BUCKET, prefix=PREFIX, region="us-east-1", from_env=True)
+        repo = icechunk.Repository.open(storage_config)
+        session = repo.writable_session("main")
+        ds = xr.open_zarr(session.store, consolidated=False)
+    except ClientError as e:
+        msg = "AWS Test account credentials expired. Can't access remote S3 Table"
+        raise ClientError(msg) from e
+    return ds
 
 
 @click.command()
@@ -85,10 +99,7 @@ def streamflow_observations(
         output_file = Path.cwd() / f"{gage_id}.csv"
 
     # Get the data from the icechunk store
-    storage_config = icechunk.s3_storage(bucket=BUCKET, prefix=PREFIX, region="us-east-1", from_env=True)
-    repo = icechunk.Repository.open(storage_config)
-    session = repo.writable_session("main")
-    ds = xr.open_zarr(session.store, consolidated=False)
+    ds = get_dataset()
 
     # Slice the dataset to greatly reduce dataframe conversion time
     try:

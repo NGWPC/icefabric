@@ -1,0 +1,12 @@
+{
+  "attributes": {
+    "title": "USGS Streamflow Observations",
+    "history": "Created 2025-04-26",
+    "source": "USGS National Water Information System",
+    "references": "https://waterdata.usgs.gov/nwis",
+    "comment": "Hourly streamflow data resampled from USGS gauge measurements"
+  },
+  "zarr_format": 3,
+  "consolidated_metadata": null,
+  "node_type": "group"
+}

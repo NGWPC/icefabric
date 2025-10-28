@@ -423,8 +423,6 @@ async def get_topoflow_ipes(
     ),
     catalog: Catalog = Depends(get_catalog),
     network_graphs=Depends(get_graphs),
-
-    
 ) -> list[Topoflow]:
     """
     An endpoint to return configurations for TopoFlow.

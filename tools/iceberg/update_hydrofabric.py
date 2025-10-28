@@ -10,6 +10,7 @@ import pyarrow.parquet as pq
 import yaml
 from pyiceberg.catalog import load_catalog
 from pyiceberg.expressions import EqualTo
+from pyiceberg.schema import Schema
 
 from icefabric.helpers import load_creds
 from icefabric.schemas import (

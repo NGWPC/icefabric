@@ -198,7 +198,7 @@ class DivideAttributes:
             NestedField(39, "dist_4.twi", StringType(), required=False),
             NestedField(40, "vpuid", StringType(), required=True),
             NestedField(41, "glacier_percent", DoubleType(), required=False),
-            identifier_field_ids=[1, 41],
+            identifier_field_ids=[1, 40],
         )
 
     @classmethod
@@ -251,7 +251,7 @@ class DivideAttributes:
             pa.field("circ_mean.aspect", pa.float64()),
             pa.field("dist_4.twi", pa.string()),
             pa.field("vpuid", pa.string(), nullable=False),
-            pa.field("glacier_percent", pa.float64()),
+            pa.field("glacier_percent", pa.float64())
         ]
 
         return pa.schema(fields)

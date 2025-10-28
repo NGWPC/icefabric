@@ -546,6 +546,9 @@ class MockCatalog:
                     "mean.slope": 0.05 + (hash(row["divide_id"]) % 100) / 1000.0,  # DoubleType
                     "circ_mean.aspect": 180.0,  # DoubleType
                     "dist_4.twi": '[{"v":0.6137,"frequency":0.2501},{"v":2.558,"frequency":0.2499}]',  # StringType
+                    "centroid_x": -100.0 + (hash(row["divide_id"]) % 1000) / 1000.0,  # DoubleType
+                    "centroid_y": 40.0 + (hash(row["divide_id"]) % 500) / 500.0,  # DoubleType
+                    "glacier_percent": 0.0,  # DoubleType
                     "vpuid": "hi",  # StringType
                 }
             )

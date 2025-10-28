@@ -984,6 +984,14 @@ class Topmodel(BaseModel):
             f.write("\n".join(file_output))
         return topmodel_bmi_file
 
+class TopoFlowValues(float, enum.Enum):
+
+    H_ACTIVE_LAYER = 0.125
+    H0_SNOW = 5.0
+    H0_ICE = 2.0
+    H0_SWE = 0.25
+    H0_IWE = 1.834
+    T_RAIN_SNOW = 0.0         
 
 class TopoFlowValues(float, enum.Enum):
     """Default parameter values for Topoflow"""
@@ -1001,10 +1009,10 @@ class Topoflow(BaseModel):
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
     site_prefix: str = Field(..., description="The catchment ID")
-    forcing_file: str = Field(..., description="forcing file name")
-    dt: int = Field(default=1, description="timestep")
-    start_time: str = Field(default="2013032000", description="start time")
-    end_time: str = Field(default="2013052000", description="end time")
+    forcing_file: str = Field(...,description="forcing file name")
+    dt: int = Field(default=1,description="timestep")
+    start_time: str = Field(default="2013032000",description="start time")
+    end_time: str = Field(default="2013052000",description="end time")
     da: float = Field(..., description="drainage area")
     slope: float = Field(..., description="terrain slope in degrees")
     aspect: float = Field(..., description="terrain aspect in degrees")
@@ -1057,7 +1065,7 @@ class Topoflow(BaseModel):
             f"h0_swe={self.h0_swe}",
             f"h0_iwe={self.h0_iwe}",
             f"T_rain_snow={self.T_rain_snow}",
-            f"glaciated_percent={self.glacier_percent}",
+            f"glaciated_percent={self.glacier_percent}"
         ]
 
     def model_dump_config(self, output_path: Path) -> Path:

@@ -2,7 +2,8 @@
 
 ## Overview
 
-A glacier energy balance module as part of TopoFlow, an open source, BMI compatible, modularized, distributed hydrologic model in Python.
+A glacier energy balance module as part of TopoFlow, an open source, BMI compatible, modularized, distributed hydrologic model in Python. 
+
 ## Parameter Reference
 
 ### Core Parameters
@@ -13,21 +14,13 @@ aspect: terrain aspect in degrees
 lat: Y coordinates of divide centroid
 lon: X coordinates of divide centroid
 elev: Elevation from DEM
-h_active_layer:
+h_active_layer: 
 h0_snow:
 h0_ice:
 h0_swe:
 h0_iwe:
-T_rain_snow:
+T_rain_snow: 
 glacier_percent:  percentage of catchment that is glaciated
-
-### Soil Physical Properties
-
-TODO
-
-### Domain Configuration
-
-TODO
 
 ## Data Structures
 
@@ -120,25 +113,9 @@ for config in configs:
     # TODO - show more
 ```
 
-## Parameter Estimation
-
-The system automatically estimates initial parameters from hydrofabric data:
-
-TODO
-
 ## Output Files
 
 The CLI and API generate BMI-compatible configuration files:
 
 ```
 {catchment_id}_bmi_config_topoflow.txt
-```
-
-Example file content:
-```
-# TODO add file content
-```
-
-## Notes and Limitations
-
-TODO

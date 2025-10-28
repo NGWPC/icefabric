@@ -793,8 +793,8 @@ def get_topoflow_parameters(
     crs = gauge["divides"].crs
     transformer = Transformer.from_crs(crs, 4326)
     wgs84_latlon = transformer.transform(divide_attr_df["centroid_x"], divide_attr_df["centroid_y"])
-    divide_attr_df["centroid_x"] = wgs84_latlon[0]
-    divide_attr_df["centroid_y"] = wgs84_latlon[1]
+    divide_attr_df["centroid_y"] = wgs84_latlon[0]
+    divide_attr_df["centroid_x"] = wgs84_latlon[1]
 
     pydantic_models = []
     for _, row_dict in divide_attr_df.iterrows():
@@ -805,15 +805,14 @@ def get_topoflow_parameters(
             da=row_dict["areasqkm"],
             slope=row_dict["mean.slope"],
             aspect=row_dict["circ_mean.aspect"],
-            lon=row_dict["centroid_y"],
-            lat=row_dict["centroid_x"],
+            lon=row_dict["centroid_x"],
+            lat=row_dict["centroid_y"],
             elev=row_dict["mean.elevation"],
             glacier_percent=row_dict["glacier_percent"],
         )
         pydantic_models.append(model_instance)
     return pydantic_models
-
-
+  
 def get_ueb_parameters(
     catalog: Catalog,
     namespace: str,

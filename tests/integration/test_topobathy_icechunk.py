@@ -13,7 +13,7 @@ from icefabric.schemas.icechunk import NGWPCTestLocations
 load_dotenv()
 
 
-@pytest.mark.slow
+@pytest.mark.ultraslow
 def test_topobathy(ic_raster: str) -> None:
     """This test is SLOW. It will temporarily download all topobathy layers, up to 9 GB individually.
     To run, call `pytest tests --run-slow`

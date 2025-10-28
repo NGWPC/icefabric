@@ -42,6 +42,9 @@ class BoundingBox(BaseModel):
             raise ValueError(f"{max_name} must be greater than {min_name}")
         return max_val
 
+    def __str__(self) -> str:
+        return f"min_lat={self.min_lat}&min_lon={self.min_lon}&max_lat={self.max_lat}&max_lon={self.max_lon}"
+
 
 def get_bbox_query_params(
     min_lat: float = Query(

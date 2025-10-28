@@ -84,30 +84,28 @@ jobs:
     #         run: |
     #           uv run ruff format . --config pyproject.toml --check
 
-    # TODO: Re-enable this job after mocking AWS services, or the more integration focused tests are removed.
-    # The current unit tests require live AWS credentials, which is not practical for a standard CI environment.
-    # unit-test:
-    #     runs-on: ubuntu-latest
-    #     strategy:
-    #         matrix:
-    #             python-version: ['3.11', '3.12', '3.13']
-    #     steps:
-    #       - name: Checkout code
-    #         uses: actions/checkout@v4
-    #
-    #       - name: Install uv
-    #         uses: astral-sh/setup-uv@v5
-    #         with:
-    #             enable-cache: true
-    #             python-version: ${{ matrix.python-version }}
-    #             cache-dependency-glob: uv.lock pyproject.toml
-    #
-    #       - name: Install dependencies
-    #         run: uv sync
-    #
-    #       - name: Run tests
-    #         run: |
-    #           uv run pytest
+    unit-test:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                python-version: ['3.11', '3.12', '3.13']
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v4
+
+          - name: Install uv
+            uses: astral-sh/setup-uv@v5
+            with:
+                enable-cache: true
+                python-version: ${{ matrix.python-version }}
+                cache-dependency-glob: uv.lock pyproject.toml
+
+          - name: Install dependencies
+            run: uv sync
+
+          - name: Run tests
+            run: |
+              uv run pytest
 
 
     build-and-scan:

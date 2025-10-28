@@ -1,0 +1,28 @@
+[
+    {
+        "domain": "conus",
+        "divide-attributes": 3459909287461166012,
+        "divides": 7310011349634886109,
+        "flowpath-attributes": 4530460629645799764,
+        "flowpath-attributes-ml": 3510157119354794016,
+        "flowpaths": 6276456784702187416,
+        "hydrolocations": 5561879244154835903,
+        "lakes": 6786172176263426398,
+        "network": 2958976249666079512,
+        "nexus": 8306311327393934822,
+        "pois": 5280442340565480447
+    },
+    {
+        "domain": "hi",
+        "divide-attributes": 3459909287461166012,
+        "divides": 7310011349634886109,
+        "flowpath-attributes": 4530460629645799764,
+        "flowpath-attributes-ml": 3510157119354794016,
+        "flowpaths": 6276456784702187416,
+        "hydrolocations": 5561879244154835903,
+        "lakes": 6786172176263426398,
+        "network": 2958976249666079512,
+        "nexus": 8306311327393934822,
+        "pois": 5280442340565480447
+    }
+]

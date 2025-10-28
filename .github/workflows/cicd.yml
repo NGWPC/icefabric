@@ -101,7 +101,7 @@ jobs:
                 cache-dependency-glob: uv.lock pyproject.toml
 
           - name: Install dependencies
-            run: uv sync
+            run: uv sync --all-extras
 
           - name: Run tests
             run: |

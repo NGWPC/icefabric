@@ -984,7 +984,7 @@ class Topmodel(BaseModel):
             f.write("\n".join(file_output))
         return topmodel_bmi_file
 
-class TopoFlowValues(str, enum.Enum):
+class TopoFlowValues(float, enum.Enum):
 
     H_ACTIVE_LAYER = 0.125
     H0_SNOW = 5.0
@@ -994,10 +994,7 @@ class TopoFlowValues(str, enum.Enum):
     T_RAIN_SNOW = 0.0         
 
 class Topoflow(BaseModel):
-    """
-    Pydantic model for Topoflow module configuration
-
-    """
+    """Pydantic model for Topoflow module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
     site_prefix: str = Field(..., description="The catchment ID")

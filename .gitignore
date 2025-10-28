@@ -207,8 +207,11 @@ examples/icechunk_data_viewer/martin/tiles/legend.png
 tests/data/topo_tifs
 
 # all data files
-data
+data/*
 *.gpkg
+
+# Keep RAS_XS testing code
+!tests/data/ras_xs_subset_*.gpkg
 
 # R code
 .Rproj.user

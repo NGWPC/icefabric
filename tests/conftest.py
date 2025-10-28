@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+import geopandas as gpd
 import pandas as pd
 import polars as pl
 import pyarrow as pa
@@ -13,7 +14,7 @@ from fastapi.testclient import TestClient
 from icechunk import Repository, local_filesystem_storage
 from icechunk.xarray import to_icechunk
 from pyiceberg.catalog import Catalog, load_catalog
-from pyiceberg.expressions import EqualTo, In
+from pyiceberg.expressions import And, EqualTo, GreaterThanOrEqual, In, LessThanOrEqual
 from pyprojroot import here
 
 from app.main import app
@@ -27,6 +28,12 @@ Unified Mock PyIceberg Catalog Test Suite for Hydrofabric v2.2 Data using Rustwo
 # Load the sample graph from the actual graph file
 SAMPLE_GRAPH: rx.PyDiGraph = rx.from_node_link_json_file(
     str(here() / "tests/data/hi_hf_graph_network.json"),
+    edge_attrs=read_edge_attrs,
+    node_attrs=read_node_attrs,
+)  # type: ignore
+
+HF_GRAPH: rx.PyDiGraph = rx.from_node_link_json_file(
+    str(here() / "tests/data/conus_hf_graph_network.json"),
     edge_attrs=read_edge_attrs,
     node_attrs=read_node_attrs,
 )  # type: ignore
@@ -78,6 +85,18 @@ class MockScan:
             column_name = self.row_filter.term.name
             values = [lit.value for lit in self.row_filter.literals]
             return self.data.filter(pl.col(column_name).is_in(values)).collect()
+        elif isinstance(self.row_filter, And):
+            # import pdb; pdb.set_trace()
+            if isinstance(self.row_filter.left, And) and isinstance(self.row_filter.right, And):
+                left, right = self.row_filter.left, self.row_filter.right
+                for exp in [left.left, left.right, right.left, right.right]:
+                    column_name = exp.term.name
+                    value = exp.literal.value
+                    if isinstance(exp, GreaterThanOrEqual):
+                        self.data = self.data.filter(pl.col(column_name) >= value)
+                    elif isinstance(exp, LessThanOrEqual):
+                        self.data = self.data.filter(pl.col(column_name) <= value)
+                return self.data.collect()
 
         return self.data.collect()
 
@@ -102,6 +121,7 @@ class MockCatalog:
         self.connectivity_graph = SAMPLE_GRAPH
         self.name = "mock_hf"
         self.tables = self._create_sample_tables()
+        app.state.network_graphs = {"hi_hf": SAMPLE_GRAPH}
 
     def load_table(self, table_name: str) -> MockTable:
         """Load a mock table by name"""
@@ -177,6 +197,12 @@ class MockCatalog:
         )
         tables["divide_parameters.snow-17_conus"] = MockTable(
             "divide_parameters.snow-17_conus", self._create_snow17_divide_parameters(network_data)
+        )
+
+        # RAS_XS tables
+        tables["ras_xs.conflated"] = MockTable("ras_xs.conflated", self._create_ras_xs_data("conflated"))
+        tables["ras_xs.representative"] = MockTable(
+            "ras_xs.representative", self._create_ras_xs_data("representative")
         )
 
         return tables
@@ -656,6 +682,12 @@ class MockCatalog:
 
         return pd.DataFrame(hydrolocations)
 
+    def _create_ras_xs_data(self, type) -> pd.DataFrame:
+        file_name = f"ras_xs_subset_{type}.gpkg"
+        xs_data = here() / f"tests/data/{file_name}"
+        df = gpd.read_file(xs_data).to_wkb()
+        return df
+
 
 # Utility functions for test setup
 def create_test_environment(tmp_path: Path) -> dict[str, Any]:
@@ -718,7 +750,7 @@ else:
     )
 
 # Test data constants
-sample_hf_uri = [
+hf_uri_good = [
     "gages-01010000",
     "gages-02450825",
     "gages-03173000",
@@ -727,12 +759,15 @@ sample_hf_uri = [
     "gages-06823500",
     "gages-07060710",
     "gages-08070000",
-    "gages-09253000",
-    "gages-10316500",
-    "gages-11456000",
-    "gages-12411000",
-    "gages-13337000",
-    "gages-14020000",
+]
+
+hf_uri_bad = [
+    "gages-9909253000",
+    "gages-9910316500",
+    "gages-9911456000",
+    "gages-9912411000",
+    "gages-9913337000",
+    "gages-9914020000",
 ]
 
 test_ic_rasters = [f for f in NGWPCTestLocations._member_names_ if "TOPO" in f]
@@ -858,9 +893,15 @@ def local_ic_raster(request) -> Path:
     return request.param
 
 
-@pytest.fixture(params=sample_hf_uri)
-def gauge_hf_uri(request) -> str:
-    """Returns individual gauge identifiers for parameterized testing"""
+@pytest.fixture(params=hf_uri_good)
+def gauge_hf_uri_good(request) -> str:
+    """Returns individual good gauge identifiers for parameterized testing"""
+    return request.param
+
+
+@pytest.fixture(params=hf_uri_bad)
+def gauge_hf_uri_bad(request) -> str:
+    """Returns individual bad gauge identifiers for parameterized testing"""
     return request.param
 
 
@@ -874,6 +915,15 @@ def testing_dir() -> Path:
 def client():
     """Create a test client for the FastAPI app with mock catalog."""
     app.state.catalog = MockCatalog()  # defaulting to use the mock catalog
+    return TestClient(app)
+
+
+@pytest.fixture(scope="session")
+def hydrofabric_client():
+    """Create a test client for the FastAPI app with real Glue catalog."""
+    catalog = load_catalog("glue")
+    app.state.catalog = catalog
+    app.state.network_graphs = {"conus_hf": HF_GRAPH}
     return TestClient(app)
 
 
@@ -925,6 +975,12 @@ def pytest_addoption(parser):
         help="Run slow tests",
     )
     parser.addoption(
+        "--run-ultra-slow",
+        action="store_true",
+        default=False,
+        help="Run ultra slow tests",
+    )
+    parser.addoption(
         "--run-local",
         action="store_true",
         default=False,
@@ -940,6 +996,12 @@ def pytest_collection_modifyitems(config, items):
             if "slow" in item.keywords:
                 item.add_marker(skipper)
 
+    if not config.getoption("--run-ultra-slow"):
+        skipper = pytest.mark.skip(reason="Only run when --run-slow is given")
+        for item in items:
+            if "ultraslow" in item.keywords:
+                item.add_marker(skipper)
+
     if not config.getoption("--run-local"):
         skipper = pytest.mark.skip(reason="Only run when --run-local is given")
         for item in items:
@@ -950,6 +1012,7 @@ def pytest_collection_modifyitems(config, items):
 def pytest_configure(config):
     """Configure pytest markers."""
     config.addinivalue_line("markers", "slow: marks tests as slow tests")
+    config.addinivalue_line("markers", "ultraslow: marks tests as ultra slow tests")
     config.addinivalue_line("markers", "local: marks tests as local tests")
     config.addinivalue_line("markers", "performance: marks tests as performance tests")
     config.addinivalue_line("markers", "integration: marks tests as integration tests")

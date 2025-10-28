@@ -1,4 +1,6 @@
+import gzip
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -685,6 +687,11 @@ class MockCatalog:
     def _create_ras_xs_data(self, type) -> pd.DataFrame:
         file_name = f"ras_xs_subset_{type}.gpkg"
         xs_data = here() / f"tests/data/{file_name}"
+        if type == "conflated":
+            if not os.path.exists(xs_data):
+                with gzip.open(f"{xs_data}.gz", "rb") as gz_file:
+                    with open(xs_data, "wb") as out_file:
+                        shutil.copyfileobj(gz_file, out_file)
         df = gpd.read_file(xs_data).to_wkb()
         return df
 

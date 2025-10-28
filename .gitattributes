@@ -1,3 +1,1 @@
 /CHANGELOG.md merge=union
-tests/data/ras_xs_subset_conflated.gpkg !text !filter !merge !diff
-tests/data/conus_hf_graph_network.json !text !filter !merge !diff

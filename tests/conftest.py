@@ -65,6 +65,10 @@ class MockTable:
         """Returns data as Polars DataFrame"""
         return self._polars_data
 
+    def snapshot_by_id(self, snap_id):
+        """Mocks the snapshot_by_id method for iceberg tables"""
+        return None
+
 
 class MockScan:
     """Mock scan result that can be filtered and converted"""
@@ -199,6 +203,24 @@ class MockCatalog:
         )
         tables["divide_parameters.snow-17_conus"] = MockTable(
             "divide_parameters.snow-17_conus", self._create_snow17_divide_parameters(network_data)
+        )
+
+        # Tables for Hydrofabric router testing
+        # Hydrofabric Router does not accept mock_hf as a namespace during input validation
+        tables["hi_hf.divide-attributes"] = tables["mock_hf.divide-attributes"]
+        tables["hi_hf.divides"] = tables["mock_hf.divides"]
+        tables["hi_hf.flowpath-attributes"] = tables["mock_hf.flowpath-attributes"]
+        tables["hi_hf.flowpath-attributes-ml"] = tables["mock_hf.flowpath-attributes-ml"]
+        tables["hi_hf.flowpaths"] = tables["mock_hf.flowpaths"]
+        tables["hi_hf.hydrolocations"] = tables["mock_hf.hydrolocations"]
+        tables["hi_hf.lakes"] = tables["mock_hf.lakes"]
+        tables["hi_hf.network"] = tables["mock_hf.network"]
+        tables["hi_hf.nexus"] = tables["mock_hf.nexus"]
+        tables["hi_hf.pois"] = tables["mock_hf.pois"]
+
+        # Hydrofabric snapshot history table
+        tables["hydrofabric_snapshots.id"] = MockTable(
+            "hydrofabric_snapshots.id", self._create_snapshot_history_data()
         )
 
         # RAS_XS tables
@@ -695,6 +717,12 @@ class MockCatalog:
         df = gpd.read_file(xs_data).to_wkb()
         return df
 
+    def _create_snapshot_history_data(self) -> pd.DataFrame:
+        file_name = "snapshots_history_table.json"
+        snapshots_history = here() / f"tests/data/{file_name}"
+        df = pd.read_json(snapshots_history, orient="records")
+        return df
+
 
 # Utility functions for test setup
 def create_test_environment(tmp_path: Path) -> dict[str, Any]:
@@ -756,25 +784,19 @@ else:
         "Cannot find .pyiceberg.yaml. Please download this from NGWPC confluence or create "
     )
 
-# Test data constants
-hf_uri_good = [
-    "gages-01010000",
-    "gages-02450825",
-    "gages-03173000",
-    "gages-04100500",
-    "gages-05473450",
-    "gages-06823500",
-    "gages-07060710",
-    "gages-08070000",
+# Hydrofabric router data constants
+wb_id_good = [
+    "wb-1833",
+    "wb-1795",
+    "wb-2116",
+    "wb-1288",
 ]
 
-hf_uri_bad = [
-    "gages-9909253000",
-    "gages-9910316500",
-    "gages-9911456000",
-    "gages-9912411000",
-    "gages-9913337000",
-    "gages-9914020000",
+wb_id_bad = [
+    "wb-991833",
+    "wb-991795",
+    "wb-992116",
+    "wb-991288",
 ]
 
 test_ic_rasters = [f for f in NGWPCTestLocations._member_names_ if "TOPO" in f]
@@ -900,14 +922,14 @@ def local_ic_raster(request) -> Path:
     return request.param
 
 
-@pytest.fixture(params=hf_uri_good)
-def gauge_hf_uri_good(request) -> str:
+@pytest.fixture(params=wb_id_good)
+def watershed_bound_id_good(request) -> str:
     """Returns individual good gauge identifiers for parameterized testing"""
     return request.param
 
 
-@pytest.fixture(params=hf_uri_bad)
-def gauge_hf_uri_bad(request) -> str:
+@pytest.fixture(params=wb_id_bad)
+def watershed_bound_id_bad(request) -> str:
     """Returns individual bad gauge identifiers for parameterized testing"""
     return request.param
 
@@ -922,15 +944,6 @@ def testing_dir() -> Path:
 def client():
     """Create a test client for the FastAPI app with mock catalog."""
     app.state.catalog = MockCatalog()  # defaulting to use the mock catalog
-    return TestClient(app)
-
-
-@pytest.fixture(scope="session")
-def hydrofabric_client():
-    """Create a test client for the FastAPI app with real Glue catalog."""
-    catalog = load_catalog("glue")
-    app.state.catalog = catalog
-    app.state.network_graphs = {"conus_hf": HF_GRAPH}
     return TestClient(app)
 
 

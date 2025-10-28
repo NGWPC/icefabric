@@ -105,7 +105,7 @@ jobs:
 
           - name: Run tests
             run: |
-              uv run pytest
+              uv run pytest --run-slow
 
 
     build-and-scan:

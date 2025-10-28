@@ -43,10 +43,14 @@ def find_origin(
     ValueError
         Multiple origins for the point are found
     """
+    columns_to_grab = ["id", "toid", "vpuid", "hydroseq", "poi_id"]
+    if "hl_uri" in network_table.collect_schema().names():
+        columns_to_grab.append("hl_uri")
+
     # Get all matching records
     origin_candidates = (
         network_table.filter(pl.col(id_type.value).is_not_null() & (pl.col(id_type.value) == identifier))
-        .select(["id", "toid", "vpuid", "hydroseq", "poi_id", "hl_uri"])
+        .select(columns_to_grab)
         .collect()
     )
 

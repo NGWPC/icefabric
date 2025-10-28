@@ -251,7 +251,7 @@ class DivideAttributes:
             pa.field("circ_mean.aspect", pa.float64()),
             pa.field("dist_4.twi", pa.string()),
             pa.field("vpuid", pa.string(), nullable=False),
-            pa.field("glacier_percent", pa.float64())
+            pa.field("glacier_percent", pa.float64()),
         ]
 
         return pa.schema(fields)

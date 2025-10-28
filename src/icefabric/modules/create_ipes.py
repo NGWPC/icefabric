@@ -812,7 +812,8 @@ def get_topoflow_parameters(
         )
         pydantic_models.append(model_instance)
     return pydantic_models
-  
+
+
 def get_ueb_parameters(
     catalog: Catalog,
     namespace: str,

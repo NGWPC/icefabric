@@ -2,7 +2,7 @@
 
 ## Overview
 
-A glacier energy balance module as part of TopoFlow, an open source, BMI compatible, modularized, distributed hydrologic model in Python. 
+A glacier energy balance module as part of TopoFlow, an open source, BMI compatible, modularized, distributed hydrologic model in Python.
 
 ## Parameter Reference
 
@@ -14,12 +14,12 @@ aspect: terrain aspect in degrees
 lat: Y coordinates of divide centroid
 lon: X coordinates of divide centroid
 elev: Elevation from DEM
-h_active_layer: 
+h_active_layer:
 h0_snow:
 h0_ice:
 h0_swe:
 h0_iwe:
-T_rain_snow: 
+T_rain_snow:
 glacier_percent:  percentage of catchment that is glaciated
 
 ## Data Structures

@@ -11,7 +11,6 @@ from icefabric.modules import (
     get_topmodel_parameters,
     get_topoflow_parameters,
     get_troute_parameters,
-    get_topoflow_parameters,
 )
 
 
@@ -154,6 +153,7 @@ def test_lstm_parameters(mock_catalog, sample_graph, test_identifiers):
         )
 
         assert len(lstm_models) > 0, f"No LSTM parameters generated for {identifier}"
+
 
 def test_topoflow_parameters(mock_catalog, sample_graph, test_identifiers):
     """Test Topoflow parameter generation and attribute count for all identifiers"""

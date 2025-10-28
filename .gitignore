@@ -211,7 +211,8 @@ data/*
 *.gpkg
 
 # Keep RAS_XS testing code
-!tests/data/ras_xs_subset_*.gpkg
+!tests/data/ras_xs_subset_representative.gpkg
+!tests/data/ras_xs_subset_conflated.gpkg.gz
 
 # R code
 .Rproj.user

@@ -762,11 +762,56 @@ def get_topoflow_parameters(
     -------
     list[Topoflow]
         The list of all initial parameters for catchments using Topoflow
-
-    *Note: This is a placeholder for Topoflow as the generation of IPEs for
-    Topoflow does not exist currently.
     """
-    raise NotImplementedError("Topoflow not implemented yet")
+    gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(
+        catalog=catalog,
+        identifier=identifier,
+        id_type=IdType.HL_URI,
+        namespace=namespace,
+        layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
+        graph=graph,
+    )
+
+    attrs = [
+        "divide_id",
+        "mean.slope",
+        "circ_mean.aspect",
+        "centroid_x",
+        "centroid_y",
+        "mean.elevation",
+        "glacier_percent",
+    ]
+    divide_attr_df = pd.DataFrame(gauge["divide-attributes"])
+    divide_attr_df = divide_attr_df[attrs]
+    divides_df = gauge["divides"][["divide_id", "areasqkm"]]
+    divide_attr_df = divide_attr_df.merge(divides_df, on="divide_id", how="left")
+
+    # Convert elevation from cm to m
+    divide_attr_df["mean.elevation"] = divide_attr_df["mean.elevation"] * 0.01
+
+    # Convert CRS to WGS84 (EPSG4326)
+    crs = gauge["divides"].crs
+    transformer = Transformer.from_crs(crs, 4326)
+    wgs84_latlon = transformer.transform(divide_attr_df["centroid_x"], divide_attr_df["centroid_y"])
+    divide_attr_df["centroid_y"] = wgs84_latlon[0]
+    divide_attr_df["centroid_x"] = wgs84_latlon[1]
+
+    pydantic_models = []
+    for _, row_dict in divide_attr_df.iterrows():
+        # Instantiate the Pydantic model for each row
+        model_instance = Topoflow(
+            site_prefix=row_dict["divide_id"],
+            forcing_file=f"data/{row_dict['divide_id']}.csv",
+            da=row_dict["areasqkm"],
+            slope=row_dict["mean.slope"],
+            aspect=row_dict["circ_mean.aspect"],
+            lon=row_dict["centroid_x"],
+            lat=row_dict["centroid_y"],
+            elev=row_dict["mean.elevation"],
+            glacier_percent=row_dict["glacier_percent"],
+        )
+        pydantic_models.append(model_instance)
+    return pydantic_models
 
 
 def get_ueb_parameters(

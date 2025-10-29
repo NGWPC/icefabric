@@ -86,6 +86,8 @@ def update_hydrofabric(catalog_type: str, layer: str, file: Path, domain: str, t
         raise FileNotFoundError from e
     if catalog.table_exists(f"{namespace}.{layer}"):
         iceberg_table = catalog.load_table(f"{namespace}.{layer}")
+        with iceberg_table.update_schema() as update:
+            update.union_by_name(schema.arrow_schema())
         iceberg_table.overwrite(table)  # TODO See issue #81 for support of upsert
         current_snapshot = iceberg_table.current_snapshot()
         snapshots[layer] = current_snapshot.snapshot_id

@@ -90,6 +90,8 @@ class DivideAttributes:
         Topographic Wetness Index quartile distribution (unitless)
     vpuid : str
         Vector Processing Unit ID
+    glacier_percent : float
+        Percentage of catchment that is glaciated
     """
 
     @classmethod
@@ -142,6 +144,7 @@ class DivideAttributes:
             "circ_mean.aspect",
             "dist_4.twi",
             "vpuid",
+            "glacier_percent",
         ]
 
     @classmethod
@@ -194,6 +197,7 @@ class DivideAttributes:
             NestedField(38, "circ_mean.aspect", DoubleType(), required=False),
             NestedField(39, "dist_4.twi", StringType(), required=False),
             NestedField(40, "vpuid", StringType(), required=True),
+            NestedField(41, "glacier_percent", DoubleType(), required=False),
             identifier_field_ids=[1, 40],
         )
 
@@ -247,6 +251,7 @@ class DivideAttributes:
             pa.field("circ_mean.aspect", pa.float64()),
             pa.field("dist_4.twi", pa.string()),
             pa.field("vpuid", pa.string(), nullable=False),
+            pa.field("glacier_percent", pa.float64()),
         ]
 
         return pa.schema(fields)

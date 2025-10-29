@@ -985,22 +985,79 @@ class Topmodel(BaseModel):
         return topmodel_bmi_file
 
 
+class TopoFlowValues(float, enum.Enum):
+    """Default parameter values for Topoflow"""
+
+    H_ACTIVE_LAYER = 0.125
+    H0_SNOW = 5.0
+    H0_ICE = 2.0
+    H0_SWE = 0.25
+    H0_IWE = 1.834
+    T_RAIN_SNOW = 0.0
+
+
 class Topoflow(BaseModel):
-    """
-    Pydantic model for Topoflow module configuration
-
-    *Note: This is a placeholder for Topoflow's BaseModel as the generation of IPEs for
-    Topoflow does not exist currently.
-
-    """
+    """Pydantic model for Topoflow module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str = Field(..., description="The catchment ID")
+    site_prefix: str = Field(..., description="The catchment ID")
+    forcing_file: str = Field(..., description="forcing file name")
+    dt: int = Field(default=1, description="timestep")
+    start_time: str = Field(default="2013032000", description="start time")
+    end_time: str = Field(default="2013052000", description="end time")
+    da: float = Field(..., description="drainage area")
+    slope: float = Field(..., description="terrain slope in degrees")
+    aspect: float = Field(..., description="terrain aspect in degrees")
+    lat: float = Field(..., description="Y coordinates of divide centroid")
+    lon: float = Field(..., description="X coordinates of divide centroid")
+    elev: float = Field(..., description="Elevation from DEM")
+    h_active_layer: float = Field(
+        default=TopoFlowValues.H_ACTIVE_LAYER.value,
+        description="",
+    )
+    h0_snow: float = Field(
+        default=TopoFlowValues.H0_SNOW.value,
+        description="",
+    )
+    h0_ice: float = Field(
+        default=TopoFlowValues.H0_ICE.value,
+        description="",
+    )
+    h0_swe: float = Field(
+        default=TopoFlowValues.H0_SWE.value,
+        description="",
+    )
+    h0_iwe: float = Field(
+        default=TopoFlowValues.H0_IWE.value,
+        description="",
+    )
+    T_rain_snow: float = Field(
+        default=TopoFlowValues.T_RAIN_SNOW.value,
+        description="",
+    )
+    glacier_percent: float = Field(..., description="Percentage of catchment that is glaciated")
 
     def to_bmi_config(self) -> list[str]:
         """Convert the model back to the original config file format"""
         return [
-            f"catchment={self.catchment}",
+            f"site_prefix={self.site_prefix}",
+            f"forcing_file={self.forcing_file}"
+            f"dt={self.dt}"
+            f"starttime={self.start_time}"
+            f"endtime={self.end_time}"
+            f"da={self.da}",
+            f"slope={self.slope}",
+            f"aspect={self.aspect}",
+            f"lon={self.lon}",
+            f"lat={self.lat}",
+            f"elev={self.elev}",
+            f"h_active_layer={self.h_active_layer}",
+            f"h0_snow={self.h0_snow}",
+            f"h0_ice={self.h0_ice}",
+            f"h0_swe={self.h0_swe}",
+            f"h0_iwe={self.h0_iwe}",
+            f"T_rain_snow={self.T_rain_snow}",
+            f"glaciated_percent={self.glacier_percent}",
         ]
 
     def model_dump_config(self, output_path: Path) -> Path:
@@ -1017,7 +1074,7 @@ class Topoflow(BaseModel):
             The path to the written config file
         """
         file_output = self.to_bmi_config()
-        topoflow_bmi_file = output_path / f"{self.catchment}_bmi_config_topoflow.txt"
+        topoflow_bmi_file = output_path / f"{self.site_prefix}_bmi_config_topoflow.txt"
         with open(topoflow_bmi_file, "w") as f:
             f.write("\n".join(file_output))
         return topoflow_bmi_file

@@ -36,7 +36,7 @@ class LSTM(BaseModel):
         description="Refer to https://github.com/NOAA-OWP/lstm/blob/master/bmi_config_files/README.md",
     )
     elev_mean: float = Field(..., description="Catchment mean elevation (m) above sea level")
-    inital_state: str = Field(
+    initial_state: str = Field(
         default="zero", description="This is an option to set the initial states of the model to zero."
     )
     lat: float = Field(..., description="Latitude")

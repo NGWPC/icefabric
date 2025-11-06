@@ -2,7 +2,13 @@ import streamlit as st
 from botocore.exceptions import ClientError
 from streamlit_folium import st_folium
 
-from app.streamlit.helpers import convert_for_download, format_xs_map, get_data
+from app.streamlit.helpers import (
+    convert_for_download,
+    create_table_from_schema,
+    domain_class_map,
+    format_xs_map,
+    get_data,
+)
 from app.streamlit.tooltips import (
     bounding_box_tooltip,
     domain_tooltip,
@@ -33,6 +39,12 @@ min_lat, min_lon, max_lat, max_lon = None, None, None, None
 
 l_col.markdown("#### __Query__")
 xs_dom = XsType(l_col.selectbox(label="Cross-sectional Domain", options=domain_options, help=domain_tooltip))
+data_model_exp = l_col.expander("Domain Data Model", icon=":material/data_table:")
+data_model = create_table_from_schema(domain_class_map[xs_dom.value])
+data_model_exp.markdown(
+    f"The selected domain (`{xs_dom.value}`) is stored/formatted as the data schema below:"
+)
+data_model_exp.dataframe(data=data_model, hide_index=True, row_height=65)
 xs_query = l_col.selectbox(label="Query Type", options=["Flowpath", "Bounding Box"], help=query_type_tooltip)
 if xs_query:
     if xs_query == "Flowpath":

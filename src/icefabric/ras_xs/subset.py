@@ -73,6 +73,6 @@ def subset_xs(
     if len(data_gdf) == 0:
         print("Warning: Dataframe is empty. No geopackage file was generated.")
     elif output_file:
-        gpd.GeoDataFrame(data_gdf).to_file(output_file, layer="ras_xs", driver="GPKG")
+        gpd.GeoDataFrame(data_gdf).to_file(output_file, driver="GPKG")
 
     return data_gdf

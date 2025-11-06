@@ -23,6 +23,8 @@ from app.routers.nwm_modules.router import (
     topmodel_router,
     topoflow_router,
     troute_router,
+    ueb_router,
+    cfe_router
 )
 from app.routers.ras_xs.router import api_router as ras_api_router
 from app.routers.rise_wrappers.router import api_router as rise_api_wrap_router
@@ -135,6 +137,8 @@ app.include_router(sacsma_router, prefix="/v1")
 app.include_router(troute_router, prefix="/v1")
 app.include_router(topmodel_router, prefix="/v1")
 app.include_router(topoflow_router, prefix="/v1")
+app.include_router(ueb_router, prefix="/v1")
+app.include_router(cfe_router, prefix="/v1")
 app.include_router(ras_api_router, prefix="/v1")
 app.include_router(rise_api_wrap_router, prefix="/v1")
 

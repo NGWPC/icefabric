@@ -16,6 +16,8 @@ from icefabric.schemas.modules import (
     Topmodel,
     Topoflow,
     TRoute,
+    UEB,
+    CFE,
 )
 
 sft_router = APIRouter(prefix="/modules/sft")
@@ -28,6 +30,8 @@ sacsma_router = APIRouter(prefix="/modules/sacsma")
 troute_router = APIRouter(prefix="/modules/troute")
 topmodel_router = APIRouter(prefix="/modules/topmodel")
 topoflow_router = APIRouter(prefix="/modules/topoflow")
+ueb_router = APIRouter(prefix="/modules/ueb")
+cfe_router = APIRouter(prefix="/modules/cfe")
 
 
 @sft_router.get("/", tags=["NWM Modules"])
@@ -158,7 +162,7 @@ async def get_smp_ipes(
         namespace=domain.value,
         identifier=f"gages-{identifier}",
         graph=network_graphs[domain],
-        module=module,
+        extra_module=module,
     )
 
 
@@ -407,7 +411,6 @@ async def get_topmodel_ipes(
     )
 
 
-# TODO - Restore endpoint once the generation of IPEs for TopoFlow is possible/implemented
 @topoflow_router.get("/", tags=["NWM Modules"])
 async def get_topoflow_ipes(
     identifier: str = Query(
@@ -466,3 +469,103 @@ async def get_albedo(
     A float albedo value [0, 1]
     """
     return Albedo.get_landcover_albedo(landcover_state.landcover).value
+
+@ueb_router.get("/", tags=["NWM Modules"])
+async def get_ueb_ipes(
+    identifier: str = Query(
+        ...,
+        description="Gage ID from which to trace upstream catchments.",
+        examples=["01010000"],
+        openapi_examples={"ueb_example": {"summary": "UEB Example", "value": "01010000"}},
+    ),
+    domain: HydrofabricDomains = Query(
+        HydrofabricDomains.CONUS,
+        description="The iceberg namespace used to query the hydrofabric.",
+        openapi_examples={"ueb_example": {"summary": "UEB Example", "value": "conus_hf"}},
+    ),
+    envca: bool = Query(
+        False,
+        description="If source is ENVCA, then set to True. Defaults to False.",
+        openapi_examples={"ueb_example": {"summary": "UEB Example", "value": False}},
+    ),
+    catalog: Catalog = Depends(get_catalog),
+    network_graphs=Depends(get_graphs),
+) -> list[UEB]:
+    """
+    An endpoint to return configurations for UEB.
+
+    This endpoint traces upstream from a given gage ID to get all catchments
+    and returns UEB parameter configurations for each catchment.
+
+    **Parameters:**
+    - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **domain**: The geographic domain used to filter catchments.
+    - **envca**:  Designates that the source is ENVCA.
+
+    **Returns:**
+    A list of UEB pydantic objects for each catchment.
+    """
+    return config_mapper["ueb"](
+        catalog=catalog,
+        namespace=domain.value,
+        identifier=f"gages-{identifier}",
+        graph=network_graphs[domain],
+        envca=envca
+    )
+
+@cfe_router.get("/", tags=["NWM Modules"])
+async def get_cfe_ipes(
+    identifier: str = Query(
+        ...,
+        description="Gage ID from which to trace upstream catchments.",
+        examples=["01010000"],
+        openapi_examples={"cfe_example": {"summary": "CFE Example", "value": "01010000"}},
+    ),
+    domain: HydrofabricDomains = Query(
+        HydrofabricDomains.CONUS,
+        description="The iceberg namespace used to query the hydrofabric.",
+        openapi_examples={"cfe_example": {"summary": "CFE Example", "value": "conus_hf"}},
+    ),
+    cfe_version: str = Query(
+        ...,
+        description="Select which version of CFE to use: CFE-S or CFE-X.",
+        openapi_examples={"cfe_example": {"summary": "CFE Example", "value": "CFE-S"}},
+    ),
+    sft_included: bool = Query(
+        False,
+        description="True if SFT is in the 'dep_modules_included' definition as declared in HF API repo.",
+        openapi_examples={"cfe_example": {"summary": "CFE Example", "value": False}},
+    ),
+    rootzone_aet: bool = Query(
+        False,
+        description="Turn on rootzone AET",
+        openapi_examples={"cfe_example": {"summary": "CFE Example", "value": False}},
+    ),
+    catalog: Catalog = Depends(get_catalog),
+    network_graphs=Depends(get_graphs),
+) -> list[CFE]:
+    """
+    An endpoint to return configurations for CFE.
+
+    This endpoint traces upstream from a given gage ID to get all catchments
+    and returns CFE parameter configurations for each catchment.
+
+    **Parameters:**
+    - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **domain**: The geographic domain used to filter catchments.
+    - **cfe_version**:  Select which version of CFE to use: CFE-S or CFE-X.
+    - **sft_included**: True if SFT is in the 'dep_modules_included' definition as declared in HF API repo.
+    - **rootzone_aet**: Turn on rootzone AET if True.
+
+    **Returns:**
+    A list of CFE pydantic objects for each catchment.
+    """
+    return config_mapper["cfe"](
+        catalog=catalog,
+        namespace=domain.value,
+        identifier=f"gages-{identifier}",
+        graph=network_graphs[domain],
+        cfe_version = cfe_version,
+        sft_included = sft_included,
+        rootzone_aet = rootzone_aet,
+    )

@@ -2,9 +2,9 @@
 
 import enum
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Literal, Protocol, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class NWMProtocol(Protocol):
@@ -31,10 +31,7 @@ class SFT(BaseModel):
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
     catchment: str = Field(..., description="The catchment ID")
-    verbosity: str = Field(default="none", description="Verbosity level")
     soil_moisture_bmi: int = Field(default=1, description="Soil moisture BMI parameter")
-    end_time: str = Field(default="1.[d]", description="End time with units")
-    dt: str = Field(default="1.0[h]", description="Time step with units")
     soil_params_smcmax: float = Field(..., description="Maximum soil moisture content", alias="smcmax")
     soil_params_b: float = Field(..., description="Soil moisture retention curve parameter (bexp)", alias="b")
     soil_params_satpsi: float = Field(..., description="Saturated soil suction (psisat)", alias="satpsi")
@@ -59,10 +56,7 @@ class SFT(BaseModel):
         z_values = ",".join([str(z) for z in self.soil_z])
 
         return [
-            f"verbosity={self.verbosity}",
             f"soil_moisture_bmi={self.soil_moisture_bmi}",
-            f"end_time={self.end_time}",
-            f"dt={self.dt}",
             f"soil_params.smcmax={self.soil_params_smcmax}",
             f"soil_params.b={self.soil_params_b}",
             f"soil_params.satpsi={self.soil_params_satpsi}",
@@ -215,13 +209,13 @@ class SoilScheme(str, enum.Enum):
     """The calibratable scheme to be used in SMP"""
 
     CFE_SOIL_STORAGE = "conceptual"
-    CFE_STORAGE_DEPTH = "2.0"
+    CFE_STORAGE_DEPTH = 2.0
     TOPMODEL_SOIL_STORAGE = "TopModel"
     TOPMODEL_WATER_TABLE_METHOD = "flux-based"
     LASAM_SOIL_STORAGE = "layered"
     LASAM_SOIL_MOISTURE = "constant"
-    LASAM_SOIL_DEPTH_LAYERS = "2.0"
-    LASAM_WATER_TABLE_DEPTH = "10[m]"
+    LASAM_SOIL_DEPTH_LAYERS = 2.0
+    LASAM_WATER_TABLE_DEPTH = 10.0
 
 
 class SMP(BaseModel):
@@ -229,7 +223,6 @@ class SMP(BaseModel):
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
     catchment: str = Field(..., description="The catchment ID")
-    verbosity: str = Field(default="none", description="Verbosity level")
     soil_params_smcmax: float = Field(..., description="Maximum soil moisture content", alias="smcmax")
     soil_params_b: float = Field(..., description="Soil moisture retention curve parameter (bexp)", alias="b")
     soil_params_satpsi: float = Field(..., description="Saturated soil suction (psisat)", alias="satpsi")
@@ -237,33 +230,35 @@ class SMP(BaseModel):
     soil_moisture_fraction_depth: float = Field(
         default=0.4, description="Soil moisture fraction depth in meters"
     )
-    soil_storage_model: str = Field(
-        default="NA",
+    soil_storage_model: Optional[str] = Field(
+        ...,
         description="If conceptual, conceptual models are used for computing the soil moisture profile (e.g., CFE). If layered, layered-based soil moisture models are used (e.g., LGAR). If topmodel, topmodel's variables are used",
     )
-    soil_storage_depth: str = Field(
-        default="none",
+
+    soil_storage_depth: Optional[float] = Field(
+        ...,
         description="Depth of the soil reservoir model (e.g., CFE). Note: this depth can be different from the depth of the soil moisture profile which is based on soil_z",
     )
-    water_table_based_method: str = Field(
-        default="NA",
-        description="Needed if soil_storage_model = topmodel. flux-based uses an iterative scheme, and deficit-based uses catchment deficit to compute soil moisture profile",
+
+    water_table_based_method: Optional[str] = Field(
+    ...,
+    description="Needed if soil_storage_model = topmodel. flux-based uses an iterative scheme, and deficit-based uses catchment deficit to compute soil moisture profile",
     )
-    soil_moisture_profile_option: str = Field(
-        default="NA",
+
+    soil_moisture_profile_option: Optional[str] = Field(
+        ...,
         description="Constant for layered-constant profile. linear for linearly interpolated values between two consecutive layers. Needed if soil_storage_model = layered",
     )
-    soil_depth_layers: str = Field(
-        default="NA", description="Absolute depth of soil layers. Needed if soil_storage_model = layered"
+    soil_depth_layers: Optional[float] = Field(
+        ..., description="Absolute depth of soil layers. Needed if soil_storage_model = layered"
     )
-    water_table_depth: str = Field(default="NA", description="N/A")
+    water_table_depth: Optional[float] = Field(default="NA", description="N/A")
 
     def to_bmi_config(self) -> list[str]:
         """Convert the model back to the original config file format"""
         z_values = ",".join([str(z) for z in self.soil_z])
 
         return [
-            f"verbosity={self.verbosity}",
             f"soil_params.smcmax={self.soil_params_smcmax}",
             f"soil_params.b={self.soil_params_b}",
             f"soil_params.satpsi={self.soil_params_satpsi}",
@@ -423,10 +418,6 @@ class LSTM(BaseModel):
     basin_id: str = Field(
         ..., description="Refer to https://github.com/NOAA-OWP/lstm/blob/master/bmi_config_files/README.md"
     )
-    basin_name: str = Field(
-        default="",
-        description="Refer to https://github.com/NOAA-OWP/lstm/blob/master/bmi_config_files/README.md",
-    )
     elev_mean: float = Field(..., description="Catchment mean elevation (m) above sea level")
     initial_state: str = Field(
         default="zero", description="This is an option to set the initial states of the model to zero."
@@ -434,32 +425,17 @@ class LSTM(BaseModel):
     lat: float = Field(..., description="Latitude")
     lon: float = Field(..., description="Longitude")
     slope_mean: float = Field(..., description="Catchment mean slope (m km−1)")
-    timestep: str = Field(
-        default="1 hour",
-        description="Refer to https://github.com/NOAA-OWP/lstm/blob/master/bmi_config_files/README.md",
-    )
-    train_cfg_file: str = Field(
-        default="",
-        description="This is a configuration file used when training the model. It has critical information on the LSTM architecture and should not be altered.",
-    )
-    verbose: str = Field(
-        default="0", description="Change to 1 in order to print additional BMI information during runtime."
-    )
 
     def to_bmi_config(self) -> list[str]:
         """Convert the model back to the original config file format"""
         return [
             f"area_sqkm: {self.area_sqkm}",
             f"basin_id: {self.basin_id}",
-            f"basin_name: {self.basin_name}",
             f"elev_mean: {self.elev_mean}",
             f"initial_state: {self.initial_state}",
             f"lat: {self.lat}",
             f"lon: {self.lon}",
             f"slope_mean: {self.slope_mean}",
-            f"timestep: {self.timestep}",
-            f"train_cfg_file: {self.train_cfg_file}",
-            f"verbose: {self.verbose}",
         ]
 
     def model_dump_config(self, output_path: Path) -> Path:
@@ -487,12 +463,8 @@ class LASAM(BaseModel):
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
     catchment: str = Field(..., description="The catchment ID")
-    verbosity: str = Field(default="none", description="NA")
-    soil_params_file: str = Field(..., description="Full path to vG_default_params.dat")
     layer_thickness: str = Field(default="200.0[cm]", description="Thickness of each layer (array)")
     initial_psi: str = Field(default="2000.0[cm]", description="NA")
-    timestep: str = Field(default="300[sec]", description="NA")
-    endtime: str = Field(default="1000[hr]", description="NA")
     forcing_resolution: str = Field(default="3600[sec]", description="NA")
     ponded_depth_max: str = Field(
         default="1.1[cm]",
@@ -520,12 +492,8 @@ class LASAM(BaseModel):
         giuh_ordinates = ",".join([str(giuh) for giuh in self.giuh_ordinates])
 
         return [
-            f"verbosity={self.verbosity}",
-            f"soil_params_file={self.soil_params_file}",
             f"layer_thickness={self.layer_thickness}",
             f"initial_psi={self.initial_psi}",
-            f"timestep={self.timestep}",
-            f"endtime={self.endtime}",
             f"forcing_resolution={self.forcing_resolution}",
             f"ponded_depth_max={self.ponded_depth_max}",
             f"use_closed_form_G={self.use_closed_form_G}",
@@ -565,12 +533,6 @@ class NoahOwpModular(BaseModel):
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
     catchment: str = Field(..., description="The catchment ID")
-    dt: float = Field(default=3600.0, description="Timestep [seconds]")
-    startdate: str = Field(default="202408260000", description="UTC time start of simulation (YYYYMMDDhhmm)")
-    enddate: str = Field(default="202408260000", description="# UTC time end of simulation (YYYYMMDDhhmm)")
-    forcing_filename: str = Field(default=".", description="File containing forcing data")
-    output_filename: str = Field(default=".", description="NA")
-    parameter_dir: str = Field(default="test", description="NA")
     general_table: str = Field(default="GENPARM.TBL", description="General param tables and misc params")
     soil_table: str = Field(default="SOILPARM.TBL", description="Soil param table")
     noahowp_table: str = Field(default="MPTABLE.TBL", description="Model param tables (includes veg)")
@@ -627,12 +589,6 @@ class NoahOwpModular(BaseModel):
         sh2o = ",".join([str(h2o) for h2o in self.sh2o])
 
         return [
-            f"dt={self.dt} [s]",
-            f"startdate={self.startdate}",
-            f"enddate={self.enddate}",
-            f"forcing_filename={self.forcing_filename}",
-            f"output_filename={self.output_filename}",
-            f"parameter_dir={self.parameter_dir}",
             f"general_table={self.general_table}",
             f"soil_table={self.soil_table}",
             f"noahowp_table={self.noahowp_table}",
@@ -913,7 +869,6 @@ class Topmodel(BaseModel):
     divide_id: str = Field(..., description="The catchment ID")
     num_sub_catchments: int = Field(default=1, description="Number of sub catchments")
     imap: int = Field(default=1, description="NA")
-    yes_print_output: int = Field(default=1, description="NA")
     twi: list[dict] = Field(default=[{"twi": "dist_4.twi"}], description="NA")
     num_topodex_values: int = Field(..., description="NA")
     area: int = Field(default=1, description="NA")
@@ -945,7 +900,6 @@ class Topmodel(BaseModel):
             f"divide_id={self.divide_id}",
             f"num_sub_catchments={self.num_sub_catchments}",
             f"imap={self.imap}",
-            f"yes_print_output={self.yes_print_output}",
             f"twi={self.twi}",
             f"num_topodex_values={self.num_topodex_values}area={self.area}",
             f"num_channels={self.num_channels}",
@@ -1001,10 +955,6 @@ class Topoflow(BaseModel):
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
     site_prefix: str = Field(..., description="The catchment ID")
-    forcing_file: str = Field(..., description="forcing file name")
-    dt: int = Field(default=1, description="timestep")
-    start_time: str = Field(default="2013032000", description="start time")
-    end_time: str = Field(default="2013052000", description="end time")
     da: float = Field(..., description="drainage area")
     slope: float = Field(..., description="terrain slope in degrees")
     aspect: float = Field(..., description="terrain aspect in degrees")
@@ -1041,10 +991,6 @@ class Topoflow(BaseModel):
         """Convert the model back to the original config file format"""
         return [
             f"site_prefix={self.site_prefix}",
-            f"forcing_file={self.forcing_file}"
-            f"dt={self.dt}"
-            f"starttime={self.start_time}"
-            f"endtime={self.end_time}"
             f"da={self.da}",
             f"slope={self.slope}",
             f"aspect={self.aspect}",
@@ -1095,6 +1041,22 @@ class UEBValues(str, enum.Enum):
     OCT_TEMP = 13.44001
     NOV_TEMP = 11.90162
     DEC_TEMP = 10.71597
+    USIC = 0.0
+    WSIS = 0.0
+    TIC = 0.0
+    WCIC = 0.0
+    DF = 1.0
+    AEP = 0.1
+    CC = 0.4
+    HCAN = 5.0
+    LAI = 2
+    SBAR = 6.6
+    YCAGE = 2.5
+    SUBALB = 0.25
+    SUBTYPE = 0
+    GSURF = 0.0
+    TS_LAST = -9999
+
 
 
 class UEB(BaseModel):
@@ -1120,6 +1082,22 @@ class UEB(BaseModel):
     oct_temp_range: float = Field(default=UEBValues.OCT_TEMP.value, description="Average temperature")
     nov_temp_range: float = Field(default=UEBValues.NOV_TEMP.value, description="Average temperature")
     dec_temp_range: float = Field(default=UEBValues.DEC_TEMP.value, description="Average temperature")
+    Usic: float = Field(default=UEBValues.USIC.value, description="Energy content initial condition (kg m-3)")
+    Wsis: float = Field(default=UEBValues.WSIS.value, description="Snow water equivalent initial condition (m)")
+    Tic: float = Field(default=UEBValues.TIC.value, description="Snow surface dimensionless age initial condition")
+    Wcic: float = Field(default=UEBValues.WCIC.value, description="Snow water equivalent of canopy condition(m)")
+    df: float = Field(default=UEBValues.DF.value, description="Drift factor multiplier")
+    Aep: float = Field(default=UEBValues.AEP.value, description="Albedo extinction coefficient")
+    cc: float = Field(default=UEBValues.CC.value, description="Canopy coverage fraction")
+    hcan: float = Field(default=UEBValues.HCAN.value, description="Canopy height")
+    lai: float = Field(default=UEBValues.LAI.value, description="Leaf area index")
+    Sbar: float = Field(default=UEBValues.SBAR.value, description="Maximum snow load held per unit branch area")
+    ycage: float = Field(default=UEBValues.YCAGE.value, description="Forest age flag for wind speed profile parameterization")
+    subalb: int = Field(default=UEBValues.SUBALB.value, description="Albedo (fraction 0-1) of the substrate beneath the snow (ground, or glacier)")
+    subtype: float = Field(default=UEBValues.SUBTYPE.value, description="Type of beneath snow substrate encoded as (0 = Ground/Non Glacier, 1=Clean" \
+                                                                        " Ice/glacier, 2= Debris covered ice/glacier, 3= Glacier snow accumulation zone")
+    gsurf: float = Field(default=UEBValues.GSURF.value, description="The fraction of surface melt that runs off (e.g. from a glacier")
+    ts_last: float = Field(default=UEBValues.TS_LAST.value, description="Average temperature")
 
     def to_bmi_config(self) -> list[str]:
         """Convert the model back to the original config file format"""
@@ -1164,22 +1142,18 @@ class UEB(BaseModel):
         return ueb_bmi_file
 
 
-class CFEValues(str, enum.Enum):
-    """The default values & schemes to be used in UEB"""
+class CFEValues(enum.Enum):
+    """The default values & schemes to be used in CFE"""
 
-    FORCINGFILE = "BMI"
-    VERBOSITY = 1
     SRFC_RUNOFF_SCHEME = "GIUH"
-    DEBUG = 0
-    NUM_TIMESTEPS = 1
     ICE_CONTENT_THR = 0.15
     SCHAAKE = "Schaake"
     XINANJIANG = "Xinanjiang"
     A_XINANJIANG_INFLECT = -0.2
     B_XINANJIANG_SHAPE = 0.66
     X_XINANJIANG_SHAPE = 0.02
-    SOIL_EXPON = 1
-    SOIL_EXPON_SECONDARY = 1
+    SOIL_EXPON = 1.0
+    SOIL_EXPON_SECONDARY = 1.0
     MAX_GIUH_STORAGE = 0.05
     GW_STORAGE = 0.05
     ALPHA_FC = 0.33
@@ -1189,7 +1163,7 @@ class CFEValues(str, enum.Enum):
     NASH_STORAGE = [0.0, 0.0]
     GIUH = [0.55, 0.25, 0.2]
     URBAN_FRACT = 0.01
-    SOIL_DEPTH = 2
+    SOIL_DEPTH = 2.0
     SOIL_WLTSMC = 0.439
     SOIL_SMCMAX = 0.439
     SOIL_SLOP = 0.05
@@ -1199,6 +1173,9 @@ class CFEValues(str, enum.Enum):
     CGW = 0.000018
     EXPON = 3
     REFKDT = 1
+    IS_AET = False
+    SOIL_LAYER_DEPTHS = list((0.1, 0.4, 1.0, 2.0))
+    MAX_ROOTZONE_LAYER = 2.0
 
 
 class CFE(BaseModel):
@@ -1206,20 +1183,16 @@ class CFE(BaseModel):
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
     catchment: str = Field(..., description="The catchment ID")
-    forcing_file: str = Field(default=CFEValues.FORCINGFILE.value, description="NA")
-    verbosity: int = Field(default=CFEValues.VERBOSITY.value, description="NA")
     surface_partitioning_scheme: str = Field(..., description="Selects Xinanjiang or Schaake")
     surface_runoff_scheme: str = Field(
         default=CFEValues.SRFC_RUNOFF_SCHEME.value,
         description="Accepts  1 or GIUH for GIUH and  2 or NASH_CASCADE for Nash Cascade; default is GIUH, version 1 is GIUH, Version 2 is Nash",
     )
-    debug: int = Field(default=CFEValues.DEBUG.value, description="NA")
-    num_timesteps: int = Field(default=CFEValues.NUM_TIMESTEPS.value, description="NA")
-    is_sft_coupled: str = Field(
-        ...,
+    is_sft_coupled: bool = Field(
+        False,
         description="Optional. Turns on/off the CFE coupling with the SoilFreezeThaw. If this parameter is defined to be True (or 1) in the config file and surface_partitioning_scheme=Schaake, then ice_content_threshold also needs to be defined in the config file.",
     )
-    ice_content_thresh: float = Field(
+    ice_content_thresh: Optional[float] = Field(
         default=CFEValues.ICE_CONTENT_THR.value,
         description="Optional. This represents the ice content above which soil is impermeable. If this is_sft_couple is defined to be True (or 1) in the config file and surface_partitioning_scheme=Schaake, then this also needs to be defined in the config file.",
     )
@@ -1284,36 +1257,35 @@ class CFE(BaseModel):
         default=CFEValues.GIUH.value,
         description="Giuh (geomorphological instantaneous unit hydrograph) ordinates in dt time steps",
     )
-    a_Xinanjiang_inflection_point_parameter: str = Field(
-        default=CFEValues.A_XINANJIANG_INFLECT.value,
+    a_Xinanjiang_inflection_point_parameter: Optional[float] = Field(
+        ...,
         description="When surface_water_partitioning_scheme=Xinanjiang",
     )
-    b_Xinanjiang_shape_parameter: str = Field(
-        default=CFEValues.B_XINANJIANG_SHAPE.value,
+    b_Xinanjiang_shape_parameter: Optional[float] = Field(
+        ...,
         description="When surface_water_partitioning_scheme=Xinanjiang",
     )
-    x_Xinanjiang_shape_parameter: str = Field(
-        default=CFEValues.X_XINANJIANG_SHAPE.value,
+    x_Xinanjiang_shape_parameter: Optional[float] = Field(
+        ...,
         description="When surface_water_partitioning_scheme=Xinanjiang",
     )
-    urban_decimal_fraction: str = Field(..., description="When surface_water_partitioning_scheme=Xinanjiang")
+    urban_decimal_fraction: Optional[float] = Field(..., description="When surface_water_partitioning_scheme=Xinanjiang")
     refkdt: float = Field(
         default=CFEValues.REFKDT.value,
         description="Reference Soil Infiltration Parameter (used in runoff formulation)",
     )
     soil_params_depth: float = Field(default=CFEValues.SOIL_DEPTH.value, description="Soil depth")
+    is_aet_rootzone: bool = Field(default=CFEValues.IS_AET.value, description="Turn on rootzone AET")
+    soil_layer_depths: Optional[list[float]] = Field(default=CFEValues.SOIL_LAYER_DEPTHS.value, description="array of depths from the surface for AET")
+    max_rootzone_layer: Optional[float] = Field(default=CFEValues.MAX_ROOTZONE_LAYER.value, description="layer of the soil that is the maximum root zone depth")
 
     def to_bmi_config(self) -> list[str]:
         """Convert the model back to the original config file format"""
         nash_storage = ",".join([str(n) for n in self.nash_storage])
         giuh_ordinates = ",".join([str(giuh) for giuh in self.giuh_ordinates])
         return [
-            f"forcing_file: {self.forcing_file}",
-            f"verbosity: {self.verbosity}",
             f"surface_partitioning_scheme: {self.surface_partitioning_scheme}",
             f"surface_runoff_scheme: {self.surface_runoff_scheme}",
-            f"debug: {self.debug}",
-            f"num_timesteps: {self.num_timesteps}",
             f"is_sft_coupled: {self.is_sft_coupled}",
             f"ice_content_thresh: {self.ice_content_thresh}",
             f"soil_params.b: {self.soil_params_b}",

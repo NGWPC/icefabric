@@ -173,10 +173,10 @@ def get_snow17_parameters(
     crs = gauge["divides"].crs
     transformer = Transformer.from_crs(crs, 4326)
     wgs84_latlon = transformer.transform(result_df["lon"], result_df["lat"])
-    result_df["lon"] = wgs84_latlon[0]
-    result_df["lat"] = wgs84_latlon[1]
+    result_df["lat"] = wgs84_latlon[0]
+    result_df["lon"] = wgs84_latlon[1]
 
-    # Default parameter values used only for CONUS
+    # Default parameter values used for oCONUS or if data is missing.
     result_df["mfmax"] = CalibratableScheme.MFMAX.value
     result_df["mfmin"] = CalibratableScheme.MFMIN.value
     result_df["uadj"] = CalibratableScheme.UADJ.value
@@ -259,13 +259,13 @@ def get_smp_parameters(
     result_df = df.select(expressions)
 
     # Initializing parameters dependent to unique modules
-    soil_storage_model = "NA"
-    soil_storage_depth = "NA"
-    water_table_based_method = "NA"
-    soil_moisture_profile_option = "NA"
-    soil_depth_layers = "NA"
-    water_depth_layers = "NA"
-    water_table_depth = "NA"
+    soil_storage_model = None
+    soil_storage_depth = None
+    water_table_based_method = None
+    soil_moisture_profile_option = None
+    soil_depth_layers = None
+    water_depth_layers = None
+    water_table_depth = None
 
     if extra_module:
         if extra_module == "CFE-S" or extra_module == "CFE-X":
@@ -365,8 +365,8 @@ def get_lstm_parameters(catalog: Catalog, namespace: str, identifier: str, graph
     crs = gauge["divides"].crs
     transformer = Transformer.from_crs(crs, 4326)
     wgs84_latlon = transformer.transform(result_df["lon"], result_df["lat"])
-    result_df["lon"] = wgs84_latlon[0]
-    result_df["lat"] = wgs84_latlon[1]
+    result_df["lat"] = wgs84_latlon[0]
+    result_df["lon"] = wgs84_latlon[1]
 
     pydantic_models = []
     for _, row_dict in result_df.iterrows():
@@ -880,7 +880,7 @@ def get_ueb_parameters(
     result_df["lon"] = wgs84_latlon[0]
     result_df["lat"] = wgs84_latlon[1]
 
-    # Default parameter values used only for CONUS
+    # Default parameter values
     result_df["jan_temp_range"] = UEBValues.JAN_TEMP.value
     result_df["feb_temp_range"] = UEBValues.FEB_TEMP.value
     result_df["mar_temp_range"] = UEBValues.MAR_TEMP.value
@@ -955,6 +955,7 @@ def get_cfe_parameters(
     cfe_version: str,
     graph: rx.PyDiGraph,
     sft_included: bool = False,
+    rootzone_aet: bool = False,
 ) -> list[CFE]:
     """Creates the initial parameter estimates for the CFE module
 
@@ -971,6 +972,8 @@ def get_cfe_parameters(
         to use Shaake or Xinanjiang for surface partitioning.
     sft_included: bool
         True if SFT is in the "dep_modules_included" definition as declared in HF API repo.
+    rootzone_aet: bool
+        Turn on rootzone based AET (actual evapotranspiration)
 
     Returns
     -------
@@ -995,30 +998,51 @@ def get_cfe_parameters(
     conus_param_df = params_df.filter(pl.col("divide_id").is_in(divides_list)).collect().to_pandas()
     df = pd.merge(conus_param_df, df, on="divide_id", how="left")
 
+    if rootzone_aet:
+        is_aet_rootzone = True
+        soil_layer_depths = CFEValues.SOIL_LAYER_DEPTHS.value
+        max_rootzone_layer = CFEValues.MAX_ROOTZONE_LAYER.value
+    else:
+        is_aet_rootzone = False
+        soil_layer_depths = None
+        max_rootzone_layer = None
+
     if cfe_version == "CFE-X":
         surface_partitioning_scheme = CFEValues.XINANJIANG.value
         urban_decimal_fraction = CFEValues.URBAN_FRACT.value
-        is_sft_coupled = "NA"
+        ice_content_thresh = None
+        if sft_included:
+            is_sft_coupled = True
+        else:
+            is_sft_coupled = False
     elif cfe_version == "CFE-S":
         surface_partitioning_scheme = CFEValues.SCHAAKE.value
-        a_Xinanjiang_inflection_point_parameter = "NA"
-        b_Xinanjiang_shape_parameter = "NA"
-        x_Xinanjiang_shape_parameter = "NA"
-        urban_decimal_fraction = "NA"
+        urban_decimal_fraction = None
+        a_Xinanjiang_inflection_point_parameter = None
+        b_Xinanjiang_shape_parameter = None
+        x_Xinanjiang_shape_parameter = None
         if sft_included:
-            is_sft_coupled = 1
+            is_sft_coupled = True
+            ice_content_thresh = CFEValues.ICE_CONTENT_THR.value
         else:
-            is_sft_coupled = 0
+            is_sft_coupled = False
+            ice_content_thresh = None
     else:
         raise ValueError(f"Passing unsupported cfe_version into endpoint: {cfe_version}")
 
     pydantic_models = []
     for _, row_dict in df.iterrows():
         # Instantiate the Pydantic model for each row
+        if cfe_version == "CFE-X":
+            a_Xinanjiang_inflection_point_parameter=(row_dict["a_Xinanjiang_inflection_point_parameter"])
+            b_Xinanjiang_shape_parameter=(row_dict["b_Xinanjiang_shape_parameter"])
+            x_Xinanjiang_shape_parameter=(row_dict["x_Xinanjiang_shape_parameter"])
+            urban_decimal_fraction=row_dict["mean.impervious"]
         model_instance = CFE(
             catchment=row_dict["divide_id"],
             surface_partitioning_scheme=surface_partitioning_scheme,
             is_sft_coupled=str(is_sft_coupled),
+            ice_content_thresh = ice_content_thresh,
             soil_params_b=row_dict["mode.bexp_soil_layers_stag=1"],
             soil_params_satdk=row_dict["geom_mean.dksat_soil_layers_stag=1"],
             soil_params_satpsi=row_dict["geom_mean.psisat_soil_layers_stag=1"],
@@ -1028,17 +1052,14 @@ def get_cfe_parameters(
             max_gw_storage=row_dict["mean.Zmax"],
             Cgw=row_dict["mean.Coeff"],
             expon=row_dict["mode.Expon"],
-            a_Xinanjiang_inflection_point_parameter=str(row_dict["a_Xinanjiang_inflection_point_parameter"])
-            if cfe_version == "CFE-X"
-            else a_Xinanjiang_inflection_point_parameter,
-            b_Xinanjiang_shape_parameter=str(row_dict["b_Xinanjiang_shape_parameter"])
-            if cfe_version == "CFE-X"
-            else b_Xinanjiang_shape_parameter,
-            x_Xinanjiang_shape_parameter=str(row_dict["x_Xinanjiang_shape_parameter"])
-            if cfe_version == "CFE-X"
-            else x_Xinanjiang_shape_parameter,
-            urban_decimal_fraction=str(urban_decimal_fraction),
+            a_Xinanjiang_inflection_point_parameter=a_Xinanjiang_inflection_point_parameter,
+            b_Xinanjiang_shape_parameter=b_Xinanjiang_shape_parameter,
+            x_Xinanjiang_shape_parameter=x_Xinanjiang_shape_parameter,
+            urban_decimal_fraction=urban_decimal_fraction,
             refkdt=row_dict["mean.refkdt"],
+            is_aet_rootzone=is_aet_rootzone,
+            soil_layer_depths=soil_layer_depths,
+            max_rootzone_layer=max_rootzone_layer,
         )
         pydantic_models.append(model_instance)
     return pydantic_models

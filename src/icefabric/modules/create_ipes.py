@@ -198,8 +198,8 @@ def get_snow17_parameters(
             hru_area=row_dict["areasqkm"],
             latitude=row_dict["lat"],
             elev=row_dict["elevation_mean"],
-            mf_max=row_dict["mfmax"],
-            mf_min=row_dict["mfmin"],
+            mfmax=row_dict["mfmax"],
+            mfmin=row_dict["mfmin"],
             uadj=row_dict["uadj"],
         )
         pydantic_models.append(model_instance)

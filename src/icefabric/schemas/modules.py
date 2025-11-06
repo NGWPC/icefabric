@@ -138,8 +138,8 @@ class Snow17(BaseModel):
     latitude: float = Field(..., description="Y coordinates of divide centroid")
     elev: float = Field(..., description="Elevation from DEM")
     scf: float = Field(default=1.100, description="Snow Correction Factor")
-    mf_max: float = Field(default=1.00, description="Maximum non-rain melt factor")
-    mf_min: float = Field(default=0.20, description="Minimum non-rain melt factor")
+    mfmax: float = Field(default=1.00, description="Maximum non-rain melt factor")
+    mfmin: float = Field(default=0.20, description="Minimum non-rain melt factor")
     uadj: float = Field(default=0.05, description="Average wind function for rain on snow")
     si: float = Field(default=500.00, description="100% snow cover threshold")
     pxtemp: float = Field(default=1.000, description="Precipitation vs Snow threshold temperature")
@@ -168,8 +168,8 @@ class Snow17(BaseModel):
             f"latitude: {self.latitude}",
             f"elev: {self.elev}",
             f"scf: {self.scf}",
-            f"mf_max: {self.mf_max}",
-            f"mf_min: {self.mf_min}",
+            f"mfmax: {self.mfmax}",
+            f"mfmin: {self.mfmin}",
             f"uadj: {self.uadj}",
             f"si: {self.si}",
             f"pxtemp: {self.pxtemp}",

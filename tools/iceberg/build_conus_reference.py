@@ -19,7 +19,7 @@ def build_table(catalog_type: str, file_dir: str):
         The directory to hydrofabric parquet files
     """
     catalog = load_catalog(catalog_type)
-    namespace = "conus_reference"
+    namespace = "super_conus_reference"
     catalog.create_namespace_if_not_exists(namespace)
     layers = [("reference_flowpaths", ReferenceFlowpaths), ("reference_divides", ReferenceDivides)]
     for layer, schema in layers:
@@ -35,7 +35,7 @@ def build_table(catalog_type: str, file_dir: str):
             iceberg_table = catalog.create_table(
                 f"{namespace}.{layer}",
                 schema=schema.schema(),
-                location=f"s3://edfs-data/icefabric_catalog/{namespace.lower()}/{layer}",
+                location=f"s3://iceberg-data-oe/{namespace.lower()}/{layer}",
             )
             partition_spec = iceberg_table.spec()
             if "vpuid" in table.column_names:

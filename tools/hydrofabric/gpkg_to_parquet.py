@@ -9,18 +9,7 @@ from pyarrow import parquet as pq
 from pyogrio.errors import DataLayerError
 
 from icefabric.helpers import load_creds
-from icefabric.schemas import (
-    DivideAttributes,
-    Divides,
-    FlowpathAttributes,
-    FlowpathAttributesML,
-    Flowpaths,
-    Hydrolocations,
-    Lakes,
-    Network,
-    Nexus,
-    POIs,
-)
+from icefabric.schemas import ReferenceDivides, ReferenceFlowpaths
 
 load_creds()
 
@@ -41,16 +30,18 @@ def gpkg_to_parquet(input_file: Path, output_folder: Path) -> None:
         If the input file doesn't exist
     """
     layers = [
-        ("divide-attributes", DivideAttributes),
-        ("divides", Divides),
-        ("flowpath-attributes-ml", FlowpathAttributesML),
-        ("flowpath-attributes", FlowpathAttributes),
-        ("flowpaths", Flowpaths),
-        ("hydrolocations", Hydrolocations),
-        ("lakes", Lakes),
-        ("network", Network),
-        ("nexus", Nexus),
-        ("pois", POIs),
+        # ("divide-attributes", DivideAttributes),
+        # ("divides", Divides),
+        # ("flowpath-attributes-ml", FlowpathAttributesML),
+        # ("flowpath-attributes", FlowpathAttributes),
+        # ("flowpaths", Flowpaths),
+        # ("hydrolocations", Hydrolocations),
+        # ("lakes", Lakes),
+        # ("network", Network),
+        # ("nexus", Nexus),
+        # ("pois", POIs),
+        ("reference_flowpaths", ReferenceFlowpaths),
+        ("reference_flowpaths", ReferenceDivides),
     ]
     for layer, schema in layers:
         if not input_file.exists():

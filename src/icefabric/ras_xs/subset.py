@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import geopandas as gpd
-import pandas as pd
 from botocore.exceptions import ClientError
 from pyiceberg.catalog import Catalog
 from pyiceberg.expressions import And, EqualTo, GreaterThanOrEqual, LessThanOrEqual
@@ -20,7 +19,7 @@ def subset_xs(
     identifier: str | None = None,
     bbox: Polygon | None = None,
     output_file: Path | None = None,
-) -> dict[str, pd.DataFrame | gpd.GeoDataFrame] | None:
+) -> gpd.GeoDataFrame:
     """Returns a geopackage subset from the RAS XS iceberg catalog.
 
     This function delivers a subset of the cross-sectional data by filtering the data with either a
@@ -53,7 +52,7 @@ def subset_xs(
         raise e
 
     # Filter prior to pandas conversion, to save time/memory
-    if identifier:
+    if identifier is not None:
         filter_cond = EqualTo("flowpath_id", literal(identifier))
     elif bbox:
         min_lat, min_lon, max_lat, max_lon = bbox.bounds
@@ -71,9 +70,9 @@ def subset_xs(
     data_gdf = to_geopandas(df)
 
     # Save data.
-    if output_file:
-        if len(data_gdf) > 0:
-            gpd.GeoDataFrame(data_gdf).to_file(output_file, layer="ras_xs", driver="GPKG")
-        else:
-            print("Warning: Dataframe is empty")
-        return data_gdf
+    if len(data_gdf) == 0:
+        print("Warning: Dataframe is empty. No geopackage file was generated.")
+    elif output_file:
+        gpd.GeoDataFrame(data_gdf).to_file(output_file, layer="ras_xs", driver="GPKG")
+
+    return data_gdf

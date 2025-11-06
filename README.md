@@ -39,6 +39,16 @@ docker compose -f docker/compose.yaml up
 ```
 This should spin up the API services
 
+### Streamlit Dashboard
+> [!IMPORTANT]
+> As of now, RAS XS is the only supported module in the dashboard. More will be added in the near future.
+
+Besides the API, Icefabric also includes a frontend dashboard to interact with the Hydrofabric. The dashboard is implemented through `streamlit`.
+To run the dashboard locally, ensure your `.env` file in your project root has the right credentials (as with the API), then run
+```sh
+uv run streamlit run app/streamlit/streamlit.py
+```
+The dashboard will spin up, and can be accessed in a browser at `http://localhost:8501`. Please note that the port number may change depending on availability. The command output will tell you the port number.
 
 ### Development
 To ensure that icefabric follows the specified structure, be sure to install the local dev dependencies and run `pre-commit install`

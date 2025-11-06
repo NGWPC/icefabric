@@ -1,18 +1,22 @@
 import geopandas as gpd
+import pandas as pd
 import streamlit as st
-from dotenv import load_dotenv
 from pyiceberg.catalog import load_catalog
 from pyiceberg.expressions import In
 from shapely.geometry import box
 
 from icefabric.helpers import to_geopandas
+from icefabric.helpers.creds import load_creds
 from icefabric.ras_xs import subset_xs
+from icefabric.schemas.iceberg_tables.ras_xs import ConflatedRasXS, RepresentativeRasXS
+
+domain_class_map = {"representative": RepresentativeRasXS, "conflated": ConflatedRasXS}
 
 
 @st.cache_data(show_spinner=False)
 def get_data(xs_dom, subset):
     """Helper to call XS subsetting function. Caches the results."""
-    load_dotenv()
+    load_creds()
     catalog = load_catalog("glue")
     if type(subset) is str:
         xs_gdf = subset_xs(catalog=catalog, xstype=xs_dom, identifier=subset)
@@ -29,7 +33,7 @@ def convert_for_download(gdf):
 
 def format_xs_map(xs_gdf):
     """Helper to create/format a folium map to display the cross-sectional data."""
-    load_dotenv()
+    load_creds()
     catalog = load_catalog("glue")
     # Pull and filter reference divides/flowpaths from the catalog
     reference_divides = to_geopandas(
@@ -54,3 +58,18 @@ def format_xs_map(xs_gdf):
     # Final Map
     xs_map = gdf.explore(m=ref_flo_ex, color="black")
     return xs_map
+
+
+def create_table_from_schema(iceberg_schema):
+    """Takes an iceberg data model object and returns a dataframe defining the model"""
+    names = [f.name for f in iceberg_schema.schema().fields]
+    descs = [f.doc for f in iceberg_schema.schema().fields]
+    types = [str(f.field_type).capitalize() for f in iceberg_schema.schema().fields]
+    data_model = pd.DataFrame(
+        {
+            "Field Name": names,
+            "Data Type": types,
+            "Description": descs,
+        }
+    )
+    return data_model

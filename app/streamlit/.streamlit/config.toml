@@ -1,0 +1,17 @@
+[theme]
+base = "dark"
+primaryColor = "#308EC4"
+
+[server]
+# If false, will attempt to open a browser window on start.
+#
+# Default: false unless (1) we are on a Linux box where DISPLAY is unset, or
+# (2) we are running in the Streamlit Atom plugin.
+headless = true
+
+# Whether to show a terminal prompt for the user's email address when
+# they run Streamlit (locally) for the first time. If you set
+# `server.headless=True`, Streamlit will not show this prompt.
+#
+# Default: true
+showEmailPrompt = false

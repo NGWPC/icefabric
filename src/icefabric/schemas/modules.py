@@ -4,7 +4,7 @@ import enum
 from pathlib import Path
 from typing import Literal, Protocol, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class NWMProtocol(Protocol):
@@ -1174,7 +1174,7 @@ class CFEValues(enum.Enum):
     EXPON = 3
     REFKDT = 1
     IS_AET = False
-    SOIL_LAYER_DEPTHS = list((0.1, 0.4, 1.0, 2.0))
+    SOIL_LAYER_DEPTHS = [0.1, 0.4, 1.0, 2.0]
     MAX_ROOTZONE_LAYER = 2.0
 
 

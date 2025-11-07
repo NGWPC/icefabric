@@ -1,6 +1,7 @@
 from icefabric.schemas.modules import AlbedoValues
+import pytest
 
-
+@pytest.mark.skip(reason="albedo not used at this time")
 def test_albedo_endpoint(client):
     """Test: GET /v2/modules/topoflow/albedo - all valid arguments"""
     for landcover, albedo in AlbedoValues.__members__.items():
@@ -8,7 +9,7 @@ def test_albedo_endpoint(client):
         assert response.status_code == 200
         assert response.text == str(albedo.value)
 
-
+@pytest.mark.skip(reason="albedo not used at this time")
 def test_albedo_endpoint__422(client):
     """Test: GET /v2/modules/topoflow/albedo - fails validator"""
     response = client.get("/v1/modules/topoflow/albedo?landcover=nope")

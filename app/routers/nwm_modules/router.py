@@ -5,19 +5,18 @@ from app import get_catalog, get_graphs
 from icefabric.modules import SmpModules, config_mapper
 from icefabric.schemas import HydrofabricDomains
 from icefabric.schemas.modules import (
+    CFE,
     LASAM,
     LSTM,
     SFT,
     SMP,
-    Albedo,
+    UEB,
     NoahOwpModular,
     SacSma,
     Snow17,
     Topmodel,
     Topoflow,
     TRoute,
-    UEB,
-    CFE,
 )
 
 sft_router = APIRouter(prefix="/modules/sft")
@@ -448,6 +447,7 @@ async def get_topoflow_ipes(
     )
 
 
+'''
 @topoflow_router.get("/albedo", tags=["NWM Modules"])
 async def get_albedo(
     landcover_state: Albedo = Query(
@@ -469,6 +469,8 @@ async def get_albedo(
     A float albedo value [0, 1]
     """
     return Albedo.get_landcover_albedo(landcover_state.landcover).value
+'''
+
 
 @ueb_router.get("/", tags=["NWM Modules"])
 async def get_ueb_ipes(
@@ -510,8 +512,9 @@ async def get_ueb_ipes(
         namespace=domain.value,
         identifier=f"gages-{identifier}",
         graph=network_graphs[domain],
-        envca=envca
+        envca=envca,
     )
+
 
 @cfe_router.get("/", tags=["NWM Modules"])
 async def get_cfe_ipes(
@@ -565,7 +568,7 @@ async def get_cfe_ipes(
         namespace=domain.value,
         identifier=f"gages-{identifier}",
         graph=network_graphs[domain],
-        cfe_version = cfe_version,
-        sft_included = sft_included,
-        rootzone_aet = rootzone_aet,
+        cfe_version=cfe_version,
+        sft_included=sft_included,
+        rootzone_aet=rootzone_aet,
     )

@@ -117,7 +117,7 @@ jobs:
         steps:
           - uses: actions/checkout@v4
           - name: Build API image for scanning
-            id: build
+            id: build-api
             uses: docker/build-push-action@v6
             with:
               context: .
@@ -139,7 +139,7 @@ jobs:
             with:
               sarif_file: 'trivy-results-api.sarif'
           - name: Build dashboard image for scanning
-            id: build
+            id: build-dashboard
             uses: docker/build-push-action@v6
             with:
               context: .

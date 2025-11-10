@@ -143,7 +143,7 @@ jobs:
             uses: docker/build-push-action@v6
             with:
               context: .
-              file: ./docker/Dockerfile.dashboard
+              file: ./docker/Dockerfile.streamlit
               # Load the image to the local Docker daemon, but do not push it
               load: true
               tags: ${{ needs.setup.outputs.image_base }}/dashboard:${{ needs.setup.outputs.test_image_tag }}
@@ -247,6 +247,6 @@ jobs:
             uses: docker/build-push-action@v6
             with:
               context: .
-              file: ./docker/Dockerfile.dashboard
+              file: ./docker/Dockerfile.streamlit
               push: true
               tags: ${{ steps.prep_tags.outputs.dashboard_tags }}

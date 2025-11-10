@@ -1,0 +1,28 @@
+FROM python:3.12-slim
+
+ENV AWS_DEFAULT_REGION="us-east-1"
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install UV properly by copying from the official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Copy the content of the build context
+COPY ../ /app
+
+RUN uv venv
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Install the packages for Streamlit
+RUN uv sync --extra streamlit
+
+EXPOSE 8501
+HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+
+ENTRYPOINT ["streamlit", "run", "app/streamlit/streamlit.py", "--server.port=8501", "--server.address=0.0.0.0"]

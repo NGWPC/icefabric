@@ -1,3 +1,6 @@
+import pathlib
+import tempfile
+
 import streamlit as st
 from botocore.exceptions import ClientError
 from streamlit_folium import st_folium
@@ -16,6 +19,9 @@ from app.streamlit.tooltips import (
     query_type_tooltip,
 )
 from icefabric.schemas import XsType
+
+temp_dir = pathlib.Path(tempfile.gettempdir())
+tmp_path = temp_dir / "xs_subset.gpkg"
 
 st.set_page_config(layout="wide")
 
@@ -85,8 +91,8 @@ if l_col.button("Submit"):
             r_col.markdown("#### Dataframe")
             r_col.dataframe(df)
 
-            convert_for_download(xs_gdf)
-            with open("xs_subset.gpkg", "rb") as file:
+            convert_for_download(xs_gdf, tmp_path)
+            with open(tmp_path, "rb") as file:
                 r_col.download_button(
                     label="Download as Geopackage",
                     data=file,

@@ -1,9 +1,21 @@
 services:
-  myapp:
+  api:
+    image: icefabric/api
+    container_name: icefabric-api
     build:
       context: ../
       dockerfile: docker/Dockerfile.api
     ports:
       - "8000:8000"
+    env_file:
+      - ../.env
+  dashboard:
+    image: icefabric/dashboard
+    container_name: icefabric-dashboard
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.streamlit
+    ports:
+      - "8501:8501"
     env_file:
       - ../.env

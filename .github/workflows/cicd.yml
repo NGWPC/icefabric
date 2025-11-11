@@ -108,8 +108,8 @@ jobs:
               uv run pytest --run-slow
 
 
-    build-and-scan:
-        name: Build and Scan Containers
+    build-and-scan-api:
+        name: Build and Scan API Container
         if: >
           github.event_name != 'push'
         runs-on: ubuntu-latest
@@ -138,6 +138,16 @@ jobs:
             uses: github/codeql-action/upload-sarif@v3
             with:
               sarif_file: 'trivy-results-api.sarif'
+
+
+    build-and-scan-dashboard:
+        name: Build and Scan Dashboard Container
+        if: >
+          github.event_name != 'push'
+        runs-on: ubuntu-latest
+        needs: setup
+        steps:
+          - uses: actions/checkout@v4
           - name: Build dashboard image for scanning
             id: build-dashboard
             uses: docker/build-push-action@v6
@@ -204,7 +214,7 @@ jobs:
           )
         runs-on: ubuntu-latest
         # When you re-enable your other jobs: ruff-linting, unit-test. Add them to this list.
-        needs: [setup, build-and-scan, codeql-scan]
+        needs: [setup, build-and-scan-api, build-and-scan-dashboard, codeql-scan]
         steps:
           - uses: actions/checkout@v4
           - name: Prepare image tags

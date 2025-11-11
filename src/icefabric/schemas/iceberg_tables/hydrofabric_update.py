@@ -63,11 +63,11 @@ class Divides:
             "Spatial Geometry (MULTIPOLYGON format) - stored in WKB binary format",
         ]
         return Schema(
-            NestedField(1, "div_id", StringType(), required=True, docs=desc[0]),
-            NestedField(2, "vpu_id", StringType(), required=False, docs=desc[1]),
-            NestedField(3, "type", StringType(), required=False, docs=desc[2]),
-            NestedField(4, "area_sqkm", DoubleType(), required=False, docs=desc[3]),
-            NestedField(5, "geometry", BinaryType(), required=False, docs=desc[4]),
+            NestedField(1, "div_id", StringType(), required=True, doc=desc[0]),
+            NestedField(2, "vpu_id", StringType(), required=False, doc=desc[1]),
+            NestedField(3, "type", StringType(), required=False, doc=desc[2]),
+            NestedField(4, "area_sqkm", DoubleType(), required=False, doc=desc[3]),
+            NestedField(5, "geometry", BinaryType(), required=False, doc=desc[4]),
             identifier_field_ids=[1],
         )
 
@@ -182,20 +182,20 @@ class Flowpaths:
             "Spatial Geometry (MULTILINESTRING format) - stored in WKB binary format",
         ]
         return Schema(
-            NestedField(1, "fp_id", StringType(), required=True, docs=desc[0]),
-            NestedField(2, "dn_nex_id", StringType(), required=False, docs=desc[1]),
-            NestedField(3, "up_nex_id", StringType(), required=False, docs=desc[2]),
-            NestedField(4, "div_id", StringType(), required=False, docs=desc[3]),
-            NestedField(5, "vpu_id", StringType(), required=False, docs=desc[4]),
-            NestedField(6, "hydroseq", IntegerType(), required=False, docs=desc[5]),
-            NestedField(7, "length_km", DoubleType(), required=False, docs=desc[6]),
-            NestedField(8, "area_sqkm", DoubleType(), required=False, docs=desc[7]),
-            NestedField(9, "total_da_sqkm", DoubleType(), required=False, docs=desc[8]),
-            NestedField(10, "mainstem_lp", IntegerType(), required=False, docs=desc[9]),
-            NestedField(11, "path_length", DoubleType(), required=False, docs=desc[10]),
-            NestedField(12, "dn_hydroseq", IntegerType(), required=False, docs=desc[11]),
-            NestedField(13, "streamorder", IntegerType(), required=False, docs=desc[12]),
-            NestedField(14, "geometry", BinaryType(), required=False, docs=desc[13]),
+            NestedField(1, "fp_id", StringType(), required=True, doc=desc[0]),
+            NestedField(2, "dn_nex_id", StringType(), required=False, doc=desc[1]),
+            NestedField(3, "up_nex_id", StringType(), required=False, doc=desc[2]),
+            NestedField(4, "div_id", StringType(), required=False, doc=desc[3]),
+            NestedField(5, "vpu_id", StringType(), required=False, doc=desc[4]),
+            NestedField(6, "hydroseq", IntegerType(), required=False, doc=desc[5]),
+            NestedField(7, "length_km", DoubleType(), required=False, doc=desc[6]),
+            NestedField(8, "area_sqkm", DoubleType(), required=False, doc=desc[7]),
+            NestedField(9, "total_da_sqkm", DoubleType(), required=False, doc=desc[8]),
+            NestedField(10, "mainstem_lp", IntegerType(), required=False, doc=desc[9]),
+            NestedField(11, "path_length", DoubleType(), required=False, doc=desc[10]),
+            NestedField(12, "dn_hydroseq", IntegerType(), required=False, doc=desc[11]),
+            NestedField(13, "streamorder", IntegerType(), required=False, doc=desc[12]),
+            NestedField(14, "geometry", BinaryType(), required=False, doc=desc[13]),
             identifier_field_ids=[1],
         )
 
@@ -275,9 +275,9 @@ class Nexus:
             "Spatial Geometry (POINT format) - stored in WKB binary format",
         ]
         return Schema(
-            NestedField(1, "nex_id", StringType(), required=True, docs=desc[0]),
-            NestedField(2, "dn_fp_id", StringType(), required=False, docs=desc[1]),
-            NestedField(3, "geometry", BinaryType(), required=False, docs=desc[2]),
+            NestedField(1, "nex_id", StringType(), required=True, doc=desc[0]),
+            NestedField(2, "dn_fp_id", StringType(), required=False, doc=desc[1]),
+            NestedField(3, "geometry", BinaryType(), required=False, doc=desc[2]),
             identifier_field_ids=[1],
         )
 
@@ -343,8 +343,8 @@ class ReferenceFlowpaths:
             "A flowpath ID from the flowpath table that was derived from the reference flowpath ID",
         ]
         return Schema(
-            NestedField(1, "ref_fp_id", StringType(), required=True, docs=desc[0]),
-            NestedField(2, "fp_id", StringType(), required=True, docs=desc[1]),
+            NestedField(1, "ref_fp_id", StringType(), required=True, doc=desc[0]),
+            NestedField(2, "fp_id", StringType(), required=True, doc=desc[1]),
             identifier_field_ids=[1, 2],
         )
 

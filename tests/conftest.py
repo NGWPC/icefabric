@@ -204,6 +204,9 @@ class MockCatalog:
         tables["divide_parameters.snow-17_conus"] = MockTable(
             "divide_parameters.snow-17_conus", self._create_snow17_divide_parameters(network_data)
         )
+        tables["divide_parameters.cfe-x_mock"] = MockTable(
+            "divide_parameters.cfe-x_mock", self._create_cfe_x_divide_parameters(network_data)
+        )
 
         # Tables for Hydrofabric router testing
         # Hydrofabric Router does not accept mock_hf as a namespace during input validation
@@ -508,33 +511,33 @@ class MockCatalog:
             attributes.append(
                 {
                     "divide_id": row["divide_id"],  # StringType
-                    "mode.bexp_soil_layers_stag.1": 7.457384,  # DoubleType
-                    "mode.bexp_soil_layers_stag.2": 7.457384,  # DoubleType
-                    "mode.bexp_soil_layers_stag.3": 7.457384,  # DoubleType
-                    "mode.bexp_soil_layers_stag.4": 7.457384,  # DoubleType
+                    "mode.bexp_soil_layers_stag=1": 7.457384,  # DoubleType
+                    "mode.bexp_soil_layers_stag=2": 7.457384,  # DoubleType
+                    "mode.bexp_soil_layers_stag=3": 7.457384,  # DoubleType
+                    "mode.bexp_soil_layers_stag=4": 7.457384,  # DoubleType
                     "mode.ISLTYP": 1.0,  # DoubleType
                     "mode.IVGTYP": 7.0,  # DoubleType
-                    "geom_mean.dksat_soil_layers_stag.1": 0.000012,  # DoubleType
-                    "geom_mean.dksat_soil_layers_stag.2": 0.000012,  # DoubleType
-                    "geom_mean.dksat_soil_layers_stag.3": 0.000012,  # DoubleType
-                    "geom_mean.dksat_soil_layers_stag.4": 0.000012,  # DoubleType
-                    "geom_mean.psisat_soil_layers_stag.1": -0.355872,  # DoubleType
-                    "geom_mean.psisat_soil_layers_stag.2": -0.355872,  # DoubleType
-                    "geom_mean.psisat_soil_layers_stag.3": -0.355872,  # DoubleType
-                    "geom_mean.psisat_soil_layers_stag.4": -0.355872,  # DoubleType
+                    "geom_mean.dksat_soil_layers_stag=1": 0.000012,  # DoubleType
+                    "geom_mean.dksat_soil_layers_stag=2": 0.000012,  # DoubleType
+                    "geom_mean.dksat_soil_layers_stag=3": 0.000012,  # DoubleType
+                    "geom_mean.dksat_soil_layers_stag=4": 0.000012,  # DoubleType
+                    "geom_mean.psisat_soil_layers_stag=1": -0.355872,  # DoubleType
+                    "geom_mean.psisat_soil_layers_stag=2": -0.355872,  # DoubleType
+                    "geom_mean.psisat_soil_layers_stag=3": -0.355872,  # DoubleType
+                    "geom_mean.psisat_soil_layers_stag=4": -0.355872,  # DoubleType
                     "mean.cwpvt": 0.5,  # DoubleType
                     "mean.mfsno": 2.5,  # DoubleType
                     "mean.mp": 0.0,  # DoubleType
                     "mean.refkdt": 3.0,  # DoubleType
                     "mean.slope_1km": 0.1 + (hash(row["divide_id"]) % 50) / 500.0,  # DoubleType
-                    "mean.smcmax_soil_layers_stag.1": 0.476,  # DoubleType
-                    "mean.smcmax_soil_layers_stag.2": 0.476,  # DoubleType
-                    "mean.smcmax_soil_layers_stag.3": 0.476,  # DoubleType
-                    "mean.smcmax_soil_layers_stag.4": 0.476,  # DoubleType
-                    "mean.smcwlt_soil_layers_stag.1": 0.135,  # DoubleType
-                    "mean.smcwlt_soil_layers_stag.2": 0.135,  # DoubleType
-                    "mean.smcwlt_soil_layers_stag.3": 0.135,  # DoubleType
-                    "mean.smcwlt_soil_layers_stag.4": 0.135,  # DoubleType
+                    "mean.smcmax_soil_layers_stag=1": 0.476,  # DoubleType
+                    "mean.smcmax_soil_layers_stag=2": 0.476,  # DoubleType
+                    "mean.smcmax_soil_layers_stag=3": 0.476,  # DoubleType
+                    "mean.smcmax_soil_layers_stag=4": 0.476,  # DoubleType
+                    "mean.smcwlt_soil_layers_stag=1": 0.135,  # DoubleType
+                    "mean.smcwlt_soil_layers_stag=2": 0.135,  # DoubleType
+                    "mean.smcwlt_soil_layers_stag=3": 0.135,  # DoubleType
+                    "mean.smcwlt_soil_layers_stag=4": 0.135,  # DoubleType
                     "mean.vcmx25": 45.0,  # DoubleType
                     "mean.Coeff": 0.5,  # DoubleType
                     "mean.Zmax": 1.0,  # DoubleType
@@ -596,6 +599,24 @@ class MockCatalog:
                     "mfmax": 1.5 + (divide_hash % 300) / 1000.0,  # DoubleType
                     "mfmin": 0.3 + (divide_hash % 100) / 1000.0,  # DoubleType
                     "uadj": 0.05 + (divide_hash % 50) / 1000.0,  # DoubleType
+                }
+            )
+
+        return pd.DataFrame(attributes)
+
+    def _create_cfe_x_divide_parameters(self, network_df: pd.DataFrame) -> pd.DataFrame:
+        """Create sample CFE-X divide parameters data matching CONUS schema"""
+        attributes = []
+        wb_records = network_df[network_df["id"].str.startswith("wb-", na=False)]
+
+        for _, row in wb_records.iterrows():
+            # Create realistic CFE-X parameters using hash for reproducible variation
+            attributes.append(
+                {
+                    "divide_id": row["divide_id"],  # StringType
+                    "a_Xinanjiang_inflection_point_parameter": -0.2,  # DoubleType
+                    "b_Xinanjiang_shape_parameter": 0.66,  # DoubleType
+                    "x_Xinanjiang_shape_parameter": 0.02,  # DoubleType
                 }
             )
 

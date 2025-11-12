@@ -2,6 +2,7 @@ import polars as pl
 import pytest
 
 from icefabric.modules import (
+    get_cfe_parameters,
     get_lasam_parameters,
     get_lstm_parameters,
     get_noahowp_parameters,
@@ -11,6 +12,7 @@ from icefabric.modules import (
     get_topmodel_parameters,
     get_topoflow_parameters,
     get_troute_parameters,
+    get_ueb_parameters,
 )
 
 
@@ -168,3 +170,43 @@ def test_topoflow_parameters(mock_catalog, sample_graph, test_identifiers):
         )
 
         assert len(lstm_models) > 0, f"No Topoflow parameters generated for {identifier}"
+
+
+@pytest.mark.parametrize("version", ["CFE-S", "CFE-X"])
+@pytest.mark.parametrize("sft", [True, False])
+@pytest.mark.parametrize("rootzone", [True, False])
+def test_cfe_parameters(mock_catalog, sample_graph, test_identifiers, version, sft, rootzone):
+    """Test CFE parameter generation for different modules"""
+    catalog = mock_catalog("glue")
+    namespace = "mock_hf"
+    for identifier in test_identifiers:
+        cfe_models = get_cfe_parameters(
+            catalog,
+            namespace,
+            identifier,
+            cfe_version=version,
+            sft_included=sft,
+            rootzone_aet=rootzone,
+            graph=sample_graph,
+        )
+
+        assert len(cfe_models) > 0, (
+            f"No CFE parameters generated for {identifier} with {version} sft = {str(sft)} and rootzone = {str(rootzone)}"
+        )
+
+
+@pytest.mark.parametrize("envca", [True, False])
+def test_ueb_parameters(mock_catalog, sample_graph, test_identifiers, envca):
+    """Test UEB parameter generation for different modules"""
+    catalog = mock_catalog("glue")
+    namespace = "mock_hf"
+    for identifier in test_identifiers:
+        ueb_models = get_ueb_parameters(
+            catalog,
+            namespace,
+            identifier,
+            envca=envca,
+            graph=sample_graph,
+        )
+
+        assert len(ueb_models) > 0, f"No UEB parameters generated for {identifier} with ENVCA = {str(envca)}"

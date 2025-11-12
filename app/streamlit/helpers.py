@@ -26,9 +26,11 @@ def get_data(xs_dom, subset):
     return xs_gdf
 
 
-def convert_for_download(gdf):
+def convert_for_download(gdf, tmp_path):
     """Helper to create GeoPackage for download."""
-    gpd.GeoDataFrame(gdf).to_file("xs_subset.gpkg", layer="ras_xs", driver="GPKG", overwrite=True)
+    if "tmp_path" in locals() and tmp_path.exists():
+        tmp_path.unlink(missing_ok=True)
+    gpd.GeoDataFrame(gdf).to_file(tmp_path, driver="GPKG", mode="w")
 
 
 def format_xs_map(xs_gdf):

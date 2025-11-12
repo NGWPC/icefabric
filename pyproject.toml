@@ -34,9 +34,12 @@ maintainers = [
 
 dependencies = [
   "ambiance==1.3.1",
+  "fastapi[standard]>=0.115.12",
   "folium==0.20.0",
   "geopandas>=1.0.0",
   "icechunk==1.1.9",
+  "mapclassify==2.10.0",
+  "matplotlib==3.10.6",
   "pandas>=2.0.0",
   "polars>=1.31.0",
   "pyarrow==20.0.0",
@@ -45,8 +48,6 @@ dependencies = [
   "python-dotenv>=1.0.0",
   "pyyaml==6.0.2",
   "rustworkx==0.16.0",
-  "streamlit==1.51.0",
-  "streamlit-folium==0.25.3",
   "tqdm==4.67.1",
   "xarray>=2025.07.1",
 ]
@@ -57,7 +58,6 @@ docs = [
   "sympy==1.14.0"
 ]
 app = [
-  "fastapi[standard]>=0.115.12",
   "pydantic==2.11.5",
   "pydantic-settings==2.10.1",
   "python-dotenv==1.1.0",
@@ -72,8 +72,6 @@ examples = [
   "ipywidgets==8.1.7",
   "jupyterlab==4.4.9",
   "jupytergis==0.5.0",
-  "mapclassify==2.10.0",
-  "matplotlib==3.10.6",
 ]
 icechunk_extras = [
   "dask==2025.9.1",
@@ -81,6 +79,11 @@ icechunk_extras = [
   "tifffile==2025.5.21",
   "rioxarray==0.19.0",
   "virtualizarr==1.3.2"
+]
+streamlit = [
+  "Shapely==2.1.2",
+  "streamlit==1.51.0",
+  "streamlit-folium==0.25.3"
 ]
 
 [dependency-groups]

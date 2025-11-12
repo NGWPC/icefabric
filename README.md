@@ -34,8 +34,8 @@ python -m app.main --catalog sql
 ### Building the API through Docker
 To run the API locally with Docker, ensure your `.env` file in your project root has the right credentials, then run
 ```sh
-docker compose -f docker/compose.yaml build --no-cache
-docker compose -f docker/compose.yaml up
+docker compose -f docker/compose.yaml build api --no-cache
+docker compose -f docker/compose.yaml up api
 ```
 This should spin up the API services
 
@@ -49,6 +49,14 @@ To run the dashboard locally, ensure your `.env` file in your project root has t
 uv run streamlit run app/streamlit/streamlit.py
 ```
 The dashboard will spin up, and can be accessed in a browser at `http://localhost:8501`. Please note that the port number may change depending on availability. The command output will tell you the port number.
+
+### Building the Dashboard through Docker
+To run the Dashboard locally with Docker, ensure your `.env` file in your project root has the right credentials, then run
+```sh
+docker compose -f docker/compose.yaml build dashboard --no-cache
+docker compose -f docker/compose.yaml up dashboard
+```
+This should spin up the Dashboard
 
 ### Development
 To ensure that icefabric follows the specified structure, be sure to install the local dev dependencies and run `pre-commit install`

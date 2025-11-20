@@ -16,6 +16,7 @@ from .create_ipes import (
     get_troute_parameters,
     get_ueb_parameters,
 )
+from .get_parameter_metadata import get_parameter_metadata
 from .rnr import get_rnr_segment
 
 

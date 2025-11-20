@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from pyiceberg.catalog import Catalog
 
 from app import get_catalog, get_graphs
-from icefabric.modules import SmpModules, config_mapper
+from icefabric.modules import SmpModules, config_mapper, get_parameter_metadata
 from icefabric.schemas import HydrofabricDomains
 from icefabric.schemas.modules import (
     CFE,
@@ -31,6 +31,7 @@ topmodel_router = APIRouter(prefix="/modules/topmodel")
 topoflow_router = APIRouter(prefix="/modules/topoflow")
 ueb_router = APIRouter(prefix="/modules/ueb")
 cfe_router = APIRouter(prefix="/modules/cfe")
+parameter_metadata_router = APIRouter(prefix="/modules/parameter_metadata")
 
 
 @sft_router.get("/", tags=["NWM Modules"])
@@ -572,3 +573,25 @@ async def get_cfe_ipes(
         sft_included=sft_included,
         rootzone_aet=rootzone_aet,
     )
+
+
+@parameter_metadata_router.get("/", tags=["NWM Modules"])
+async def get_calibratable_parameter_metadata(
+    module: str = Query(
+        ...,
+        description="module name",
+        examples=["cfe-x"],
+        openapi_examples={"cfe_example": {"summary": "CFE Example", "value": "01010000"}},
+    ),
+    catalog: Catalog = Depends(get_catalog),
+):
+    """
+    An endpoint to return calibratable parameter metadata for a module.
+
+    **Parameters:**
+    - **module**: The Gage ID from which upstream catchments are traced.
+
+    **Returns:**
+    A JSON containing metadata for a module's calibratable parameters.
+    """
+    return get_parameter_metadata(module, catalog)

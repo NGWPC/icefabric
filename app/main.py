@@ -13,9 +13,11 @@ from pyprojroot import here
 
 from app.routers.hydrofabric.router import api_router as hydrofabric_api_router
 from app.routers.nwm_modules.router import (
+    cfe_router,
     lasam_router,
     lstm_router,
     noahowp_router,
+    parameter_metadata_router,
     sacsma_router,
     sft_router,
     smp_router,
@@ -24,7 +26,6 @@ from app.routers.nwm_modules.router import (
     topoflow_router,
     troute_router,
     ueb_router,
-    cfe_router
 )
 from app.routers.ras_xs.router import api_router as ras_api_router
 from app.routers.rise_wrappers.router import api_router as rise_api_wrap_router
@@ -141,6 +142,7 @@ app.include_router(ueb_router, prefix="/v1")
 app.include_router(cfe_router, prefix="/v1")
 app.include_router(ras_api_router, prefix="/v1")
 app.include_router(rise_api_wrap_router, prefix="/v1")
+app.include_router(parameter_metadata_router, prefix="/v1")
 
 
 @app.get(

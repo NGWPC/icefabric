@@ -19,6 +19,7 @@ from icefabric.schemas.modules import (
     SMP,
     UEB,
     CalibratableScheme,
+    CFEUnits,
     CFEValues,
     IceFractionScheme,
     NoahOwpModular,
@@ -94,21 +95,20 @@ def get_sft_parameters(
             # Default to 0.0 if no matching columns found
             expressions.append(pl.lit(0.0).alias(f"{param_name}_avg"))
     result_df = df.select(expressions)
-    mean_temp = _get_mean_soil_temp()
+
     pydantic_models = []
     for row_dict in result_df.iter_rows(named=True):
         # Instantiate the Pydantic model for each row
         model_instance = SFT(
             catchment=row_dict["divide_id"],
-            smcmax=row_dict["smcmax_avg"],
-            b=row_dict["bexp_avg"],
-            satpsi=row_dict["psisat_avg"],
+            smcmax={"value": row_dict["smcmax_avg"], "units": "m/m"},
+            b={"value": row_dict["bexp_avg"], "units": "unitless"},
+            satpsi={"value": row_dict["psisat_avg"], "units": "m"},
             ice_fraction_scheme=IceFractionScheme.XINANJIANG
             if use_schaake is False
             else IceFractionScheme.SCHAAKE,
-            soil_temperature=[
-                mean_temp for _ in range(4)
-            ],  # Assuming 45 degrees in all layers. TODO: Fix this as this doesn't make sense
+            soil_temperature={"value": [280.372, 280.372, 280.372, 280.372], "units": "K"},
+            # Assuming 45 degrees in all layers. TODO: Fix this as this doesn't make sense
         )
         pydantic_models.append(model_instance)
     return pydantic_models
@@ -270,15 +270,15 @@ def get_smp_parameters(
     if extra_module:
         if extra_module == "CFE-S" or extra_module == "CFE-X":
             soil_storage_model = SoilScheme.CFE_SOIL_STORAGE.value
-            soil_storage_depth = SoilScheme.CFE_STORAGE_DEPTH.value
+            soil_storage_depth = {"value": SoilScheme.CFE_STORAGE_DEPTH.value, "units": "m"}
         elif extra_module == "TopModel":
             soil_storage_model = SoilScheme.TOPMODEL_SOIL_STORAGE.value
             water_table_based_method = SoilScheme.TOPMODEL_WATER_TABLE_METHOD.value
         elif extra_module == "LASAM":
             soil_storage_model = SoilScheme.LASAM_SOIL_STORAGE.value
             soil_moisture_profile_option = SoilScheme.LASAM_SOIL_MOISTURE.value
-            soil_depth_layers = SoilScheme.LASAM_SOIL_DEPTH_LAYERS.value
-            water_table_depth = SoilScheme.LASAM_WATER_TABLE_DEPTH.value
+            soil_depth_layers = {"value": SoilScheme.LASAM_SOIL_DEPTH_LAYERS.value, "units": "m"}
+            water_table_depth = {"value": SoilScheme.LASAM_WATER_TABLE_DEPTH.value, "units": "m"}
         else:
             raise ValueError(f"Passing unsupported module into endpoint: {extra_module}")
 
@@ -287,9 +287,9 @@ def get_smp_parameters(
         # Instantiate the Pydantic model for each row
         model_instance = SMP(
             catchment=row_dict["divide_id"],
-            smcmax=row_dict["smcmax_avg"],
-            b=row_dict["bexp_avg"],
-            satpsi=row_dict["psisat_avg"],
+            smcmax={"value": row_dict["smcmax_avg"], "units": "m/m"},
+            b={"value": row_dict["bexp_avg"], "units": "unitless"},
+            satpsi={"value": row_dict["psisat_avg"], "units": "m"},
             soil_storage_model=soil_storage_model,
             soil_storage_depth=soil_storage_depth,
             water_table_based_method=water_table_based_method,
@@ -1001,7 +1001,7 @@ def get_cfe_parameters(
     if rootzone_aet:
         is_aet_rootzone = True
         soil_layer_depths = CFEValues.SOIL_LAYER_DEPTHS.value
-        max_rootzone_layer = CFEValues.MAX_ROOTZONE_LAYER.value
+        max_rootzone_layer = {"value": CFEValues.MAX_ROOTZONE_LAYER.value, "units": ""}
     else:
         is_aet_rootzone = False
         soil_layer_depths = None
@@ -1023,7 +1023,7 @@ def get_cfe_parameters(
         x_Xinanjiang_shape_parameter = None
         if sft_included:
             is_sft_coupled = True
-            ice_content_thresh = CFEValues.ICE_CONTENT_THR.value
+            ice_content_thresh = {"value": CFEValues.ICE_CONTENT_THR.value, "units": ""}
         else:
             is_sft_coupled = False
             ice_content_thresh = None
@@ -1034,32 +1034,58 @@ def get_cfe_parameters(
     for _, row_dict in df.iterrows():
         # Instantiate the Pydantic model for each row
         if cfe_version == "CFE-X":
-            a_Xinanjiang_inflection_point_parameter=(row_dict["a_Xinanjiang_inflection_point_parameter"])
-            b_Xinanjiang_shape_parameter=(row_dict["b_Xinanjiang_shape_parameter"])
-            x_Xinanjiang_shape_parameter=(row_dict["x_Xinanjiang_shape_parameter"])
-            urban_decimal_fraction=row_dict["mean.impervious"]
+            a_Xinanjiang_inflection_point_parameter = {
+                "value": row_dict["a_Xinanjiang_inflection_point_parameter"],
+                "units": CFEUnits.A_XINANJIANG_INFLECT.value,
+            }
+            b_Xinanjiang_shape_parameter = {
+                "value": row_dict["b_Xinanjiang_shape_parameter"],
+                "units": CFEUnits.B_XINANJIANG_SHAPE.value,
+            }
+            x_Xinanjiang_shape_parameter = {
+                "value": row_dict["x_Xinanjiang_shape_parameter"],
+                "units": CFEUnits.X_XINANJIANG_SHAPE.value,
+            }
+            urban_decimal_fraction = {
+                "value": row_dict["mean.impervious"],
+                "units": CFEUnits.URBAN_FRACT.value,
+            }
+
         model_instance = CFE(
             catchment=row_dict["divide_id"],
             surface_partitioning_scheme=surface_partitioning_scheme,
             is_sft_coupled=str(is_sft_coupled),
-            ice_content_thresh = ice_content_thresh,
-            soil_params_b=row_dict["mode.bexp_soil_layers_stag=1"],
-            soil_params_satdk=row_dict["geom_mean.dksat_soil_layers_stag=1"],
-            soil_params_satpsi=row_dict["geom_mean.psisat_soil_layers_stag=1"],
-            soil_params_slop=row_dict["mean.slope_1km"],
-            soil_params_smcmax=row_dict["mean.smcmax_soil_layers_stag=1"],
-            soil_params_wltsmc=row_dict["mean.smcwlt_soil_layers_stag=1"],
-            max_gw_storage=row_dict["mean.Zmax"],
-            Cgw=row_dict["mean.Coeff"],
-            expon=row_dict["mode.Expon"],
+            ice_content_thresh=ice_content_thresh,
+            soil_params_b={"value": row_dict["mode.bexp_soil_layers_stag=1"], "units": CFEUnits.SOIL_B.value},
+            soil_params_satdk={
+                "value": row_dict["geom_mean.dksat_soil_layers_stag=1"],
+                "units": CFEUnits.SOIL_SATDK.value,
+            },
+            soil_params_satpsi={
+                "value": row_dict["geom_mean.psisat_soil_layers_stag=1"],
+                "units": CFEUnits.SOIL_SATPSI.value,
+            },
+            soil_params_slop={"value": row_dict["mean.slope_1km"], "units": CFEUnits.SOIL_SLOP.value},
+            soil_params_smcmax={
+                "value": row_dict["mean.smcmax_soil_layers_stag=1"],
+                "units": CFEUnits.SOIL_SMCMAX.value,
+            },
+            soil_params_wltsmc={
+                "value": row_dict["mean.smcwlt_soil_layers_stag=1"],
+                "units": CFEUnits.SOIL_WLTSMC.value,
+            },
+            max_gw_storage={"value": row_dict["mean.Zmax"], "units": CFEUnits.MAX_GIUH_STORAGE.value},
+            Cgw={"value": row_dict["mean.Coeff"], "units": CFEUnits.EXPON.value},
+            expon={"value": row_dict["mode.Expon"], "units": CFEUnits.EXPON.value},
             a_Xinanjiang_inflection_point_parameter=a_Xinanjiang_inflection_point_parameter,
             b_Xinanjiang_shape_parameter=b_Xinanjiang_shape_parameter,
             x_Xinanjiang_shape_parameter=x_Xinanjiang_shape_parameter,
             urban_decimal_fraction=urban_decimal_fraction,
-            refkdt=row_dict["mean.refkdt"],
+            refkdt={"value": row_dict["mean.refkdt"], "units": CFEUnits.REFKDT.value},
             is_aet_rootzone=is_aet_rootzone,
             soil_layer_depths=soil_layer_depths,
             max_rootzone_layer=max_rootzone_layer,
         )
-        pydantic_models.append(model_instance)
+
+    pydantic_models.append(model_instance)
     return pydantic_models

@@ -581,7 +581,7 @@ async def get_calibratable_parameter_metadata(
         ...,
         description="module name",
         examples=["cfe-x"],
-        openapi_examples={"cfe_example": {"summary": "CFE Example", "value": "01010000"}},
+        openapi_examples={"cfe_example": {"summary": "CFE Example", "value": "cfe-x"}},
     ),
     catalog: Catalog = Depends(get_catalog),
 ):

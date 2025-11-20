@@ -9,12 +9,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class FloatWithUnits(BaseModel):
     """Pydantic class to represent a parameter's float value and units"""
+
     value: float
     units: str
 
 
 class FloatListWithUnits(BaseModel):
     """Pydantic class to represent a list of float values and a single units field"""
+
     value: list[float]
     units: str
 

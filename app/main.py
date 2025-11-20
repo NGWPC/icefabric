@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from pyprojroot import here
 
 from app.routers.hydrofabric.router import api_router as hydrofabric_api_router
 from app.routers.nwm_modules.router import (
+    cfe_router,
     lasam_router,
     lstm_router,
     noahowp_router,
@@ -24,7 +26,6 @@ from app.routers.nwm_modules.router import (
     topoflow_router,
     troute_router,
     ueb_router,
-    cfe_router
 )
 from app.routers.ras_xs.router import api_router as ras_api_router
 from app.routers.rise_wrappers.router import api_router as rise_api_wrap_router
@@ -75,6 +76,12 @@ parser.add_argument(
     help="The catalog information for querying versioned EDFS data",
     default="glue",
 )  # Setting the default to read from S3
+parser.add_argument(
+    "--deploy-env",
+    choices=["t", "test", "p", "prod", "production"],
+    help="The glue deploy environment",
+    default="test",
+)
 args, _ = parser.parse_known_args()
 
 
@@ -89,7 +96,11 @@ async def lifespan(app: FastAPI):
     """
     app.state.main_logger = main_logger
     app.state.main_logger.info("Application starting up.")
-    load_creds()
+    if os.environ.get("ICEFABRIC_DEPLOY_ENV").lower() in ["t", "test", "p", "prod", "production"]:
+        # Override the deploy env. Allows for specifying the env when running a docker container
+        load_creds(os.environ["ICEFABRIC_DEPLOY_ENV"].lower())
+    else:
+        load_creds(args.deploy_env)
     catalog = load_catalog(args.catalog)
     hydrofabric_namespaces = ["conus_hf", "ak_hf", "hi_hf", "prvi_hf"]
     app.state.catalog = catalog

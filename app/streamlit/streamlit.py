@@ -1,4 +1,6 @@
+import os
 import pathlib
+import sys
 import tempfile
 
 import streamlit as st
@@ -18,7 +20,27 @@ from app.streamlit.tooltips import (
     flowpath_id_tooltip,
     query_type_tooltip,
 )
+from icefabric.helpers.creds import load_creds
 from icefabric.schemas import XsType
+
+# Deploy environment default is "test"
+deploy_env = "test"
+args_provided = sys.argv[1:]
+if any("deploy-env=" in a for a in args_provided):
+    try:
+        deploy_env_pass = " ".join(args_provided).split("deploy-env=")[1].split()[0]
+        if deploy_env_pass.lower() in ["t", "test", "p", "prod", "production"]:
+            deploy_env = deploy_env_pass.lower()
+    except IndexError:
+        # No deploy env provided, use default
+        pass
+
+# Load creds/env details.
+if os.environ.get("ICEFABRIC_DEPLOY_ENV").lower() in ["t", "test", "p", "prod", "production"]:
+    # Override the deploy env. Allows for specifying the env when running a docker container
+    load_creds(os.environ["ICEFABRIC_DEPLOY_ENV"].lower())
+else:
+    load_creds(deploy_env)
 
 temp_dir = pathlib.Path(tempfile.gettempdir())
 tmp_path = temp_dir / "xs_subset.gpkg"

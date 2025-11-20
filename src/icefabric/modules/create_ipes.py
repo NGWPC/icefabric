@@ -102,7 +102,7 @@ def get_sft_parameters(
         model_instance = SFT(
             catchment=row_dict["divide_id"],
             smcmax={"value": row_dict["smcmax_avg"], "units": "m/m"},
-            b={"value": row_dict["bexp_avg"], "units": "unitless"},
+            b={"value": row_dict["bexp_avg"], "units": None},
             satpsi={"value": row_dict["psisat_avg"], "units": "m"},
             ice_fraction_scheme=IceFractionScheme.XINANJIANG
             if use_schaake is False
@@ -288,7 +288,7 @@ def get_smp_parameters(
         model_instance = SMP(
             catchment=row_dict["divide_id"],
             smcmax={"value": row_dict["smcmax_avg"], "units": "m/m"},
-            b={"value": row_dict["bexp_avg"], "units": "unitless"},
+            b={"value": row_dict["bexp_avg"], "units": None},
             satpsi={"value": row_dict["psisat_avg"], "units": "m"},
             soil_storage_model=soil_storage_model,
             soil_storage_depth=soil_storage_depth,
@@ -1001,7 +1001,7 @@ def get_cfe_parameters(
     if rootzone_aet:
         is_aet_rootzone = True
         soil_layer_depths = {"value": CFEValues.SOIL_LAYER_DEPTHS.value, "units": CFEUnits.SOIL_DEPTH.value}
-        max_rootzone_layer = {"value": CFEValues.MAX_ROOTZONE_LAYER.value, "units": ""}
+        max_rootzone_layer = {"value": CFEValues.MAX_ROOTZONE_LAYER.value, "units": CFEUnits.MAX_ROOTZONE_LAYER.value}
     else:
         is_aet_rootzone = False
         soil_layer_depths = None
@@ -1023,7 +1023,7 @@ def get_cfe_parameters(
         x_Xinanjiang_shape_parameter = None
         if sft_included:
             is_sft_coupled = True
-            ice_content_thresh = {"value": CFEValues.ICE_CONTENT_THR.value, "units": ""}
+            ice_content_thresh = {"value": CFEValues.ICE_CONTENT_THR.value, "units": CFEUnits.ICE_CONTENT_THR.value}
         else:
             is_sft_coupled = False
             ice_content_thresh = None
@@ -1087,5 +1087,5 @@ def get_cfe_parameters(
             max_rootzone_layer=max_rootzone_layer,
         )
 
-    pydantic_models.append(model_instance)
+        pydantic_models.append(model_instance)
     return pydantic_models

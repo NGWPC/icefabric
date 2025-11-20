@@ -1000,7 +1000,7 @@ def get_cfe_parameters(
 
     if rootzone_aet:
         is_aet_rootzone = True
-        soil_layer_depths = CFEValues.SOIL_LAYER_DEPTHS.value
+        soil_layer_depths = {"value": CFEValues.SOIL_LAYER_DEPTHS.value, "units": CFEUnits.SOIL_DEPTH.value}
         max_rootzone_layer = {"value": CFEValues.MAX_ROOTZONE_LAYER.value, "units": ""}
     else:
         is_aet_rootzone = False
@@ -1009,7 +1009,7 @@ def get_cfe_parameters(
 
     if cfe_version == "CFE-X":
         surface_partitioning_scheme = CFEValues.XINANJIANG.value
-        urban_decimal_fraction = CFEValues.URBAN_FRACT.value
+        urban_decimal_fraction = {"value": CFEValues.URBAN_FRACT.value, "units": CFEUnits.URBAN_FRACT.value}
         ice_content_thresh = None
         if sft_included:
             is_sft_coupled = True

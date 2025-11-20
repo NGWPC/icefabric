@@ -11,14 +11,14 @@ class FloatWithUnits(BaseModel):
     """Pydantic class to represent a parameter's float value and units"""
 
     value: float
-    units: str
+    units: str | None
 
 
 class FloatListWithUnits(BaseModel):
     """Pydantic class to represent a list of float values and a single units field"""
 
     value: list[float]
-    units: str
+    units: str | None
 
 
 class NWMProtocol(Protocol):
@@ -1232,30 +1232,30 @@ class CFEUnits(enum.Enum):
     """Units for CFE parameters"""
 
     ICE_CONTENT_THR = "m"
-    A_XINANJIANG_INFLECT = "unitless"
-    B_XINANJIANG_SHAPE = "unitless"
-    X_XINANJIANG_SHAPE = "unitless"
-    SOIL_EXPON = "unitless"
-    SOIL_EXPON_SECONDARY = "unitless"
+    A_XINANJIANG_INFLECT = None
+    B_XINANJIANG_SHAPE = None
+    X_XINANJIANG_SHAPE = None
+    SOIL_EXPON = None
+    SOIL_EXPON_SECONDARY = None
     MAX_GIUH_STORAGE = "m"
     GW_STORAGE = "m/m"
-    ALPHA_FC = "unitless"
+    ALPHA_FC = None
     SOIL_STORAGE = "m/m"
     K_NASH = "1/m"
-    K_LF = "unitless"
-    NASH_STORAGE = "unitless"
-    GIUH = "unitless"
-    URBAN_FRACT = "unitless"
+    K_LF = None
+    NASH_STORAGE = None
+    GIUH = None
+    URBAN_FRACT = None
     SOIL_DEPTH = "m"
     SOIL_WLTSMC = "m/m"
     SOIL_SMCMAX = "m/m"
     SOIL_SLOP = "m/m"
     SOIL_SATPSI = "m"
     SOIL_SATDK = "m/s"
-    SOIL_B = "unitless"
+    SOIL_B = None
     CGW = "m/hr"
-    EXPON = "unitless"
-    REFKDT = "unitless"
+    EXPON = None
+    REFKDT = None
     SOIL_LAYER_DEPTHS = "m"
     MAX_ROOTZONE_LAYER = "m"
 

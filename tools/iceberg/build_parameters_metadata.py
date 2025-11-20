@@ -28,11 +28,6 @@ def build_parameter_metadata(file_dir, filename):
     namespace = "parameter_metadata"
     table_name = "parameter_metadata"
 
-    # try:
-    # catalog.create_namespace(namespace)
-    # except NamespaceAlreadyExistsError:
-    # print(f"Namespace {namespace} already exists")
-
     if catalog.table_exists(f"{namespace}.{table_name}"):
         print(f"Table {table_name} already exists. Skipping build")
         return

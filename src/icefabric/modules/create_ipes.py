@@ -33,6 +33,15 @@ from icefabric.schemas.modules import (
     UEBValues,
 )
 
+from  icefabric.modules.divide_attributes import DivideAttributesHF, DivideAttributesNHF
+
+def set_attributes(namespace):
+    if namespace == "conus_hf":
+        divide_enum = DivideAttributesHF
+    elif namespace == "superconus_nhf":
+        divide_enum = DivideAttributesNHF
+    return divide_enum
+
 
 def _get_mean_soil_temp() -> float:
     """Returns an avg soil temp of 45 degrees F converted to Kelvin. This equation is just a reasonable estimate per new direction (EW: 07/2025)
@@ -991,6 +1000,7 @@ def get_cfe_parameters(
 
     # CFE
     df = pd.DataFrame(gauge["divide-attributes"])
+    attr_enum = set_attributes(namespace)
     divides_list = df["divide_id"]
     domain = namespace.split("_")[0]
     table_name = f"divide_parameters.cfe-x_{domain}"
@@ -1056,32 +1066,32 @@ def get_cfe_parameters(
             surface_partitioning_scheme=surface_partitioning_scheme,
             is_sft_coupled=str(is_sft_coupled),
             ice_content_thresh=ice_content_thresh,
-            soil_params_b={"value": row_dict["mode.bexp_soil_layers_stag=1"], "units": CFEUnits.SOIL_B.value},
+            soil_params_b={"value": row_dict[attr_enum.BEXP.value], "units": CFEUnits.SOIL_B.value},
             soil_params_satdk={
-                "value": row_dict["geom_mean.dksat_soil_layers_stag=1"],
+                "value": row_dict[attr_enum.DKSAT.value],
                 "units": CFEUnits.SOIL_SATDK.value,
             },
             soil_params_satpsi={
-                "value": row_dict["geom_mean.psisat_soil_layers_stag=1"],
+                "value": row_dict[attr_enum.PSISAT.value],
                 "units": CFEUnits.SOIL_SATPSI.value,
             },
-            soil_params_slop={"value": row_dict["mean.slope_1km"], "units": CFEUnits.SOIL_SLOP.value},
+            soil_params_slop={"value": row_dict[attr_enum.SLOPE_1KM.value], "units": CFEUnits.SOIL_SLOP.value},
             soil_params_smcmax={
-                "value": row_dict["mean.smcmax_soil_layers_stag=1"],
+                "value": row_dict[attr_enum.SMCMAX.value],
                 "units": CFEUnits.SOIL_SMCMAX.value,
             },
             soil_params_wltsmc={
-                "value": row_dict["mean.smcwlt_soil_layers_stag=1"],
+                "value": row_dict[attr_enum.SMCWLT.value],
                 "units": CFEUnits.SOIL_WLTSMC.value,
             },
-            max_gw_storage={"value": row_dict["mean.Zmax"], "units": CFEUnits.MAX_GIUH_STORAGE.value},
-            Cgw={"value": row_dict["mean.Coeff"], "units": CFEUnits.EXPON.value},
-            expon={"value": row_dict["mode.Expon"], "units": CFEUnits.EXPON.value},
+            max_gw_storage={"value": row_dict[attr_enum.ZMAX.value], "units": CFEUnits.MAX_GIUH_STORAGE.value},
+            Cgw={"value": row_dict[attr_enum.COEFF.value], "units": CFEUnits.EXPON.value},
+            expon={"value": row_dict[attr_enum.EXPON.value], "units": CFEUnits.EXPON.value},
             a_Xinanjiang_inflection_point_parameter=a_Xinanjiang_inflection_point_parameter,
             b_Xinanjiang_shape_parameter=b_Xinanjiang_shape_parameter,
             x_Xinanjiang_shape_parameter=x_Xinanjiang_shape_parameter,
             urban_decimal_fraction=urban_decimal_fraction,
-            refkdt={"value": row_dict["mean.refkdt"], "units": CFEUnits.REFKDT.value},
+            refkdt={"value": row_dict[attr_enum.REFKDT.value], "units": CFEUnits.REFKDT.value},
             is_aet_rootzone=is_aet_rootzone,
             soil_layer_depths=soil_layer_depths,
             max_rootzone_layer=max_rootzone_layer,

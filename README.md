@@ -51,7 +51,7 @@ To run the API locally with Docker, ensure your `.env` file (make sure to have y
 docker compose -f docker/compose.yaml build api --no-cache
 
 # Run using docker run
-docker run icefabric/api:latest
+docker run -p 8000:8000 --name icefabric-api icefabric/api:latest
 # Run using docker compose
 docker compose -f docker/compose.yaml up api
 ```
@@ -60,9 +60,9 @@ To specify the deploy environment/iceberg catalog used (test or production), pas
 
 ```sh
 # Docker run - test deploy (default)
-docker run -e ICEFABRIC_DEPLOY_ENV=test icefabric/api:latest
+docker run -e ICEFABRIC_DEPLOY_ENV=test -p 8000:8000 --name icefabric-api icefabric/api:latest
 # Docker run - prod deploy
-docker run -e ICEFABRIC_DEPLOY_ENV=prod icefabric/api:latest
+docker run -e ICEFABRIC_DEPLOY_ENV=prod -p 8000:8000 --name icefabric-api icefabric/api:latest
 
 # Docker compose up - test deploy (default)
 ICEFABRIC_DEPLOY_ENV=test docker compose -f docker/compose.yaml up api
@@ -99,7 +99,7 @@ To run the Dashboard locally with Docker, ensure your `.env` file (make sure to 
 docker compose -f docker/compose.yaml build dashboard --no-cache
 
 # Run using docker run
-docker run icefabric/dashboard:latest
+docker run -p 8501:8501 --name icefabric-dashboard icefabric/dashboard:latest
 # Run using docker compose
 docker compose -f docker/compose.yaml up dashboard
 ```
@@ -107,9 +107,9 @@ To specify the deploy environment/iceberg catalog used (test or production), pas
 
 ```sh
 # Docker run - test deploy (default)
-docker run -e ICEFABRIC_DEPLOY_ENV=test icefabric/dashboard:latest
+docker run -e ICEFABRIC_DEPLOY_ENV=test -p 8501:8501 --name icefabric-dashboard icefabric/dashboard:latest
 # Docker run - prod deploy
-docker run -e ICEFABRIC_DEPLOY_ENV=prod icefabric/dashboard:latest
+docker run -e ICEFABRIC_DEPLOY_ENV=prod -p 8501:8501 --name icefabric-dashboard icefabric/dashboard:latest
 
 # Docker compose up - test deploy (default)
 ICEFABRIC_DEPLOY_ENV=test docker compose -f docker/compose.yaml up dashboard

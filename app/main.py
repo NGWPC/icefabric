@@ -97,7 +97,7 @@ async def lifespan(app: FastAPI):
     """
     app.state.main_logger = main_logger
     app.state.main_logger.info("Application starting up.")
-    if os.environ.get("ICEFABRIC_DEPLOY_ENV").lower() in ["t", "test", "p", "prod", "production"]:
+    if str(os.environ.get("ICEFABRIC_DEPLOY_ENV")).lower() in ["t", "test", "p", "prod", "production"]:
         # Override the deploy env. Allows for specifying the env when running a docker container
         load_creds(os.environ["ICEFABRIC_DEPLOY_ENV"].lower())
     else:

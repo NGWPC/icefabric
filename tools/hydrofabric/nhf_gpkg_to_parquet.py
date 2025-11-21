@@ -35,8 +35,8 @@ def nhf_gpkg_to_parquet(input_file: Path, output_folder: Path) -> None:
     """
     layers = [
         ("divides", Divides),
-        #("flowpaths", Flowpaths),
-        #("nexus", Nexus),
+        ("flowpaths", Flowpaths),
+        ("nexus", Nexus),
     ]
     for layer, schema in layers:
         if not input_file.exists():

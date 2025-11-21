@@ -41,7 +41,7 @@ class NHFSnapshot:
             PyIceberg schema for Hydrofabric
         """
         return Schema(
-            NestedField(1, "domain", StringType(), required=False),
+            NestedField(1, "domain", StringType(), required=True),
             NestedField(2, "divides", LongType(), required=False),
             NestedField(3, "flowpaths", LongType(), required=False),
             NestedField(4, "nexus", LongType(), required=False),
@@ -59,7 +59,7 @@ class NHFSnapshot:
         """
         return pa.schema(
             [
-                a.field("domain", pa.string(), nullable=True),
+                pa.field("domain", pa.string(), nullable=False),
                 pa.field("divides", pa.int64(), nullable=True),
                 pa.field("flowpaths", pa.int64(), nullable=True),
                 pa.field("nexus", pa.int64(), nullable=True),

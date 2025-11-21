@@ -7,6 +7,8 @@ services:
       dockerfile: docker/Dockerfile.api
     ports:
       - "8000:8000"
+    environment:
+      - ICEFABRIC_DEPLOY_ENV=${ICEFABRIC_DEPLOY_ENV:-test}
     env_file:
       - ../.env
   dashboard:
@@ -17,5 +19,7 @@ services:
       dockerfile: docker/Dockerfile.streamlit
     ports:
       - "8501:8501"
+    environment:
+      - ICEFABRIC_DEPLOY_ENV=${ICEFABRIC_DEPLOY_ENV:-test}
     env_file:
       - ../.env

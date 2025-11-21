@@ -6,7 +6,6 @@ from pyiceberg.expressions import In
 from shapely.geometry import box
 
 from icefabric.helpers import to_geopandas
-from icefabric.helpers.creds import load_creds
 from icefabric.ras_xs import subset_xs
 from icefabric.schemas.iceberg_tables.ras_xs import ConflatedRasXS, RepresentativeRasXS
 
@@ -16,7 +15,6 @@ domain_class_map = {"representative": RepresentativeRasXS, "conflated": Conflate
 @st.cache_data(show_spinner=False)
 def get_data(xs_dom, subset):
     """Helper to call XS subsetting function. Caches the results."""
-    load_creds()
     catalog = load_catalog("glue")
     if type(subset) is str:
         xs_gdf = subset_xs(catalog=catalog, xstype=xs_dom, identifier=subset)
@@ -35,7 +33,6 @@ def convert_for_download(gdf, tmp_path):
 
 def format_xs_map(xs_gdf):
     """Helper to create/format a folium map to display the cross-sectional data."""
-    load_creds()
     catalog = load_catalog("glue")
     # Pull and filter reference divides/flowpaths from the catalog
     reference_divides = to_geopandas(

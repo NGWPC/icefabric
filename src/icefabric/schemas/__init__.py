@@ -16,6 +16,7 @@ from .iceberg_tables.hydrofabric import (
 )
 from .iceberg_tables.hydrofabric_snapshots import HydrofabricSnapshot
 from .iceberg_tables.nhf_snapshots import NHFSnapshot
+from .iceberg_tables.parameter_metadata import ParameterMetadata
 from .iceberg_tables.ras_xs import ConflatedRasXS, RepresentativeRasXS
 from .modules import (
     CFE,
@@ -86,4 +87,5 @@ __all__ = [
     "CatItemParams",
     "CatRecParams",
     "LocItemParams",
+    "ParameterMetadata",
 ]

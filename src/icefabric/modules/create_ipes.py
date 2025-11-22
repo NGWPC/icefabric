@@ -49,10 +49,10 @@ def select_attr_names(namespace: str) -> object:
         The enum for the selected hydrofabric
     """
     if namespace == "conus_hf":
-        attr_enum = DivideAttributesHF
+        attr_names = DivideAttributesHF
     elif namespace == "superconus_nhf":
-        attr_enum = DivideAttributesNHF
-    return attr_enum
+        attr_names = DivideAttributesNHF
+    return attr_names
 
 
 def _get_mean_soil_temp() -> float:
@@ -107,7 +107,7 @@ def get_sft_parameters(
     for _, row_dict in divide_attr_df.iterrows():
         # Instantiate the Pydantic model for each row
         model_instance = SFT(
-            catchment=row_dict["divide_id"],
+            catchment=row_dict[attr_names.DIVIDE_ID.value],
             smcmax={"value": row_dict[attr_names.SMCMAX.value], "units": "m/m"},
             b={"value": row_dict[attr_names.BEXP.value], "units": None},
             satpsi={"value": row_dict[attr_names.PSISAT.value], "units": "m"},
@@ -157,7 +157,7 @@ def get_snow17_parameters(
     attr_names = select_attr_names(namespace)
 
     # Extraction of relevant features from divides layer
-    divides_df = gauge["divides"][["divide_id", "areasqkm"]]
+    divides_df = gauge["divides"][[attr_names.DIVIDE_ID.value, attr_names.AREA.value]]
 
     # Ensure final result aligns properly based on each instances divide ids
     result_df = pd.merge(divide_attr_df, divides_df, on="divide_id", how="left")
@@ -178,20 +178,22 @@ def get_snow17_parameters(
     result_df["uadj"] = CalibratableScheme.UADJ.value
 
     if namespace == "conus_hf" and not envca:
-        divides_list = result_df["divide_id"]
+        divides_list = result_df[attr_names.DIVIDE_ID.value]
         domain = namespace.split("_")[0]
         table_name = f"divide_parameters.snow-17_{domain}"
         params_df = catalog.load_table(table_name).to_polars()
-        conus_param_df = params_df.filter(pl.col("divide_id").is_in(divides_list)).collect().to_pandas()
+        conus_param_df = (
+            params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
+        )
         result_df.drop(columns=["mfmax", "mfmin", "uadj"], inplace=True)
-        result_df = pd.merge(conus_param_df, result_df, on="divide_id", how="left")
+        result_df = pd.merge(conus_param_df, result_df, on=attr_names.DIVIDE_ID.value, how="left")
 
     pydantic_models = []
     for _, row_dict in result_df.iterrows():
         model_instance = Snow17(
-            catchment=row_dict["divide_id"],
-            hru_id=row_dict["divide_id"],
-            hru_area=row_dict["areasqkm"],
+            catchment=row_dict[attr_names.DIVIDE_ID.value],
+            hru_id=row_dict[attr_names.DIVIDE_ID.value],
+            hru_area=row_dict[attr_names.AREA.value],
             latitude=row_dict[attr_names.Y.value],
             elev=row_dict[attr_names.ELEVATION.value],
             mfmax=row_dict["mfmax"],
@@ -238,7 +240,7 @@ def get_smp_parameters(
     )
 
     divide_attr_df = pd.DataFrame(gauge["divide-attributes"])
-    attr_name = select_attr_names(namespace)
+    attr_names = select_attr_names(namespace)
 
     # Initializing parameters dependent to unique modules
     soil_storage_model = None
@@ -268,10 +270,10 @@ def get_smp_parameters(
     for _, row_dict in divide_attr_df.iterrows():
         # Instantiate the Pydantic model for each row
         model_instance = SMP(
-            catchment=row_dict["divide_id"],
-            smcmax={"value": row_dict[attr_name.SMCMAX.value], "units": "m/m"},
-            b={"value": row_dict[attr_name.BEXP.value], "units": None},
-            satpsi={"value": row_dict[attr_name.PSISAT.value], "units": "m"},
+            catchment=row_dict[attr_names.DIVIDE_ID.value],
+            smcmax={"value": row_dict[attr_names.SMCMAX.value], "units": "m/m"},
+            b={"value": row_dict[attr_names.BEXP.value], "units": None},
+            satpsi={"value": row_dict[attr_names.PSISAT.value], "units": "m"},
             soil_storage_model=soil_storage_model,
             soil_storage_depth=soil_storage_depth,
             water_table_based_method=water_table_based_method,
@@ -319,10 +321,10 @@ def get_lstm_parameters(catalog: Catalog, namespace: str, identifier: str, graph
     attr_names = select_attr_names(namespace)
 
     # Extraction of relevant features from divides layer
-    divides_df = gauge["divides"][["divide_id", "areasqkm"]]
+    divides_df = gauge["divides"][[attr_names.DIVIDE_ID.value, attr_names.AREA.value]]
 
     # Ensure final result aligns properly based on each instances divide ids
-    result_df = pd.merge(divide_attr_df, divides_df, on="divide_id", how="left")
+    result_df = pd.merge(divide_attr_df, divides_df, on=attr_names.DIVIDE_ID.value, how="left")
 
     # Convert elevation from cm to m
     result_df[attr_names.ELEVATION.value] = result_df[attr_names.ELEVATION.value] * 0.01
@@ -338,8 +340,8 @@ def get_lstm_parameters(catalog: Catalog, namespace: str, identifier: str, graph
     for _, row_dict in result_df.iterrows():
         # Instantiate the Pydantic model for each row
         model_instance = LSTM(
-            catchment=row_dict["divide_id"],
-            area_sqkm=row_dict["areasqkm"],
+            catchment=row_dict[attr_names.DIVIDE_ID.value],
+            area_sqkm=row_dict[attr_names.AREA.value],
             basin_id=identifier,
             elev_mean=row_dict[attr_names.ELEVATION.value],
             lat=row_dict[attr_names.Y.value],
@@ -397,7 +399,7 @@ def get_lasam_parameters(
     for _, row_dict in divide_attr_df.iterrows():
         # Instantiate the Pydantic model for each row
         model_instance = LASAM(
-            catchment=row_dict["divide_id"],
+            catchment=row_dict[attr_names.DIVIDE_ID.value],
             soil_params_file=soil_params_file,  # TODO figure out why this exists?
             layer_soil_type=str(row_dict[attr_names.ISLTYP.value]),
             sft_coupled=sft_included,
@@ -452,7 +454,7 @@ def get_noahowp_parameters(
     for _, row_dict in divide_attr_df.iterrows():
         # Instantiate the Pydantic model for each row
         model_instance = NoahOwpModular(
-            catchment=row_dict["divide_id"],
+            catchment=row_dict[attr_names.DIVIDE_ID.value],
             lat=row_dict[attr_names.Y.value],
             lon=row_dict[attr_names.X.value],
             terrain_slope=row_dict[attr_names.SLOPE.value],
@@ -495,10 +497,11 @@ def get_sacsma_parameters(
         layers=["flowpaths", "nexus", "divides", "divide-attributes", "network"],
         graph=graph,
     )
+    attr_names = select_attr_names(namespace)
 
     # Extraction of relevant features from divides layer
     pd.options.mode.chained_assignment = None
-    result_df = gauge["divides"][["divide_id", "areasqkm"]]
+    result_df = gauge["divides"][[attr_names.DIVIDE_ID.value, attr_names.AREA.value]]
 
     # Default parameter values used only for CONUS
     result_df["uztwm"] = SacSmaValues.UZTWM.value
@@ -519,11 +522,13 @@ def get_sacsma_parameters(
     result_df["rserv"] = SacSmaValues.RSERV.value
 
     if namespace == "conus_hf" and not envca:
-        divides_list = result_df["divide_id"]
+        divides_list = result_df[attr_names.DIVIDE_ID.value]
         domain = namespace.split("_")[0]
         table_name = f"divide_parameters.sac-sma_{domain}"
         params_df = catalog.load_table(table_name).to_polars()
-        conus_param_df = params_df.filter(pl.col("divide_id").is_in(divides_list)).collect().to_pandas()
+        conus_param_df = (
+            params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
+        )
         result_df.drop(
             columns=[
                 "uztwm",
@@ -540,7 +545,7 @@ def get_sacsma_parameters(
             ],
             inplace=True,
         )
-        result_df = pd.merge(conus_param_df, result_df, on="divide_id", how="left")
+        result_df = pd.merge(conus_param_df, result_df, on=attr_names.DIVIDE_ID.value, how="left")
 
     pydantic_models = []
     for _, row_dict in result_df.iterrows():
@@ -548,9 +553,9 @@ def get_sacsma_parameters(
         # *Note: The HF API declares hru_id as the divide id, but to remain consistent
         # keeping catchment arg.
         model_instance = SacSma(
-            catchment=row_dict["divide_id"],
-            hru_id=row_dict["divide_id"],
-            hru_area=row_dict["areasqkm"],
+            catchment=row_dict[attr_names.DIVIDE_ID.value],
+            hru_id=row_dict[attr_names.DIVIDE_ID.value],
+            hru_area=row_dict[attr_names.AREA.value],
             uztwm=row_dict["uztwm"],
             uzfwm=row_dict["uzfwm"],
             lztwm=row_dict["lztwm"],
@@ -653,20 +658,20 @@ def get_topmodel_parameters(
     attr_names = select_attr_names(namespace)
 
     # Extraction of relevant features from divides layer
-    divides_df = gauge["divides"][["divide_id", "lengthkm"]]
+    divides_df = gauge["divides"][[attr_names.DIVIDE_ID.value, attr_names.FLOWPATH_LENGTH.value]]
 
     # Ensure final result aligns properly based on each instances divide ids
-    result_df = pd.merge(divide_attr_df, divides_df, on="divide_id", how="left")
+    result_df = pd.merge(divide_attr_df, divides_df, on=attr_names.DIVIDE_ID.value, how="left")
 
     pydantic_models = []
     for _idx, row_dict in result_df.iterrows():
         twi_json = json.loads(row_dict[attr_names.TWI.value])
         model_instance = Topmodel(
-            catchment=row_dict["divide_id"],
-            divide_id=row_dict["divide_id"],
+            catchment=row_dict[attr_names.DIVIDE_ID.value],
+            divide_id=row_dict[attr_names.DIVIDE_ID.value],
             twi=twi_json,
             num_topodex_values=len(twi_json),
-            dist_from_outlet=round(row_dict["lengthkm"] * 1000),
+            dist_from_outlet=round(row_dict[attr_names.FLOWPATH_LENGTH.value] * 1000),
         )
         pydantic_models.append(model_instance)
     return pydantic_models
@@ -702,8 +707,8 @@ def get_topoflow_parameters(
 
     divide_attr_df = pd.DataFrame(gauge["divide-attributes"])
     attr_names = select_attr_names(namespace)
-    divides_df = gauge["divides"][["divide_id", "areasqkm"]]
-    divide_attr_df = divide_attr_df.merge(divides_df, on="divide_id", how="left")
+    divides_df = gauge["divides"][[attr_names.DIVIDE_ID.value, attr_names.AREA.value]]
+    divide_attr_df = divide_attr_df.merge(divides_df, on=attr_names.DIVIDE_ID.value, how="left")
 
     # Convert elevation from cm to m
     divide_attr_df[attr_names.ELEVATION.value] = divide_attr_df[attr_names.ELEVATION.value] * 0.01
@@ -721,9 +726,9 @@ def get_topoflow_parameters(
     for _, row_dict in divide_attr_df.iterrows():
         # Instantiate the Pydantic model for each row
         model_instance = Topoflow(
-            site_prefix=row_dict["divide_id"],
-            forcing_file=f"data/{row_dict['divide_id']}.csv",
-            da=row_dict["areasqkm"],
+            site_prefix=row_dict[attr_names.DIVIDE_ID.value],
+            forcing_file=f"data/{row_dict[attr_names.DIVIDE_ID.value]}.csv",
+            da=row_dict[attr_names.AREA.value],
             slope=row_dict[attr_names.SLOPE.value],
             aspect=row_dict[attr_names.ASPECT.value],
             lon=row_dict[attr_names.X.value],
@@ -801,14 +806,16 @@ def get_ueb_parameters(
     divide_attr_df["dec_temp_range"] = UEBValues.DEC_TEMP.value
 
     if namespace == "conus_hf" and not envca:
-        divides_list = divide_attr_df["divide_id"]
+        divides_list = divide_attr_df[attr_names.DIVIDE_ID.value]
         domain = namespace.split("_")[0]
         table_name = f"divide_parameters.ueb_{domain}"
         params_df = catalog.load_table(table_name).to_polars()
-        conus_param_df = params_df.filter(pl.col("divide_id").is_in(divides_list)).collect().to_pandas()
+        conus_param_df = (
+            params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
+        )
         col2drop = [col for col in divide_attr_df.columns if col.endswith("_temp_range")]
         divide_attr_df.drop(columns=col2drop, inplace=True)
-        divide_attr_df = pd.merge(conus_param_df, divide_attr_df, on="divide_id", how="left")
+        divide_attr_df = pd.merge(conus_param_df, divide_attr_df, on=attr_names.DIVIDE_ID.value, how="left")
         divide_attr_df.rename(
             columns={
                 "b01": "jan_temp_range",
@@ -830,7 +837,7 @@ def get_ueb_parameters(
     pydantic_models = []
     for _, row_dict in divide_attr_df.iterrows():
         model_instance = UEB(
-            catchment=row_dict["divide_id"],
+            catchment=row_dict[attr_names.DIVIDE_ID.value],
             aspect=row_dict[attr_names.ASPECT.value],
             slope=row_dict[attr_names.SLOPE.value],
             longitude=row_dict[attr_names.X.value],
@@ -897,13 +904,15 @@ def get_cfe_parameters(
 
     # CFE
     df = pd.DataFrame(gauge["divide-attributes"])
-    attr_enum = select_attr_names(namespace)
-    divides_list = df["divide_id"]
+    attr_names = select_attr_names(namespace)
+    divides_list = df[attr_names.DIVIDE_ID.value]
     domain = namespace.split("_")[0]
     table_name = f"divide_parameters.cfe-x_{domain}"
     params_df = catalog.load_table(table_name).to_polars()
-    conus_param_df = params_df.filter(pl.col("divide_id").is_in(divides_list)).collect().to_pandas()
-    df = pd.merge(conus_param_df, df, on="divide_id", how="left")
+    conus_param_df = (
+        params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
+    )
+    df = pd.merge(conus_param_df, df, on=attr_names.DIVIDE_ID.value, how="left")
 
     if rootzone_aet:
         is_aet_rootzone = True
@@ -965,42 +974,42 @@ def get_cfe_parameters(
             }
 
         model_instance = CFE(
-            catchment=row_dict["divide_id"],
+            catchment=row_dict[attr_names.DIVIDE_ID.value],
             surface_partitioning_scheme=surface_partitioning_scheme,
             is_sft_coupled=str(is_sft_coupled),
             ice_content_thresh=ice_content_thresh,
-            soil_params_b={"value": row_dict[attr_enum.BEXP.value], "units": CFEUnits.SOIL_B.value},
+            soil_params_b={"value": row_dict[attr_names.BEXP.value], "units": CFEUnits.SOIL_B.value},
             soil_params_satdk={
-                "value": row_dict[attr_enum.DKSAT.value],
+                "value": row_dict[attr_names.DKSAT.value],
                 "units": CFEUnits.SOIL_SATDK.value,
             },
             soil_params_satpsi={
-                "value": row_dict[attr_enum.PSISAT.value],
+                "value": row_dict[attr_names.PSISAT.value],
                 "units": CFEUnits.SOIL_SATPSI.value,
             },
             soil_params_slop={
-                "value": row_dict[attr_enum.SLOPE_1KM.value],
+                "value": row_dict[attr_names.SLOPE_1KM.value],
                 "units": CFEUnits.SOIL_SLOP.value,
             },
             soil_params_smcmax={
-                "value": row_dict[attr_enum.SMCMAX.value],
+                "value": row_dict[attr_names.SMCMAX.value],
                 "units": CFEUnits.SOIL_SMCMAX.value,
             },
             soil_params_wltsmc={
-                "value": row_dict[attr_enum.SMCWLT.value],
+                "value": row_dict[attr_names.SMCWLT.value],
                 "units": CFEUnits.SOIL_WLTSMC.value,
             },
             max_gw_storage={
-                "value": row_dict[attr_enum.ZMAX.value],
+                "value": row_dict[attr_names.ZMAX.value],
                 "units": CFEUnits.MAX_GIUH_STORAGE.value,
             },
-            Cgw={"value": row_dict[attr_enum.COEFF.value], "units": CFEUnits.EXPON.value},
-            expon={"value": row_dict[attr_enum.EXPON.value], "units": CFEUnits.EXPON.value},
+            Cgw={"value": row_dict[attr_names.COEFF.value], "units": CFEUnits.EXPON.value},
+            expon={"value": row_dict[attr_names.EXPON.value], "units": CFEUnits.EXPON.value},
             a_Xinanjiang_inflection_point_parameter=a_Xinanjiang_inflection_point_parameter,
             b_Xinanjiang_shape_parameter=b_Xinanjiang_shape_parameter,
             x_Xinanjiang_shape_parameter=x_Xinanjiang_shape_parameter,
             urban_decimal_fraction=urban_decimal_fraction,
-            refkdt={"value": row_dict[attr_enum.REFKDT.value], "units": CFEUnits.REFKDT.value},
+            refkdt={"value": row_dict[attr_names.REFKDT.value], "units": CFEUnits.REFKDT.value},
             is_aet_rootzone=is_aet_rootzone,
             soil_layer_depths=soil_layer_depths,
             max_rootzone_layer=max_rootzone_layer,

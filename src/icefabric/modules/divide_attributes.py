@@ -1,6 +1,8 @@
 import enum
 
+
 class DivideAttributesHF(enum.Enum):
+    """Enum containing Hydrofabric 2.2 divide attribute names"""
 
     BEXP = "mode.bexp_soil_layers_stag=1"
     ISLTYP = "mode.ISLTYP"
@@ -26,7 +28,9 @@ class DivideAttributesHF(enum.Enum):
     ASPECT = "circ_mean.aspect"
     TWI = "dist_4.twi"
 
+
 class DivideAttributesNHF(enum.Enum):
+    """Enum containing NHF divide attribute names"""
 
     BEXP = "bexp_mode"
     ISLTYP = "isltyp_mode"
@@ -50,4 +54,3 @@ class DivideAttributesNHF(enum.Enum):
     ELEVATION = "elevation_mean"
     SLOPE = "slope_mean"
     ASPECT = "aspect_circmean"
-

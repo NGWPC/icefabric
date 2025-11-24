@@ -252,13 +252,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "nhf",
         type=Path,
-        # default="/Users/taddbindas/projects/NGWPC/hydrofabric-builds/data/hydrofabric_0.3.1.dev1+g1e720963f.gpkg",
         help="Path to the nhf GeoPackage file",
     )
     parser.add_argument(
         "flowpath_id",
         type=int,
-        # default=3490271,
         help="Origin nexus ID to trace upstream from",
     )
     parser.add_argument(

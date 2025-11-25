@@ -6,7 +6,7 @@ NOTE - THIS IS A WORK IN PROGRESS
 
 import pyarrow as pa
 from pyiceberg.schema import Schema
-from pyiceberg.types import BinaryType, DoubleType, IntegerType, NestedField, StringType, LongType, FloatType
+from pyiceberg.types import BinaryType, DoubleType, FloatType, LongType, NestedField, StringType
 
 
 class Divides:
@@ -140,15 +140,12 @@ class Divides:
             "Terrain elevation",
             "Terrain slope",
             "Terrain aspect",
-            "Geometry"
-
-
-            "Spatial Geometry (MULTIPOLYGON format) - stored in WKB binary format",
+            "GeometrySpatial Geometry (MULTIPOLYGON format) - stored in WKB binary format",
         ]
         return Schema(
             NestedField(1, "div_id", LongType(), required=True, doc=desc[0]),
-            NestedField(2, "vpu_id", BinaryType(), required=False, doc=desc[1]),
-            NestedField(3, "type", BinaryType(), required=False, doc=desc[2]),
+            NestedField(2, "vpu_id", StringType(), required=False, doc=desc[1]),
+            NestedField(3, "type", StringType(), required=False, doc=desc[2]),
             NestedField(4, "area_sqkm", DoubleType(), required=False, doc=desc[3]),
             NestedField(5, "bexp_mode", DoubleType(), required=False, doc=desc[4]),
             NestedField(6, "isltyp_mode", DoubleType(), required=False, doc=desc[5]),
@@ -187,8 +184,8 @@ class Divides:
         return pa.schema(
             [
                 pa.field("div_id", pa.int64(), nullable=False),
-                pa.field("vpu_id", pa.binary(), nullable=True),
-                pa.field("type", pa.binary(), nullable=True),
+                pa.field("vpu_id", pa.string(), nullable=True),
+                pa.field("type", pa.string(), nullable=True),
                 pa.field("area_sqkm", pa.float64(), nullable=True),
                 pa.field("bexp_mode", pa.float64(), nullable=True),
                 pa.field("isltyp_mode", pa.float64(), nullable=True),
@@ -353,7 +350,7 @@ class Flowpaths:
             NestedField(2, "dn_nex_id", LongType(), required=False, doc=desc[1]),
             NestedField(3, "up_nex_id", DoubleType(), required=False, doc=desc[2]),
             NestedField(4, "div_id", LongType(), required=False, doc=desc[3]),
-            NestedField(5, "vpu_id", BinaryType(), required=False, doc=desc[4]),
+            NestedField(5, "vpu_id", StringType(), required=False, doc=desc[4]),
             NestedField(6, "hydroseq", LongType(), required=False, doc=desc[5]),
             NestedField(7, "length_km", DoubleType(), required=False, doc=desc[6]),
             NestedField(8, "area_sqkm", DoubleType(), required=False, doc=desc[7]),
@@ -393,7 +390,7 @@ class Flowpaths:
                 pa.field("dn_nex_id", pa.int64(), nullable=True),
                 pa.field("up_nex_id", pa.float64(), nullable=True),
                 pa.field("div_id", pa.int64(), nullable=True),
-                pa.field("vpu_id", pa.binary(), nullable=True),
+                pa.field("vpu_id", pa.string(), nullable=True),
                 pa.field("hydroseq", pa.int64(), nullable=True),
                 pa.field("length_km", pa.float64(), nullable=True),
                 pa.field("area_sqkm", pa.float64(), nullable=True),

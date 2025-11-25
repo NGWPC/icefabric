@@ -17,3 +17,11 @@ bounding_box_tooltip = (
     "The min/max lat/lon coordinates should be in standard EPSG:4326 format.\n"
     "The subset returned will include only cross-sections that fully fit into the bounding box."
 )
+
+
+def hf_loading_info_box(origin_id):
+    """Helper to create loading info box for hydrofabric subsetting."""
+    return f"""
+    Creating subset upstream of origin ID: {origin_id}...
+    > _(may take upwards of 5-10 minutes)_
+"""

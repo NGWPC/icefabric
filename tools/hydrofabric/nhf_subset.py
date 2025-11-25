@@ -9,6 +9,10 @@ import geopandas as gpd
 import pandas as pd
 import polars as pl
 import rustworkx as rx
+from pyiceberg.catalog import Catalog, load_catalog
+
+from icefabric.cli.streamflow import NoResultsFoundError
+from icefabric.helpers.creds import load_creds
 
 logger = logging.getLogger(__name__)
 
@@ -149,11 +153,11 @@ def pl_to_gdf(pl_df: pl.DataFrame, crs: str = "EPSG:5070") -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(df, crs=crs)
 
 
-def subset_hydrofabric(
+def generate_subset_geopackage(
     origin: int,
     graph: rx.PyDiGraph,
     node_indices: dict[str, int] | dict[int, int],
-    nhf: Path,
+    nhf: Path | Catalog,
     subset_file: Path | None = None,
 ):
     """Subset hydrofabric to upstream nodes from a given origin.
@@ -181,14 +185,40 @@ def subset_hydrofabric(
     ancestor_indices = rx.ancestors(graph, start_idx)
     ancestor_ids = [graph[idx] for idx in ancestor_indices] + [origin]
     # Load all layers
-    fp = pl.from_pandas(gpd.read_file(nhf, layer="flowpaths").to_wkb())
-    nex = pl.from_pandas(gpd.read_file(nhf, layer="nexus").to_wkb())
-    div = pl.from_pandas(gpd.read_file(nhf, layer="divides").to_wkb())
-    ref_fp = pl.from_pandas(gpd.read_file(nhf, layer="reference_flowpaths"))
-    v_nex = pl.from_pandas(gpd.read_file(nhf, layer="virtual_nexus").to_wkb())
-    v_fp = pl.from_pandas(gpd.read_file(nhf, layer="virtual_flowpaths").to_wkb())
-    wb = pl.from_pandas(gpd.read_file(nhf, layer="waterbodies").to_wkb())
-    gages = pl.from_pandas(gpd.read_file(nhf, layer="gages").to_wkb())
+    if isinstance(nhf, Catalog):
+        print("Loading flowpaths...")
+        fp = nhf.load_table("superconus_nhf.flowpaths").scan().to_pandas().to_wkb()
+        print("Loading nexus...")
+        nex = nhf.load_table("superconus_nhf.nexus").scan().to_pandas().to_wkb()
+        print("Loading divides...")
+        div = nhf.load_table("superconus_nhf.divides").scan().to_pandas().to_wkb()
+        print("Loading reference flowpaths...")
+        ref_fp = nhf.load_table("superconus_nhf.reference_flowpaths").scan().to_pandas()
+        print("Loading virtual nexus...")
+        v_nex = nhf.load_table("superconus_nhf.virtual_nexus").scan().to_pandas().to_wkb()
+        print("Loading virtual flowpaths...")
+        v_fp = nhf.load_table("superconus_nhf.virtual_flowpaths").scan().to_pandas().to_wkb()
+        print("Loading waterbodies...")
+        wb = nhf.load_table("superconus_nhf.waterbodies").scan().to_pandas().to_wkb()
+        print("Loading gages...")
+        gages = nhf.load_table("superconus_nhf.gages").scan().to_pandas().to_wkb()
+    else:
+        print("Loading flowpaths...")
+        fp = pl.from_pandas(gpd.read_file(nhf, layer="flowpaths").to_wkb())
+        print("Loading nexus...")
+        nex = pl.from_pandas(gpd.read_file(nhf, layer="nexus").to_wkb())
+        print("Loading divides...")
+        div = pl.from_pandas(gpd.read_file(nhf, layer="divides").to_wkb())
+        print("Loading reference flowpaths...")
+        ref_fp = pl.from_pandas(gpd.read_file(nhf, layer="reference_flowpaths"))
+        print("Loading virtual nexus...")
+        v_nex = pl.from_pandas(gpd.read_file(nhf, layer="virtual_nexus").to_wkb())
+        print("Loading virtual flowpaths...")
+        v_fp = pl.from_pandas(gpd.read_file(nhf, layer="virtual_flowpaths").to_wkb())
+        print("Loading waterbodies...")
+        wb = pl.from_pandas(gpd.read_file(nhf, layer="waterbodies").to_wkb())
+        print("Loading gages...")
+        gages = pl.from_pandas(gpd.read_file(nhf, layer="gages").to_wkb())
 
     # Subsetting layers
     subset_fp = fp.filter(pl.col("fp_id").is_in(ancestor_ids))
@@ -244,18 +274,82 @@ def subset_hydrofabric(
         conn.close()
 
 
+def subset_hydrofabric(
+    flowpath_id: int,
+    catalog: bool | None = False,
+    nhf: Path | None = None,
+    output: Path | None = None,
+):
+    """Subset a hydrofabric GeoPackage to upstream nodes from a given origin nexus ID."""
+    flowpath_id = int(flowpath_id)
+    if not catalog:
+        # Validate input file exists
+        if not nhf.exists():
+            logger.error(f"Hydrofabric file {nhf} does not exist.")
+            sys.exit(1)
+
+    if output is None:
+        output_file = nhf.with_name(f"subset_origin_{flowpath_id}_{nhf.stem}.gpkg")
+    else:
+        output_file = output
+
+    # Load flowpaths
+    print("Loading flowpaths...")
+    fp_pl = None
+    if catalog:
+        load_creds()
+        catalog = load_catalog("glue")
+        fp_pl = catalog.load_table("superconus_nhf.flowpaths").scan().to_polars().drop("geometry")
+    else:
+        fp = gpd.read_file(nhf, layer="flowpaths")
+        fp_pl = pl.from_pandas(fp.drop(columns=["geometry"]))
+    print(f"\tLoaded {len(fp_pl)} flowpaths.")
+
+    # Read graph
+    print("Reading hydrofabric graph...")
+    upstream_dict = _build_upstream_dict_from_nexus(fp_pl)
+    graph, node_indices = _build_rustworkx_object(upstream_dict)
+    print("\tHydrofabric graph constructed.")
+
+    # Validate origin node exists
+    if flowpath_id not in node_indices:
+        raise NoResultsFoundError(f'Node ID "{flowpath_id}" not found in network graph.')
+    else:
+        print(f'Node ID "{flowpath_id}" found!')
+
+    print("Subsetting hydrofabric graph...")
+    generate_subset_geopackage(
+        origin=flowpath_id,
+        subset_file=output_file,
+        graph=graph,
+        nhf=nhf,
+        node_indices=node_indices,
+    )
+
+    print(f"Subsetting complete! saved to {output_file}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Subset a hydrofabric GeoPackage to upstream nodes from a given origin nexus ID.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "nhf",
-        type=Path,
-        help="Path to the nhf GeoPackage file",
+        "-c",
+        "--catalog",
+        action="store_true",
+        help="If set, will load the flowpaths from the Iceberg catalog instead of the provided NHF .gpkg file.",
     )
     parser.add_argument(
-        "flowpath_id",
+        "-n",
+        "--nhf",
+        type=Path,
+        help="Path to the NHF GeoPackage file. Must be provided if --catalog flag is not set.",
+        required=False,
+    )
+    parser.add_argument(
+        "-f",
+        "--flowpath_id",
         type=int,
         help="Origin nexus ID to trace upstream from",
     )
@@ -266,33 +360,6 @@ if __name__ == "__main__":
         default=None,
         help="Output path for subset GeoPackage (default: subset_origin_<ID>_<input_name>.gpkg)",
     )
-
     args = parser.parse_args()
 
-    # Validate input file exists
-    if not args.nhf.exists():
-        logger.error(f"Hydrofabric file {args.nhf} does not exist.")
-        sys.exit(1)
-
-    if args.output is None:
-        output_file = args.nhf.with_name(f"subset_origin_{args.flowpath_id}_{args.nhf.stem}.gpkg")
-    else:
-        output_file = args.output
-
-    # Read graph
-    print("Reading hydrofabric graph...")
-    fp = gpd.read_file(args.nhf, layer="flowpaths")
-    fp_pl = pl.from_pandas(fp.drop(columns=["geometry"]))
-    upstream_dict = _build_upstream_dict_from_nexus(fp_pl)
-    graph, node_indices = _build_rustworkx_object(upstream_dict)
-
-    print("subsetting hydrofabric graph...")
-    subset_hydrofabric(
-        origin=args.flowpath_id,
-        subset_file=output_file,
-        graph=graph,
-        nhf=args.nhf,
-        node_indices=node_indices,
-    )
-
-    print(f"subsetting complete! saved to {output_file}")
+    subset_hydrofabric(**args.__dict__)

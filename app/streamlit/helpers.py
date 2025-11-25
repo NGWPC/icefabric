@@ -1,5 +1,8 @@
+import time
+
 import geopandas as gpd
 import pandas as pd
+import polars as pl
 import streamlit as st
 from pyiceberg.catalog import load_catalog
 from pyiceberg.expressions import In
@@ -7,9 +10,21 @@ from shapely.geometry import box
 
 from icefabric.helpers import to_geopandas
 from icefabric.ras_xs import subset_xs
+from icefabric.schemas.iceberg_tables.hydrofabric_update import Divides, Flowpaths, Nexus
 from icefabric.schemas.iceberg_tables.ras_xs import ConflatedRasXS, RepresentativeRasXS
 
 domain_class_map = {"representative": RepresentativeRasXS, "conflated": ConflatedRasXS}
+hf_tables_map = {"Divides": Divides, "Flowpaths": Flowpaths, "Nexuses": Nexus}
+hf_ref_tables = [
+    "flowpaths",
+    "nexus",
+    "divides",
+    "reference_flowpaths",
+    "virtual_nexus",
+    "virtual_flowpaths",
+    "waterbodies",
+    "gages",
+]
 
 
 @st.cache_data(show_spinner=False)
@@ -72,3 +87,23 @@ def create_table_from_schema(iceberg_schema):
         }
     )
     return data_model
+
+
+def post_transient_success_msg(msg, length_s=2):
+    """Helper to post a transient success message in Streamlit."""
+    success_placeholder = st.empty()
+    success_placeholder.success(msg, icon=":material/check_circle:")
+    # Wait 2 seconds
+    time.sleep(length_s)
+    success_placeholder.empty()
+
+
+def load_hf_gpkg(path):
+    """Helper to load the subsetted GPKG and return a dictionary of GeoDataFrames for each layer."""
+    hf_dict = {}
+    for t in hf_ref_tables:
+        if t == "reference_flowpaths":
+            hf_dict[t] = pl.from_pandas(gpd.read_file(path, layer=t))
+        else:
+            hf_dict[t] = pl.from_pandas(gpd.read_file(path, layer=t).to_wkt())
+    return hf_dict

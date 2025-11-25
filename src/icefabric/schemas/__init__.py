@@ -15,6 +15,7 @@ from .iceberg_tables.hydrofabric import (
     POIs,
 )
 from .iceberg_tables.hydrofabric_snapshots import HydrofabricSnapshot
+from .iceberg_tables.nhf_snapshots import NHFSnapshot
 from .iceberg_tables.parameter_metadata import ParameterMetadata
 from .iceberg_tables.ras_xs import ConflatedRasXS, RepresentativeRasXS
 from .modules import (
@@ -60,6 +61,7 @@ __all__ = [
     "Lakes",
     "Hydrolocations",
     "HydrofabricSnapshot",
+    "NHFSnapshot",
     "UPSTREAM_VPUS",
     "IdType",
     "HydrofabricDomains",

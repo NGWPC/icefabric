@@ -11,7 +11,6 @@ import polars as pl
 import pyogrio
 import rustworkx as rx
 from pyiceberg.catalog import Catalog, load_catalog
-from pyiceberg.expressions import EqualTo, In
 
 from icefabric.cli.streamflow import NoResultsFoundError
 from icefabric.helpers.creds import load_creds
@@ -19,6 +18,10 @@ from icefabric.helpers.creds import load_creds
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logging.basicConfig()
+
+# =============================================================================
+# Graph Building
+# =============================================================================
 
 
 def _build_upstream_dict_from_nexus(
@@ -79,6 +82,49 @@ def _build_rustworkx_object(
     return graph, node_indices
 
 
+# =============================================================================
+# Data Source Abstraction
+# =============================================================================
+
+
+class HydrofabricSource:
+    """Unified interface for reading hydrofabric data from Parquet or Iceberg."""
+
+    def __init__(self, parquet_dir: Path | None = None, catalog: Catalog | None = None):
+        self.parquet_dir = parquet_dir
+        self.catalog = catalog
+
+        if parquet_dir is None and catalog is None:
+            raise ValueError("Must provide either parquet_dir or catalog")
+
+    def _get_lazy_frame(self, layer: str) -> pl.LazyFrame:
+        """Get a LazyFrame for a given layer."""
+        if self.catalog is not None:
+            return self.catalog.load_table(f"nhf.{layer}").to_polars()
+        else:
+            path = self.parquet_dir / f"{layer}.parquet"
+            if not path.exists():
+                raise FileNotFoundError(f"Parquet file not found: {path}")
+            return pl.scan_parquet(path)
+
+    def load_filtered(self, layer: str, col: str, ids: set[int]) -> pl.DataFrame:
+        """Load a layer filtered by a set of IDs."""
+        return self._get_lazy_frame(layer).filter(pl.col(col).is_in(ids)).collect()
+
+    def load_filtered_eq(self, layer: str, col: str, value: str) -> pl.DataFrame:
+        """Load a layer filtered by string equality."""
+        return self._get_lazy_frame(layer).filter(pl.col(col) == value).collect()
+
+    def load_columns(self, layer: str, columns: list[str]) -> pl.DataFrame:
+        """Load specific columns from a layer."""
+        return self._get_lazy_frame(layer).select(columns).collect()
+
+
+# =============================================================================
+# Conversion Utilities
+# =============================================================================
+
+
 def pl_to_gdf(pl_df: pl.DataFrame, crs: str = "EPSG:5070") -> gpd.GeoDataFrame:
     """Convert Polars DataFrame with WKB geometry to GeoDataFrame."""
     df = pl_df.to_pandas()
@@ -86,35 +132,14 @@ def pl_to_gdf(pl_df: pl.DataFrame, crs: str = "EPSG:5070") -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(df, crs=crs)
 
 
-def load_parquet_filtered(parquet_dir: Path, layer: str, col: str, ids: set[int]) -> pl.DataFrame:
-    """Load parquet with predicate pushdown filtering (for int IDs)."""
-    path = parquet_dir / f"{layer}.parquet"
-    if not path.exists():
-        raise FileNotFoundError(f"Parquet file not found: {path}")
-    return pl.scan_parquet(path).filter(pl.col(col).is_in(ids)).collect()
+# =============================================================================
+# ID Resolution
+# =============================================================================
 
 
-def load_parquet_filtered_str(parquet_dir: Path, layer: str, col: str, value: str) -> pl.DataFrame:
-    """Load parquet with predicate pushdown filtering (for string equality)."""
-    path = parquet_dir / f"{layer}.parquet"
-    if not path.exists():
-        raise FileNotFoundError(f"Parquet file not found: {path}")
-    return pl.scan_parquet(path).filter(pl.col(col) == value).collect()
-
-
-def resolve_gage_to_flowpath(
-    gage_id: str,
-    parquet_dir: Path | None = None,
-    catalog: Catalog | None = None,
-) -> int:
+def resolve_gage_to_flowpath(source: HydrofabricSource, gage_id: str) -> int:
     """Resolve a gage ID to its associated flowpath ID."""
-    if catalog is not None:
-        gage_df = catalog.load_table("nhf.gages").scan(row_filter=EqualTo("site_no", gage_id)).to_polars()
-    else:
-        gages_path = parquet_dir / "gages.parquet"
-        if not gages_path.exists():
-            raise FileNotFoundError(f"Gages parquet not found: {gages_path}")
-        gage_df = pl.scan_parquet(gages_path).filter(pl.col("site_no") == gage_id).collect()
+    gage_df = source.load_filtered_eq("gages", "site_no", gage_id)
 
     if len(gage_df) == 0:
         raise NoResultsFoundError(f"Gage ID '{gage_id}' not found.")
@@ -124,23 +149,9 @@ def resolve_gage_to_flowpath(
     return int(fp_id)
 
 
-def resolve_vpu_to_flowpath_ids(
-    vpu_id: str,
-    parquet_dir: Path | None = None,
-    catalog: Catalog | None = None,
-) -> set[int]:
+def resolve_vpu_to_flowpath_ids(source: HydrofabricSource, vpu_id: str) -> set[int]:
     """Resolve a VPU ID to all flowpath IDs within that VPU."""
-    if catalog is not None:
-        fp_df = (
-            catalog.load_table("nhf.flowpaths")
-            .scan(row_filter=EqualTo("vpu_id", vpu_id), selected_fields=("fp_id",))
-            .to_polars()
-        )
-    else:
-        fp_path = parquet_dir / "flowpaths.parquet"
-        if not fp_path.exists():
-            raise FileNotFoundError(f"Flowpaths parquet not found: {fp_path}")
-        fp_df = pl.scan_parquet(fp_path).filter(pl.col("vpu_id") == vpu_id).select("fp_id").collect()
+    fp_df = source.load_filtered_eq("flowpaths", "vpu_id", vpu_id)
 
     if len(fp_df) == 0:
         raise NoResultsFoundError(f"VPU ID '{vpu_id}' not found or has no flowpaths.")
@@ -150,164 +161,58 @@ def resolve_vpu_to_flowpath_ids(
     return fp_ids
 
 
+# =============================================================================
+# Subsetting Logic
+# =============================================================================
+
+
 def generate_subset_from_ids(
+    source: HydrofabricSource,
     flowpath_ids: set[int],
-    parquet_dir: Path | None = None,
-    catalog: Catalog | None = None,
     subset_file: Path | None = None,
 ) -> dict[str, pl.DataFrame]:
-    """Subset hydrofabric to a given set of flowpath IDs
-
-    Parameters
-    ----------
-    flowpath_ids : set[int]
-        a set of flowpath ids
-    parquet_dir : Path | None, optional
-        the directory where the local parquet files exist, by default None
-    catalog : Catalog | None, optional
-        the pyiceberg catalog, by default None
-    subset_file : Path | None, optional
-        the output subsetted file, by default None
-
-    Returns
-    -------
-    dict[str, pl.DataFrame]
-        all layers of the hydrofabric
-    """
+    """Subset hydrofabric to a given set of flowpath IDs."""
     logger.debug(f"Subsetting {len(flowpath_ids)} flowpaths")
 
-    if catalog is not None:
-        # ==================================================================
-        # ICEBERG PATH
-        # ==================================================================
-        logger.debug("Loading from Iceberg catalog...")
-        fp_list = list(flowpath_ids)
+    # Wave 1: fp_id/div_id filtered (parallel)
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        f = {
+            "fp": ex.submit(source.load_filtered, "flowpaths", "fp_id", flowpath_ids),
+            "div": ex.submit(source.load_filtered, "divides", "div_id", flowpath_ids),
+            "wb": ex.submit(source.load_filtered, "waterbodies", "fp_id", flowpath_ids),
+            "gages": ex.submit(source.load_filtered, "gages", "fp_id", flowpath_ids),
+            "ref_fp": ex.submit(source.load_filtered, "reference_flowpaths", "div_id", flowpath_ids),
+        }
+        subset_fp = f["fp"].result()
+        subset_div = f["div"].result()
+        subset_wb = f["wb"].result()
+        subset_gages = f["gages"].result()
+        subset_ref_fp = f["ref_fp"].result()
 
-        with ThreadPoolExecutor(max_workers=5) as ex:
-            f = {
-                "fp": ex.submit(
-                    lambda: catalog.load_table("nhf.flowpaths")
-                    .scan(row_filter=In("fp_id", fp_list))
-                    .to_polars()
-                ),
-                "div": ex.submit(
-                    lambda: catalog.load_table("nhf.divides")
-                    .scan(row_filter=In("div_id", fp_list))
-                    .to_polars()
-                ),
-                "wb": ex.submit(
-                    lambda: catalog.load_table("nhf.waterbodies")
-                    .scan(row_filter=In("fp_id", fp_list))
-                    .to_polars()
-                ),
-                "gages": ex.submit(
-                    lambda: catalog.load_table("nhf.gages").scan(row_filter=In("fp_id", fp_list)).to_polars()
-                ),
-                "ref_fp": ex.submit(
-                    lambda: catalog.load_table("nhf.reference_flowpaths")
-                    .scan(row_filter=In("div_id", fp_list))
-                    .to_polars()
-                ),
-            }
-            subset_fp = f["fp"].result()
-            subset_div = f["div"].result()
-            subset_wb = f["wb"].result()
-            subset_gages = f["gages"].result()
-            subset_ref_fp = f["ref_fp"].result()
+    # Derive dependent IDs
+    all_nex_ids = set(
+        subset_fp.filter(pl.col("up_nex_id").is_not_null())["up_nex_id"].cast(pl.Int64).to_list()
+        + subset_fp.filter(pl.col("dn_nex_id").is_not_null())["dn_nex_id"].cast(pl.Int64).to_list()
+    )
+    all_v_fp_ids = set(subset_ref_fp["virtual_fp_id"].to_list())
 
-        all_nex_ids = set(
-            subset_fp.filter(pl.col("up_nex_id").is_not_null())["up_nex_id"].cast(pl.Int64).to_list()
-            + subset_fp.filter(pl.col("dn_nex_id").is_not_null())["dn_nex_id"].cast(pl.Int64).to_list()
-        )
-        all_hy_ids = set(subset_wb["hy_id"].to_list() + subset_gages["hy_id"].to_list())
-        all_v_fp_ids = set(subset_ref_fp["virtual_fp_id"].to_list())
+    # Wave 2: nex_id/virtual_fp_id filtered (parallel)
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        nex_f = ex.submit(source.load_filtered, "nexus", "nex_id", all_nex_ids)
+        v_fp_f = ex.submit(source.load_filtered, "virtual_flowpaths", "virtual_fp_id", all_v_fp_ids)
+        subset_nex = nex_f.result()
+        subset_v_fp = v_fp_f.result()
 
-        with ThreadPoolExecutor(max_workers=2) as ex:
-            nex_f = ex.submit(
-                lambda: catalog.load_table("nhf.nexus")
-                .scan(row_filter=In("nex_id", list(all_nex_ids)))
-                .to_polars()
-            )
-            v_fp_f = ex.submit(
-                lambda: catalog.load_table("nhf.virtual_flowpaths")
-                .scan(row_filter=In("virtual_fp_id", list(all_v_fp_ids)))
-                .to_polars()
-            )
-            hy_id_f = ex.submit(
-                lambda: catalog.load_table("nhf.hydrolocations")
-                .scan(row_filter=In("hy_id", list(all_hy_ids)))
-                .to_polars()
-            )
-            subset_nex = nex_f.result()
-            subset_v_fp = v_fp_f.result()
-            subset_hydrolocations = hy_id_f.result()
-
-        all_v_nex_ids = set(
-            subset_v_fp.filter(pl.col("up_virtual_nex_id").is_not_null())["up_virtual_nex_id"]
-            .cast(pl.Int64)
-            .to_list()
-            + subset_v_fp.filter(pl.col("dn_virtual_nex_id").is_not_null())["dn_virtual_nex_id"]
-            .cast(pl.Int64)
-            .to_list()
-        )
-        subset_v_nex = (
-            catalog.load_table("nhf.virtual_nexus")
-            .scan(row_filter=In("virtual_nex_id", list(all_v_nex_ids)))
-            .to_polars()
-        )
-
-    else:
-        # ==================================================================
-        # PARQUET PATH (Polars with predicate pushdown)
-        # ==================================================================
-        logger.debug(f"Loading from Parquet: {parquet_dir}")
-
-        # Wave 1: fp_id/div_id filtered
-        with ThreadPoolExecutor(max_workers=5) as ex:
-            f = {
-                "fp": ex.submit(load_parquet_filtered, parquet_dir, "flowpaths", "fp_id", flowpath_ids),
-                "div": ex.submit(load_parquet_filtered, parquet_dir, "divides", "div_id", flowpath_ids),
-                "wb": ex.submit(load_parquet_filtered, parquet_dir, "waterbodies", "fp_id", flowpath_ids),
-                "gages": ex.submit(load_parquet_filtered, parquet_dir, "gages", "fp_id", flowpath_ids),
-                "ref_fp": ex.submit(
-                    load_parquet_filtered, parquet_dir, "reference_flowpaths", "div_id", flowpath_ids
-                ),
-            }
-            subset_fp = f["fp"].result()
-            subset_div = f["div"].result()
-            subset_wb = f["wb"].result()
-            subset_gages = f["gages"].result()
-            subset_ref_fp = f["ref_fp"].result()
-
-        # Derive dependent IDs
-        all_nex_ids = set(
-            subset_fp.filter(pl.col("up_nex_id").is_not_null())["up_nex_id"].cast(pl.Int64).to_list()
-            + subset_fp.filter(pl.col("dn_nex_id").is_not_null())["dn_nex_id"].cast(pl.Int64).to_list()
-        )
-        all_v_fp_ids = set(subset_ref_fp["virtual_fp_id"].to_list())
-        all_hy_ids = set(subset_wb["hy_id"].to_list() + subset_gages["hy_id"].to_list())
-
-        # Wave 2: nex_id/virtual_fp_id filtered
-        with ThreadPoolExecutor(max_workers=2) as ex:
-            nex_f = ex.submit(load_parquet_filtered, parquet_dir, "nexus", "nex_id", all_nex_ids)
-            v_fp_f = ex.submit(
-                load_parquet_filtered, parquet_dir, "virtual_flowpaths", "virtual_fp_id", all_v_fp_ids
-            )
-            hy_id_f = ex.submit(load_parquet_filtered, parquet_dir, "hydrolocations", "hy_id", all_hy_ids)
-            subset_nex = nex_f.result()
-            subset_v_fp = v_fp_f.result()
-            subset_hydrolocations = hy_id_f.result()
-
-        # Wave 3: virtual_nex_id filtered
-        all_v_nex_ids = set(
-            subset_v_fp.filter(pl.col("up_virtual_nex_id").is_not_null())["up_virtual_nex_id"]
-            .cast(pl.Int64)
-            .to_list()
-            + subset_v_fp.filter(pl.col("dn_virtual_nex_id").is_not_null())["dn_virtual_nex_id"]
-            .cast(pl.Int64)
-            .to_list()
-        )
-        subset_v_nex = load_parquet_filtered(parquet_dir, "virtual_nexus", "virtual_nex_id", all_v_nex_ids)
+    # Wave 3: virtual_nex_id filtered
+    all_v_nex_ids = set(
+        subset_v_fp.filter(pl.col("up_virtual_nex_id").is_not_null())["up_virtual_nex_id"]
+        .cast(pl.Int64)
+        .to_list()
+        + subset_v_fp.filter(pl.col("dn_virtual_nex_id").is_not_null())["dn_virtual_nex_id"]
+        .cast(pl.Int64)
+        .to_list()
+    )
+    subset_v_nex = source.load_filtered("virtual_nexus", "virtual_nex_id", all_v_nex_ids)
 
     # ======================================================================
     # Post-processing: null out downstream pointers at outlets
@@ -351,7 +256,6 @@ def generate_subset_from_ids(
         logger.debug(f"  reference_flowpaths: {len(subset_ref_fp)} rows")
         conn = sqlite3.connect(subset_file)
         subset_ref_fp.to_pandas().to_sql("reference_flowpaths", conn, if_exists="replace", index=False)
-        subset_hydrolocations.to_pandas().to_sql("hydrolocations", conn, if_exists="replace", index=False)
         conn.close()
 
     return {
@@ -363,16 +267,14 @@ def generate_subset_from_ids(
         "waterbodies": subset_wb,
         "gages": subset_gages,
         "reference_flowpaths": subset_ref_fp,
-        "hydrolocations": subset_hydrolocations,
     }
 
 
 def generate_subset_upstream(
+    source: HydrofabricSource,
     origin: int,
     graph: rx.PyDiGraph,
     node_indices: dict[int, int],
-    parquet_dir: Path | None = None,
-    catalog: Catalog | None = None,
     subset_file: Path | None = None,
 ) -> dict[str, pl.DataFrame]:
     """Subset hydrofabric to upstream nodes from a given origin."""
@@ -381,11 +283,15 @@ def generate_subset_upstream(
     ancestor_ids = {graph[idx] for idx in ancestor_indices} | {origin}
 
     return generate_subset_from_ids(
+        source=source,
         flowpath_ids=ancestor_ids,
-        parquet_dir=parquet_dir,
-        catalog=catalog,
         subset_file=subset_file,
     )
+
+
+# =============================================================================
+# Main Entry Point
+# =============================================================================
 
 
 def subset_hydrofabric(
@@ -422,8 +328,8 @@ def subset_hydrofabric(
         logger.error("Can only provide one of --flowpath-id, --gage-id, or --vpu-id")
         sys.exit(1)
 
+    # Initialize data source
     iceberg_catalog: Catalog | None = None
-
     if catalog:
         logger.debug("Using Iceberg catalog...")
         load_creds()
@@ -435,18 +341,18 @@ def subset_hydrofabric(
         if not parquet_dir.exists():
             raise FileNotFoundError(f"Parquet directory not found: {parquet_dir}")
 
+    source = HydrofabricSource(parquet_dir=parquet_dir, catalog=iceberg_catalog)
+
     # ==================================================================
     # VPU PATH - no graph needed, just filter by vpu_id
     # ==================================================================
     if vpu_id is not None:
         output_file = output or Path(f"subset_vpu_{vpu_id}.gpkg")
-
-        flowpath_ids = resolve_vpu_to_flowpath_ids(vpu_id, parquet_dir, iceberg_catalog)
+        flowpath_ids = resolve_vpu_to_flowpath_ids(source, vpu_id)
 
         generate_subset_from_ids(
+            source=source,
             flowpath_ids=flowpath_ids,
-            parquet_dir=parquet_dir,
-            catalog=iceberg_catalog,
             subset_file=output_file,
         )
 
@@ -459,7 +365,7 @@ def subset_hydrofabric(
 
     # Resolve gage_id to flowpath_id if needed
     if gage_id is not None:
-        flowpath_id = resolve_gage_to_flowpath(gage_id, parquet_dir, iceberg_catalog)
+        flowpath_id = resolve_gage_to_flowpath(source, gage_id)
         output_file = output or Path(f"subset_gage_{gage_id}.gpkg")
     else:
         flowpath_id = int(flowpath_id)
@@ -467,18 +373,7 @@ def subset_hydrofabric(
 
     # Build graph for upstream traversal
     logger.debug("Building network graph...")
-    if iceberg_catalog:
-        fp_pl = (
-            iceberg_catalog.load_table("nhf.flowpaths")
-            .scan(selected_fields=("fp_id", "up_nex_id", "dn_nex_id"))
-            .to_polars()
-        )
-    else:
-        fp_path = parquet_dir / "flowpaths.parquet"
-        if not fp_path.exists():
-            raise FileNotFoundError(f"Flowpaths parquet not found: {fp_path}")
-        fp_pl = pl.scan_parquet(fp_path).select(["fp_id", "up_nex_id", "dn_nex_id"]).collect()
-
+    fp_pl = source.load_columns("flowpaths", ["fp_id", "up_nex_id", "dn_nex_id"])
     logger.debug(f"  {len(fp_pl)} flowpaths loaded")
 
     upstream_dict = _build_upstream_dict_from_nexus(fp_pl)
@@ -489,11 +384,10 @@ def subset_hydrofabric(
         raise NoResultsFoundError(f"Flowpath {flowpath_id} not found in network.")
 
     generate_subset_upstream(
+        source=source,
         origin=flowpath_id,
         graph=graph,
         node_indices=node_indices,
-        parquet_dir=parquet_dir,
-        catalog=iceberg_catalog,
         subset_file=output_file,
     )
 

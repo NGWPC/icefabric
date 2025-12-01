@@ -2,7 +2,7 @@
 
 import pyarrow as pa
 from pyiceberg.schema import Schema
-from pyiceberg.types import LongType, NestedField, StringType
+from pyiceberg.types import LongType, NestedField
 
 
 class NHFSnapshot:
@@ -13,6 +13,12 @@ class NHFSnapshot:
     - divides
     - flowpaths
     - nexus
+    - reference_flowpaths
+    - waterbodies
+    - gages
+    - virtual_flowpaths
+    - virtual_nexus
+    - hydrolocations
     """
 
     @classmethod
@@ -25,10 +31,15 @@ class NHFSnapshot:
             The schema columns
         """
         return [
-            "domain"
             "divides",
             "flowpaths",
-            "nexus"
+            "nexus",
+            "reference_flowpaths",
+            "waterbodies",
+            "gages",
+            "virtual_flowpaths",
+            "virtual_nexus",
+            "hydrolocations",
         ]
 
     @classmethod
@@ -41,11 +52,15 @@ class NHFSnapshot:
             PyIceberg schema for Hydrofabric
         """
         return Schema(
-            NestedField(1, "domain", StringType(), required=True),
-            NestedField(2, "divides", LongType(), required=False),
-            NestedField(3, "flowpaths", LongType(), required=False),
-            NestedField(4, "nexus", LongType(), required=False),
-            identifier_field_ids=[1],
+            NestedField(1, "divides", LongType(), required=False),
+            NestedField(2, "flowpaths", LongType(), required=False),
+            NestedField(3, "nexus", LongType(), required=False),
+            NestedField(4, "reference_flowpaths", LongType(), required=False),
+            NestedField(5, "waterbodies", LongType(), required=False),
+            NestedField(6, "gages", LongType(), required=False),
+            NestedField(7, "virtual_flowpaths", LongType(), required=False),
+            NestedField(8, "virtual_nexus", LongType(), required=False),
+            NestedField(9, "hydrolocations", LongType(), required=False),
         )
 
     @classmethod
@@ -59,9 +74,14 @@ class NHFSnapshot:
         """
         return pa.schema(
             [
-                pa.field("domain", pa.string(), nullable=False),
                 pa.field("divides", pa.int64(), nullable=True),
                 pa.field("flowpaths", pa.int64(), nullable=True),
                 pa.field("nexus", pa.int64(), nullable=True),
+                pa.field("reference_flowpaths", pa.int64(), nullable=True),
+                pa.field("waterbodies", pa.int64(), nullable=True),
+                pa.field("gages", pa.int64(), nullable=True),
+                pa.field("virtual_flowpaths", pa.int64(), nullable=True),
+                pa.field("virtual_nexus", pa.int64(), nullable=True),
+                pa.field("hydrolocations", pa.int64(), nullable=True),
             ]
         )

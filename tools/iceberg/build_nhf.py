@@ -9,14 +9,10 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import yaml
 from pyiceberg.catalog import load_catalog
-from pyiceberg.transforms import IdentityTransform
+from pyiceberg.transforms import BucketTransform, IdentityTransform
 
 from icefabric.helpers import load_creds
-from icefabric.schemas.iceberg_tables.hydrofabric_update import (
-    Divides,
-    Flowpaths,
-    Nexus,
-    )
+from icefabric.schemas.iceberg_tables import nhf_layers
 from icefabric.schemas.iceberg_tables.nhf_snapshots import NHFSnapshot
 
 # Loading credentials, setting path to save outputs
@@ -35,7 +31,7 @@ LOCATION = {
 warnings.filterwarnings("ignore", category=ResourceWarning)
 
 
-def build_nhf(catalog_type: str, file_dir: str, domain: str):
+def build_nhf(catalog_type: str, file_dir: str):
     """Builds the hydrofabric Iceberg tables
 
     Parameters
@@ -44,20 +40,15 @@ def build_nhf(catalog_type: str, file_dir: str, domain: str):
         the type of catalog. sql is local, glue is production
     file_dir : str
         where the files are located
-    domain : str
-        the HF domain to be built
     """
     catalog = load_catalog(catalog_type)
-    namespace = f"{domain}_nhf"
+    namespace = "nhf"
     catalog.create_namespace_if_not_exists(namespace)
-    layers = [
-        ("divides", Divides),
-        ("flowpaths", Flowpaths),
-        ("nexus", Nexus),
-    ]
     snapshots = {}
-    snapshots["domain"] = domain
-    for layer, schema in layers:
+
+    update_snapshots = False
+    for layer, schema in nhf_layers.items():
+        build_table = True
         print(f"Building layer: {layer}")
         try:
             table = pq.read_table(f"{file_dir}/{layer}.parquet", schema=schema.arrow_schema())
@@ -65,44 +56,62 @@ def build_nhf(catalog_type: str, file_dir: str, domain: str):
             print(f"Cannot find {layer} in the given file dir {file_dir}")
             continue
         if catalog.table_exists(f"{namespace}.{layer}"):
-            print(f"Table {layer} already exists. Skipping build")
             current_snapshot = catalog.load_table(f"{namespace}.{layer}").current_snapshot()
-            snapshots[layer] = current_snapshot.snapshot_id
-        else:
-            iceberg_table = catalog.create_table(
+            if current_snapshot is not None:
+                print(f"Table {layer} already exists, and is populated. Skipping build")
+                snapshots[layer] = current_snapshot.snapshot_id
+                build_table = False
+            else:
+                print(f"Table {layer} has no current snapshot (must be empty).")
+
+        if build_table:
+            update_snapshots = True
+            iceberg_table = catalog.create_table_if_not_exists(
                 f"{namespace}.{layer}",
                 schema=schema.schema(),
                 location=f"{LOCATION[catalog_type]}/{namespace.lower()}/{layer}",
             )
 
-            #Can only partition on VPU for divides and flowpaths at this time.
-            if layer == "divides" or layer == "flowpaths":
-                partition_spec = iceberg_table.spec()
-                if len(partition_spec.fields) == 0:
-                    with iceberg_table.update_spec() as update:
-                        update.add_field("vpu_id", IdentityTransform(), "vpuid_partition")
+            # Bucket partitioning on the schema ID field
+            # Additional partitioning on vpu_id if it exists in the schema
+            schema_id_field = schema.schema().identifier_field_ids[0]
+            schema_id_field = schema.schema().find_field(schema_id_field).name
+            partition_spec = iceberg_table.spec()
+            if len(partition_spec.fields) == 0:
+                with iceberg_table.update_spec() as update:
+                    update.add_field(
+                        schema_id_field, BucketTransform(100), f"{schema_id_field}_bucket_partition"
+                    )
+                    try:
+                        schema.schema().find_field("vpu_id")
+                        update.add_field("vpu_id", IdentityTransform(), "vpu_id_partition")
+                    except ValueError:
+                        # No vpu_id field to partition on
+                        pass
 
-            iceberg_table.append(table)
+            iceberg_table.overwrite(table)
             current_snapshot = iceberg_table.current_snapshot()
             snapshots[layer] = current_snapshot.snapshot_id
 
-
-    snapshot_namespace = "nhf_snapshots"
-    snapshot_table = f"{snapshot_namespace}.id"
-    catalog.create_namespace_if_not_exists(snapshot_namespace)
-    if catalog.table_exists(snapshot_table):
-        tbl = catalog.load_table(snapshot_table)
+    if update_snapshots:
+        snapshot_namespace = "nhf_snapshots"
+        snapshot_table = f"{snapshot_namespace}.id"
+        catalog.create_namespace_if_not_exists(snapshot_namespace)
+        if catalog.table_exists(snapshot_table):
+            tbl = catalog.load_table(snapshot_table)
+        else:
+            tbl = catalog.create_table(
+                snapshot_table,
+                schema=NHFSnapshot.schema(),
+                location=f"{LOCATION[catalog_type]}/{snapshot_namespace}",
+            )
+        df = pa.Table.from_pylist([snapshots], schema=NHFSnapshot.arrow_schema())
+        tbl.append(df)
+        tbl.manage_snapshots().create_tag(tbl.current_snapshot().snapshot_id, "base").commit()
+        print(f"Build complete. Files written into metadata store on {catalog.name} @ {namespace}")
+        print(f"Snapshots written to: {snapshot_namespace}.id")
     else:
-        tbl = catalog.create_table(
-            snapshot_table,
-            schema=NHFSnapshot.schema(),
-            location=f"{LOCATION[catalog_type]}/{snapshot_namespace}",
-        )
-    df = pa.Table.from_pylist([snapshots], schema=NHFSnapshot.arrow_schema())
-    tbl.append(df)
-    tbl.manage_snapshots().create_tag(tbl.current_snapshot().snapshot_id, "base").commit()
-    print(f"Build complete. Files written into metadata store on {catalog.name} @ {namespace}")
-    print(f"Snapshots written to: {snapshot_namespace}.id")
+        print("No table built. All tables were initialized and already had data records. Build skipped.")
 
 
 if __name__ == "__main__":
@@ -122,14 +131,7 @@ if __name__ == "__main__":
         required=True,
         help="Path to the folder containing Hydrofabric parquet files",
     )
-    parser.add_argument(
-        "--domain",
-        type=str,
-        required=True,
-        choices=["superconus", "ak", "hi", "prvi", "gl"],
-        help="The hydrofabric domain to be used for the namespace",
-    )
 
     args = parser.parse_args()
 
-    build_nhf(catalog_type=args.catalog, file_dir=args.files, domain=args.domain)
+    build_nhf(catalog_type=args.catalog, file_dir=args.files)

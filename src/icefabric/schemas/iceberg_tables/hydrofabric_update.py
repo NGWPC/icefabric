@@ -1100,7 +1100,7 @@ class Hydrolocations:
         ]
         return Schema(
             NestedField(1, "hy_id", LongType(), required=True, doc=desc[0]),
-            NestedField(2, "dn_nex_id", LongType(), required=True, doc=desc[1]),
+            NestedField(2, "dn_nex_id", LongType(), required=False, doc=desc[1]),
             identifier_field_ids=[1],
         )
 

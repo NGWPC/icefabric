@@ -10,21 +10,10 @@ from shapely.geometry import box
 
 from icefabric.helpers import to_geopandas
 from icefabric.ras_xs import subset_xs
-from icefabric.schemas.iceberg_tables.hydrofabric_update import Divides, Flowpaths, Nexus
+from icefabric.schemas.iceberg_tables import nhf_layers
 from icefabric.schemas.iceberg_tables.ras_xs import ConflatedRasXS, RepresentativeRasXS
 
 domain_class_map = {"representative": RepresentativeRasXS, "conflated": ConflatedRasXS}
-hf_tables_map = {"Divides": Divides, "Flowpaths": Flowpaths, "Nexuses": Nexus}
-hf_ref_tables = [
-    "flowpaths",
-    "nexus",
-    "divides",
-    "reference_flowpaths",
-    "virtual_nexus",
-    "virtual_flowpaths",
-    "waterbodies",
-    "gages",
-]
 
 
 @st.cache_data(show_spinner=False)
@@ -101,8 +90,8 @@ def post_transient_success_msg(msg, length_s=2):
 def load_hf_gpkg(path):
     """Helper to load the subsetted GPKG and return a dictionary of GeoDataFrames for each layer."""
     hf_dict = {}
-    for t in hf_ref_tables:
-        if t == "reference_flowpaths":
+    for t in list(nhf_layers.keys()):
+        if t == "reference_flowpaths" or t == "hydrolocations":
             hf_dict[t] = pl.from_pandas(gpd.read_file(path, layer=t))
         else:
             hf_dict[t] = pl.from_pandas(gpd.read_file(path, layer=t).to_wkt())

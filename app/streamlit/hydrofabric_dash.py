@@ -6,16 +6,16 @@ from botocore.exceptions import ClientError
 
 from app.streamlit.helpers import (
     create_table_from_schema,
-    hf_tables_map,
     load_hf_gpkg,
     post_transient_success_msg,
 )
 from app.streamlit.tooltips import hf_loading_info_box
 from icefabric.cli.streamflow import NoResultsFoundError
+from icefabric.schemas.iceberg_tables import nhf_layers
 from tools.hydrofabric.nhf_subset import subset_hydrofabric
 
 TMP_DIR = pathlib.Path(tempfile.gettempdir())
-NHF_GPKG = pathlib.Path("data/nhf.gpkg")
+NHF_PARQUETS_DIR = pathlib.Path("data/nhf_parquets")
 
 
 def subset_query(type):
@@ -37,7 +37,8 @@ st.set_page_config(page_title="NGWPC Hydrofabric", layout="wide")
 st.title("NGWPC Hydrofabric")
 st.write("Information for the NextGen Water Prediction Capability Hydrofabric")
 
-hf_options = ["Divides", "Flowpaths", "Nexuses"]
+hf_options = list(nhf_layers.keys())
+hf_options_display = [opt.replace("_", " ").title() for opt in hf_options]
 l_col, r_col = st.columns(2, gap="large")
 
 l_col.image(
@@ -45,11 +46,12 @@ l_col.image(
     width=900,
     caption="Entity Relationship Diagram (ERD) for the Iceberg Hydrofabric Data Catalog.",
 )
-table_sel = l_col.pills(label="__Data Models__", options=hf_options, selection_mode="single")
+table_sel = l_col.pills(label="__Data Models__", options=hf_options_display, selection_mode="single")
 
 if table_sel is not None:
+    selected_schema = hf_options[hf_options_display.index(table_sel)]
     data_model_exp = l_col.expander("HF Table Data Model", icon=":material/data_table:")
-    data_model = create_table_from_schema(hf_tables_map[table_sel])
+    data_model = create_table_from_schema(nhf_layers[selected_schema])
     data_model_exp.markdown(
         f"The selected table (`{table_sel}`) is stored/formatted as the data schema below:"
     )
@@ -81,7 +83,7 @@ if st.session_state.subset_submitted and origin_id != "":
             subset_status = r_col.empty()
             hf_loading_markdown = hf_loading_info_box(origin_id)
             subset_status.info(hf_loading_markdown, icon=":material/hourglass_empty:")
-            subset_hydrofabric(nhf=NHF_GPKG, flowpath_id=origin_id, output=subset_gpkg_file)
+            subset_hydrofabric(parquet_dir=NHF_PARQUETS_DIR, flowpath_id=origin_id, output=subset_gpkg_file)
             subset_status.empty()
             st.session_state["hf_subset_files"].append(subset_gpkg_file)
             post_transient_success_msg("Subsetting complete!")

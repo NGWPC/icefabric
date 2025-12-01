@@ -118,7 +118,7 @@ def resolve_gage_to_flowpath(
         raise NoResultsFoundError(f"Gage ID '{gage_id}' not found.")
 
     fp_id = gage_df["fp_id"][0]
-    print(f"Gage '{gage_id}' maps to flowpath {fp_id}")
+    logger.debug(f"Gage '{gage_id}' maps to flowpath {fp_id}")
     return int(fp_id)
 
 
@@ -144,7 +144,7 @@ def resolve_vpu_to_flowpath_ids(
         raise NoResultsFoundError(f"VPU ID '{vpu_id}' not found or has no flowpaths.")
 
     fp_ids = set(fp_df["fp_id"].to_list())
-    print(f"VPU '{vpu_id}' contains {len(fp_ids)} flowpaths")
+    logger.debug(f"VPU '{vpu_id}' contains {len(fp_ids)} flowpaths")
     return fp_ids
 
 
@@ -172,13 +172,13 @@ def generate_subset_from_ids(
     dict[str, pl.DataFrame]
         all layers of the hydrofabric
     """
-    print(f"Subsetting {len(flowpath_ids)} flowpaths")
+    logger.debug(f"Subsetting {len(flowpath_ids)} flowpaths")
 
     if catalog is not None:
         # ==================================================================
         # ICEBERG PATH
         # ==================================================================
-        print("Loading from Iceberg catalog...")
+        logger.debug("Loading from Iceberg catalog...")
         fp_list = list(flowpath_ids)
 
         with ThreadPoolExecutor(max_workers=5) as ex:
@@ -251,7 +251,7 @@ def generate_subset_from_ids(
         # ==================================================================
         # PARQUET PATH (Polars with predicate pushdown)
         # ==================================================================
-        print(f"Loading from Parquet: {parquet_dir}")
+        logger.debug(f"Loading from Parquet: {parquet_dir}")
 
         # Wave 1: fp_id/div_id filtered
         with ThreadPoolExecutor(max_workers=5) as ex:
@@ -300,7 +300,7 @@ def generate_subset_from_ids(
     # ======================================================================
     # Post-processing: null out downstream pointers at outlets
     # ======================================================================
-    print("Nulling outlet downstream pointers...")
+    logger.debug("Nulling outlet downstream pointers...")
 
     subset_nex = subset_nex.with_columns(
         pl.when(pl.col("dn_fp_id").is_in(flowpath_ids))
@@ -321,7 +321,7 @@ def generate_subset_from_ids(
     # Write output
     # ======================================================================
     if subset_file is not None:
-        print(f"Writing to {subset_file}...")
+        logger.debug(f"Writing to {subset_file}...")
         subset_file.parent.mkdir(parents=True, exist_ok=True)
 
         for name, df in [
@@ -333,10 +333,10 @@ def generate_subset_from_ids(
             ("waterbodies", subset_wb),
             ("gages", subset_gages),
         ]:
-            print(f"  {name}: {len(df)} rows")
+            logger.debug(f"  {name}: {len(df)} rows")
             pyogrio.write_dataframe(pl_to_gdf(df), subset_file, layer=name)
 
-        print(f"  reference_flowpaths: {len(subset_ref_fp)} rows")
+        logger.debug(f"  reference_flowpaths: {len(subset_ref_fp)} rows")
         conn = sqlite3.connect(subset_file)
         subset_ref_fp.to_pandas().to_sql("reference_flowpaths", conn, if_exists="replace", index=False)
         conn.close()
@@ -411,7 +411,7 @@ def subset_hydrofabric(
     iceberg_catalog: Catalog | None = None
 
     if catalog:
-        print("Using Iceberg catalog...")
+        logger.debug("Using Iceberg catalog...")
         load_creds()
         iceberg_catalog = load_catalog("glue")
     else:
@@ -436,7 +436,7 @@ def subset_hydrofabric(
             subset_file=output_file,
         )
 
-        print(f"\nDone! Output: {output_file}")
+        logger.info(f"\nDone! Output: {output_file}")
         return
 
     # ==================================================================
@@ -452,7 +452,7 @@ def subset_hydrofabric(
         output_file = output or Path(f"subset_{flowpath_id}.gpkg")
 
     # Build graph for upstream traversal
-    print("Building network graph...")
+    logger.debug("Building network graph...")
     if iceberg_catalog:
         fp_pl = (
             iceberg_catalog.load_table("nhf.flowpaths")
@@ -465,11 +465,11 @@ def subset_hydrofabric(
             raise FileNotFoundError(f"Flowpaths parquet not found: {fp_path}")
         fp_pl = pl.scan_parquet(fp_path).select(["fp_id", "up_nex_id", "dn_nex_id"]).collect()
 
-    print(f"  {len(fp_pl)} flowpaths loaded")
+    logger.debug(f"  {len(fp_pl)} flowpaths loaded")
 
     upstream_dict = _build_upstream_dict_from_nexus(fp_pl)
     graph, node_indices = _build_rustworkx_object(upstream_dict)
-    print(f"  Graph: {graph.num_nodes()} nodes, {graph.num_edges()} edges")
+    logger.debug(f"  Graph: {graph.num_nodes()} nodes, {graph.num_edges()} edges")
 
     if flowpath_id not in node_indices:
         raise NoResultsFoundError(f"Flowpath {flowpath_id} not found in network.")
@@ -483,7 +483,7 @@ def subset_hydrofabric(
         subset_file=output_file,
     )
 
-    print(f"\nDone! Output: {output_file}")
+    logger.info(f"\nDone! Output: {output_file}")
 
 
 if __name__ == "__main__":

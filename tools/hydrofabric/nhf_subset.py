@@ -219,6 +219,7 @@ def generate_subset_from_ids(
             subset_fp.filter(pl.col("up_nex_id").is_not_null())["up_nex_id"].cast(pl.Int64).to_list()
             + subset_fp.filter(pl.col("dn_nex_id").is_not_null())["dn_nex_id"].cast(pl.Int64).to_list()
         )
+        all_hy_ids = set(subset_wb["hy_id"].to_list() + subset_gages["hy_id"].to_list())
         all_v_fp_ids = set(subset_ref_fp["virtual_fp_id"].to_list())
 
         with ThreadPoolExecutor(max_workers=2) as ex:
@@ -232,8 +233,14 @@ def generate_subset_from_ids(
                 .scan(row_filter=In("virtual_fp_id", list(all_v_fp_ids)))
                 .to_polars()
             )
+            hy_id_f = ex.submit(
+                lambda: catalog.load_table("nhf.hydrolocations")
+                .scan(row_filter=In("hy_id", list(all_hy_ids)))
+                .to_polars()
+            )
             subset_nex = nex_f.result()
             subset_v_fp = v_fp_f.result()
+            subset_hydrolocations = hy_id_f.result()
 
         all_v_nex_ids = set(
             subset_v_fp.filter(pl.col("up_virtual_nex_id").is_not_null())["up_virtual_nex_id"]
@@ -278,6 +285,7 @@ def generate_subset_from_ids(
             + subset_fp.filter(pl.col("dn_nex_id").is_not_null())["dn_nex_id"].cast(pl.Int64).to_list()
         )
         all_v_fp_ids = set(subset_ref_fp["virtual_fp_id"].to_list())
+        all_hy_ids = set(subset_wb["hy_id"].to_list() + subset_gages["hy_id"].to_list())
 
         # Wave 2: nex_id/virtual_fp_id filtered
         with ThreadPoolExecutor(max_workers=2) as ex:
@@ -285,8 +293,10 @@ def generate_subset_from_ids(
             v_fp_f = ex.submit(
                 load_parquet_filtered, parquet_dir, "virtual_flowpaths", "virtual_fp_id", all_v_fp_ids
             )
+            hy_id_f = ex.submit(load_parquet_filtered, parquet_dir, "hydrolocations", "hy_id", all_hy_ids)
             subset_nex = nex_f.result()
             subset_v_fp = v_fp_f.result()
+            subset_hydrolocations = hy_id_f.result()
 
         # Wave 3: virtual_nex_id filtered
         all_v_nex_ids = set(
@@ -341,6 +351,7 @@ def generate_subset_from_ids(
         logger.debug(f"  reference_flowpaths: {len(subset_ref_fp)} rows")
         conn = sqlite3.connect(subset_file)
         subset_ref_fp.to_pandas().to_sql("reference_flowpaths", conn, if_exists="replace", index=False)
+        subset_hydrolocations.to_pandas().to_sql("hydrolocations", conn, if_exists="replace", index=False)
         conn.close()
 
     return {
@@ -352,6 +363,7 @@ def generate_subset_from_ids(
         "waterbodies": subset_wb,
         "gages": subset_gages,
         "reference_flowpaths": subset_ref_fp,
+        "hydrolocations": subset_hydrolocations,
     }
 
 

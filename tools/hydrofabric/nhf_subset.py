@@ -260,6 +260,22 @@ def generate_subset_geopackage(
     subset_wb = wb.filter(pl.col("fp_id").is_in(ancestor_ids))
     subset_gages = gages.filter(pl.col("fp_id").is_in(ancestor_ids))
 
+    subset_nex = subset_nex.with_columns(
+        pl.when(pl.col("dn_fp_id").is_in(ancestor_ids))
+        .then(pl.col("dn_fp_id"))
+        .otherwise(None)
+        .alias("dn_fp_id")
+    )
+
+    # Null out dn_virtual_fp_id for any virtual nexus pointing to a flowpath outside the subset
+    subset_v_fp_ids = subset_v_fp.select("virtual_fp_id")["virtual_fp_id"].to_list()
+    subset_v_nex = subset_v_nex.with_columns(
+        pl.when(pl.col("dn_virtual_fp_id").is_in(subset_v_fp_ids))
+        .then(pl.col("dn_virtual_fp_id"))
+        .otherwise(None)
+        .alias("dn_virtual_fp_id")
+    )
+
     if subset_file is not None:
         subset_file.parent.mkdir(parents=True, exist_ok=True)
         pl_to_gdf(subset_fp).to_file(subset_file, layer="flowpaths", driver="GPKG")
@@ -345,12 +361,14 @@ if __name__ == "__main__":
         "--nhf",
         type=Path,
         help="Path to the NHF GeoPackage file. Must be provided if --catalog flag is not set.",
+        # default="/Users/taddbindas/projects/NGWPC/hydrofabric-builds/data/hydrofabric_0.3.2.gpkg",
         required=False,
     )
     parser.add_argument(
         "-f",
         "--flowpath_id",
         type=int,
+        # default=3490271,
         help="Origin nexus ID to trace upstream from",
     )
     parser.add_argument(

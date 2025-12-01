@@ -579,7 +579,7 @@ class ReferenceFlowpaths:
         ]
         return Schema(
             NestedField(1, "ref_fp_id", LongType(), required=True, doc=desc[0]),
-            NestedField(2, "fp_id", DoubleType(), required=False, doc=desc[1]),
+            NestedField(2, "fp_id", LongType(), required=False, doc=desc[1]),
             NestedField(3, "virtual_fp_id", LongType(), required=False, doc=desc[2]),
             NestedField(4, "div_id", LongType(), required=False, doc=desc[3]),
             identifier_field_ids=[1],
@@ -597,8 +597,8 @@ class ReferenceFlowpaths:
         """
         return pa.schema(
             [
-                pa.field("ref_fp_id", pa.string(), nullable=False),
-                pa.field("fp_id", pa.float64(), nullable=True),
+                pa.field("ref_fp_id", pa.int64(), nullable=False),
+                pa.field("fp_id", pa.int64(), nullable=True),
                 pa.field("virtual_fp_id", pa.int64(), nullable=True),
                 pa.field("div_id", pa.int64(), nullable=True),
             ]
@@ -1053,5 +1053,70 @@ class VirtualNexus:
                 pa.field("dn_virtual_fp_id", pa.float64(), nullable=True),
                 pa.field("vpu_id", pa.string(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
+            ]
+        )
+
+
+class Hydrolocations:
+    """
+    The schema for the virtual_nexus table
+
+    Attributes
+    ----------
+    hy_id : int
+        Hydrolocations identifier
+    dn_nex_id : int
+        Downstream nexus identifier
+    """
+
+    @classmethod
+    def columns(cls) -> list[str]:
+        """
+        Returns the columns associated with this schema
+
+        Returns
+        -------
+        list[str]
+            The schema columns for the hydrolocations table
+        """
+        return [
+            "hy_id",
+            "dn_nex_id",
+        ]
+
+    @classmethod
+    def schema(cls) -> Schema:
+        """
+        Returns the PyIceberg Schema object.
+
+        Returns
+        -------
+        Schema
+            PyIceberg schema for the hydrolocations table
+        """
+        desc = [
+            "Hydrolocations identifier",
+            "Downstream nexus identifier",
+        ]
+        return Schema(
+            NestedField(1, "hy_id", LongType(), required=True, doc=desc[0]),
+            NestedField(2, "dn_nex_id", LongType(), required=True, doc=desc[1]),
+            identifier_field_ids=[1],
+        )
+
+    @classmethod
+    def arrow_schema(cls) -> pa.Schema:
+        """
+        Returns the PyArrow Schema object.
+
+        Returns
+        -------
+        pa.Schema
+            PyArrow schema for the hydrolocations table
+        """
+        return pa.schema(
+            [
+                pa.field("hy_id", pa.int64(), nullable=False),
+                pa.field("dn_nex_id", pa.int64(), nullable=True),
             ]
         )

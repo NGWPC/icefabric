@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 import geopandas as gpd
+import pandas as pd
 import pyarrow as pa
 from pyarrow import parquet as pq
 from pyogrio.errors import DataLayerError
@@ -12,7 +13,13 @@ from icefabric.helpers import load_creds
 from icefabric.schemas.iceberg_tables.hydrofabric_update import (
     Divides,
     Flowpaths,
+    Gages,
+    Hydrolocations,
     Nexus,
+    ReferenceFlowpaths,
+    VirtualFlowpaths,
+    VirtualNexus,
+    Waterbodies,
 )
 
 load_creds()
@@ -37,6 +44,12 @@ def nhf_gpkg_to_parquet(input_file: Path, output_folder: Path) -> None:
         ("divides", Divides),
         ("flowpaths", Flowpaths),
         ("nexus", Nexus),
+        ("virtual_flowpaths", VirtualFlowpaths),
+        ("virtual_nexus", VirtualNexus),
+        ("gages", Gages),
+        ("waterbodies", Waterbodies),
+        ("reference_flowpaths", ReferenceFlowpaths),
+        ("hydrolocations", Hydrolocations),
     ]
     for layer, schema in layers:
         if not input_file.exists():
@@ -52,8 +65,9 @@ def nhf_gpkg_to_parquet(input_file: Path, output_folder: Path) -> None:
             print(f"No layer existing for: {layer}")
             continue
         if "geometry" in gdf.columns:
-            # NOTE there will be an warning as we're overriding the geometry. This is fine for now
             gdf["geometry"] = gdf["geometry"].to_wkb()
+            # Drop the GeoDataFrame's geometry reference
+            gdf = pd.DataFrame(gdf)
 
         # Create PyArrow table with schema validation
         table = pa.Table.from_pandas(gdf[schema.columns()], schema=schema.arrow_schema())

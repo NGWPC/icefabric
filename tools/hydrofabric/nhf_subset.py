@@ -17,6 +17,8 @@ from icefabric.cli.streamflow import NoResultsFoundError
 from icefabric.helpers.creds import load_creds
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logging.basicConfig()
 
 
 def _build_upstream_dict_from_nexus(

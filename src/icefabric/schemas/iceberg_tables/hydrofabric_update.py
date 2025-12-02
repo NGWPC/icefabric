@@ -49,14 +49,36 @@ class Divides:
         Maximum rate of carboxylation at 25 C
     imperv_mean : float
         Percentage of catchment with an impervious surface
+    twi_q10 : float
+        Topographic wetness index 10th percentile
+    twi_q20 : float
+        Topographic wetness index 20th percentile
     twi_q25 : float
         Topographic wetness index 1st quartile
+    twi_q30 : float
+        Topographic wetness index 30th percentile
+    twi_q40 : float
+        Topographic wetness index 40th percentile
     twi_q50 : float
         Topographic wetness index 2nd quartile
+    twi_q60 : float
+        Topographic wetness index 60th percentile
+    twi_q70 : float
+        Topographic wetness index 70th percentile
     twi_q75 : float
         Topographic wetness index 3rd quartile
+    twi_q80 : float
+        Topographic wetness index 80th percentile
+    twi_q90 : float
+        Topographic wetness index 90th percentile
     twi_q100 : float
         Topographic wetness index 4th quartile
+    cgw : float
+        Groundwater Coefficient
+    expon : float
+        Groundwater Exponent
+    max_gw_storage : float
+        The total height of the baseflow "bucket"
     elevation_mean : float
         Terrain elevation
     slope250m_mean : float
@@ -97,10 +119,21 @@ class Divides:
             "smcwlt_mean",
             "vcmx_mean",
             "imperv_mean",
+            "twi_q10",
+            "twi_q20",
             "twi_q25",
+            "twi_q30",
+            "twi_q40",
             "twi_q50",
+            "twi_q60",
+            "twi_q70",
             "twi_q75",
+            "twi_q80",
+            "twi_q90",
             "twi_q100",
+            "cgw",
+            "expon",
+            "max_gw_storage",
             "elevation_mean",
             "slope250m_mean",
             "aspect_circmean",
@@ -136,10 +169,21 @@ class Divides:
             "Wilting point soil moisture content",
             "Maximum rate of carboxylation at 25 C",
             "Percentage of catchment with an impervious surface",
+            "Topographic wetness index 10th percentile",
+            "Topographic wetness index 20th percentile",
             "Topographic wetness index 1st quartile",
+            "Topographic wetness index 30th percentile",
+            "Topographic wetness index 40th percentile",
             "Topographic wetness index 2nd quartile",
+            "Topographic wetness index 60th percentile",
+            "Topographic wetness index 70th percentile",
             "Topographic wetness index 3rd quartile",
+            "Topographic wetness index 80th percentile",
+            "Topographic wetness index 90th percentile",
             "Topographic wetness index 4th quartile",
+            "Groundwater Coefficient",
+            "Groundwater Exponent",
+            "The total height of the baseflow bucket",
             "Terrain elevation",
             "Terrain slope",
             "Terrain aspect",
@@ -164,15 +208,25 @@ class Divides:
             NestedField(15, "smcwlt_mean", DoubleType(), required=False, doc=desc[14]),
             NestedField(16, "vcmx_mean", DoubleType(), required=False, doc=desc[15]),
             NestedField(17, "imperv_mean", DoubleType(), required=False, doc=desc[16]),
-            NestedField(18, "twi_q25", DoubleType(), required=False, doc=desc[17]),
-            NestedField(19, "twi_q50", DoubleType(), required=False, doc=desc[18]),
-            NestedField(20, "twi_q75", DoubleType(), required=False, doc=desc[19]),
-            NestedField(21, "twi_q100", DoubleType(), required=False, doc=desc[20]),
-            NestedField(22, "elevation_mean", DoubleType(), required=False, doc=desc[21]),
-            NestedField(23, "slope250m_mean", DoubleType(), required=False, doc=desc[22]),
-            NestedField(24, "aspect_circmean", DoubleType(), required=False, doc=desc[23]),
-            NestedField(25, "glacier_percent", DoubleType(), required=False, doc=desc[24]),
-            NestedField(25, "geometry", BinaryType(), required=False, doc=desc[25]),
+            NestedField(18, "twi_q10", DoubleType(), required=False, doc=desc[17]),
+            NestedField(19, "twi_q20", DoubleType(), required=False, doc=desc[18]),
+            NestedField(20, "twi_q25", DoubleType(), required=False, doc=desc[19]),
+            NestedField(21, "twi_q30", DoubleType(), required=False, doc=desc[20]),
+            NestedField(22, "twi_q40", DoubleType(), required=False, doc=desc[21]),
+            NestedField(23, "twi_q50", DoubleType(), required=False, doc=desc[22]),
+            NestedField(24, "twi_q60", DoubleType(), required=False, doc=desc[23]),
+            NestedField(25, "twi_q70", DoubleType(), required=False, doc=desc[24]),
+            NestedField(26, "twi_q80", DoubleType(), required=False, doc=desc[25]),
+            NestedField(27, "twi_q90", DoubleType(), required=False, doc=desc[26]),
+            NestedField(28, "twi_q100", DoubleType(), required=False, doc=desc[27]),
+            NestedField(29, "cgw", DoubleType(), required=False, doc=desc[28]),
+            NestedField(30, "expon", DoubleType(), required=False, doc=desc[29]),
+            NestedField(31, "max_gw_storage", DoubleType(), required=False, doc=desc[30]),
+            NestedField(32, "elevation_mean", DoubleType(), required=False, doc=desc[31]),
+            NestedField(33, "slope250m_mean", DoubleType(), required=False, doc=desc[32]),
+            NestedField(34, "aspect_circmean", DoubleType(), required=False, doc=desc[33]),
+            NestedField(35, "glacier_percent", DoubleType(), required=False, doc=desc[34]),
+            NestedField(36, "geometry", BinaryType(), required=False, doc=desc[35]),
             identifier_field_ids=[1],
         )
 
@@ -205,10 +259,21 @@ class Divides:
                 pa.field("smcwlt_mean", pa.float64(), nullable=True),
                 pa.field("vcmx_mean", pa.float64(), nullable=True),
                 pa.field("imperv_mean", pa.float64(), nullable=True),
+                pa.field("twi_q10", pa.float64(), nullable=True),
+                pa.field("twi_q20", pa.float64(), nullable=True),
                 pa.field("twi_q25", pa.float64(), nullable=True),
+                pa.field("twi_q30", pa.float64(), nullable=True),
+                pa.field("twi_q40", pa.float64(), nullable=True),
                 pa.field("twi_q50", pa.float64(), nullable=True),
+                pa.field("twi_q60", pa.float64(), nullable=True),
+                pa.field("twi_q70", pa.float64(), nullable=True),
                 pa.field("twi_q75", pa.float64(), nullable=True),
+                pa.field("twi_q80", pa.float64(), nullable=True),
+                pa.field("twi_q90", pa.float64(), nullable=True),
                 pa.field("twi_q100", pa.float64(), nullable=True),
+                pa.field("cgw", pa.float64(), nullable=True),
+                pa.field("expon", pa.float64(), nullable=True),
+                pa.field("max_gw_storage", pa.float64(), nullable=True),
                 pa.field("elevation_mean", pa.float64(), nullable=True),
                 pa.field("slope250m_mean", pa.float64(), nullable=True),
                 pa.field("aspect_circmean", pa.float64(), nullable=True),
@@ -1053,6 +1118,71 @@ class VirtualNexus:
                 pa.field("dn_virtual_fp_id", pa.float64(), nullable=True),
                 pa.field("vpu_id", pa.string(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
+            ]
+        )
+
+
+class NHD:
+    """
+    The schema for the NHD crosswalk table
+
+    Attributes
+    ----------
+    reach_id : int
+        NHD COMID/Feature Reach identifier
+    fp_id : int
+        Flowpath Identifier
+    """
+
+    @classmethod
+    def columns(cls) -> list[str]:
+        """
+        Returns the columns associated with this schema
+
+        Returns
+        -------
+        list[str]
+            The schema columns for the NHD crosswalk table
+        """
+        return [
+            "reach_id",
+            "fp_id",
+        ]
+
+    @classmethod
+    def schema(cls) -> Schema:
+        """
+        Returns the PyIceberg Schema object.
+
+        Returns
+        -------
+        Schema
+            PyIceberg schema for the NHD crosswalk table
+        """
+        desc = [
+            "NHD COMID/Feature Reach identifier",
+            "Flowpath Identifier",
+        ]
+        return Schema(
+            NestedField(1, "reach_id", LongType(), required=True, doc=desc[0]),
+            NestedField(2, "fp_id", LongType(), required=False, doc=desc[1]),
+            identifier_field_ids=[1],
+        )
+
+    @classmethod
+    def arrow_schema(cls) -> pa.Schema:
+        """
+        Returns the PyArrow Schema object.
+
+        Returns
+        -------
+        pa.Schema
+            PyArrow schema for the NHD crosswalk table
+        """
+        return pa.schema(
+            [
+                pa.field("reach_id", pa.int64(), nullable=False),
+                pa.field("fp_id", pa.int64(), nullable=True),
             ]
         )
 

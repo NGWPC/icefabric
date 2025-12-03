@@ -78,7 +78,7 @@ def create_table_from_schema(iceberg_schema):
     return data_model
 
 
-def post_transient_success_msg(msg, length_s=2):
+def post_transient_success_msg(msg, length_s=1.5):
     """Helper to post a transient success message in Streamlit."""
     success_placeholder = st.empty()
     success_placeholder.success(msg, icon=":material/check_circle:")
@@ -96,3 +96,54 @@ def load_hf_gpkg(path):
         else:
             hf_dict[t] = pl.from_pandas(gpd.read_file(path, layer=t).to_wkt())
     return hf_dict
+
+
+@st.fragment
+def display_nhf_schemas():
+    """Helper to display the NHF data schemas"""
+    hf_options = list(nhf_layers.keys())
+    hf_options_display = [opt.replace("_", " ").title() for opt in hf_options]
+    image_expander = st.expander(
+        "NGWPC Hydrofabric Data Catalog Overview", expanded=True, icon=":material/schema:"
+    )
+    with image_expander:
+        st.image(
+            "app/streamlit/resources/hydrofabric_diagram.png",
+            width="content",
+            caption="Entity Relationship Diagram (ERD) for the Iceberg NGWPC Hydrofabric Data Catalog.",
+        )
+    schema_display_sel = st.pills(
+        label="__Data Models__", options=hf_options_display, selection_mode="single"
+    )
+
+    if schema_display_sel is not None:
+        selected_schema = hf_options[hf_options_display.index(schema_display_sel)]
+        data_model_exp = st.expander("HF Table Data Model", expanded=True, icon=":material/data_table:")
+        data_model = create_table_from_schema(nhf_layers[selected_schema])
+        data_model_exp.markdown(
+            f"The selected table (`{schema_display_sel}`) is stored/formatted as the data schema below:"
+        )
+        data_model_exp.dataframe(data=data_model, hide_index=True, row_height=65)
+
+
+def validate_nhf_subset_query(subset_type, subset_user_sel):
+    """Helper to validate the subset query inputs."""
+    submit_valid = False
+    if None in [subset_type, subset_user_sel]:
+        st.error("Please select a subset method and provide an ID.", icon=":material/error:")
+    elif subset_user_sel.rstrip() == "":
+        st.error("Please provide a non-empty ID.", icon=":material/error:")
+    else:
+        if subset_type == "Flowpath ID":
+            if not subset_user_sel.isdigit():
+                st.error(
+                    "Flowpath IDs must be numeric. Please provide a valid Flowpath ID.",
+                    icon=":material/error:",
+                )
+            else:
+                submit_valid = True
+                subset_user_sel = int(subset_user_sel.rstrip())
+        else:
+            submit_valid = True
+            subset_user_sel = subset_user_sel.rstrip()
+    return submit_valid

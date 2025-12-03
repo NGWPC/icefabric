@@ -1,5 +1,7 @@
 import os
+import pathlib
 import sys
+import tempfile
 
 import streamlit as st
 
@@ -37,5 +39,19 @@ st.logo("app/streamlit/resources/iceberg_favicon.png", size="large", link=None, 
 st.set_page_config(
     page_title="icefabric", layout="wide", page_icon="app/streamlit/resources/iceberg_favicon.png"
 )
+
+# Cleanup temp files on app start
+if "initialized" not in st.session_state or not st.session_state.initialized:
+    if "NHF_SUBSET_OUTPUT_DIR" not in st.session_state:
+        st.session_state["NHF_SUBSET_OUTPUT_DIR"] = (
+            pathlib.Path(tempfile.gettempdir()) / "icefabric_streamlit_subsets"
+        )
+    for item in st.session_state.NHF_SUBSET_OUTPUT_DIR.iterdir():
+        if item.is_dir():
+            item.rmdir(missing_ok=True)
+        else:
+            item.unlink(missing_ok=True)
+    st.session_state.initialized = True
+
 pg = st.navigation(modules)
 pg.run()

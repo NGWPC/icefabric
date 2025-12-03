@@ -10,6 +10,12 @@ domain_tooltip = """
     - `representative` - The median, representative, cross-sections - derived from the conflated data set. Used as training/testing inputs for RiverML.
 """
 
+hf_subset_options_explanation = """
+    - **Flowpath ID**: traces upstream from an origin flowpath - *e.g., 3490271*
+    - **Gage ID**: traces upstream from a USGS gage ID (maps to a flowpath) - *e.g., 01010000*
+    - **VPU ID**: includes all HF features within a vector processing unit (VPU) - *e.g., 08*
+"""
+
 flowpath_id_tooltip = "A flowpath ID from the reference hydrofabric."
 
 bounding_box_tooltip = (
@@ -17,11 +23,3 @@ bounding_box_tooltip = (
     "The min/max lat/lon coordinates should be in standard EPSG:4326 format.\n"
     "The subset returned will include only cross-sections that fully fit into the bounding box."
 )
-
-
-def hf_loading_info_box(origin_id):
-    """Helper to create loading info box for hydrofabric subsetting."""
-    return f"""
-    Creating subset upstream of origin ID: {origin_id}...
-    > _(may take upwards of 5-10 minutes)_
-"""

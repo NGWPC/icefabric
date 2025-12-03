@@ -39,6 +39,10 @@ class Divides:
         Melt factor for snow depletion curve
     refkdt_mean : float
         Reference soil infiltration parameter
+    mp_mean : float
+        Slope of Conductance to photosynthesis relationship
+    quartz_mean : float
+        Mean soil quartz content
     slope1km_mean : float
         Modifies the gradient of the hydraulic head at the soil bottom
     smcmax_mean : float
@@ -87,6 +91,10 @@ class Divides:
         Terrain aspect
     glacier_percent : float
         Percentage of glacier cover within the divide
+    lat: float
+        Latitude of the divide (in WGS84 degrees)
+    lon: float
+        Longitude of the divide (in WGS84 degrees)
     geometry : binary
         Spatial Geometry (MULTIPOLYGON format) - stored in WKB binary format
     """
@@ -112,8 +120,10 @@ class Divides:
             "dksat_geomean",
             "psisat_geomean",
             "cwpvt_mean",
-            "msfno_mean",
+            "mfsno_mean",
             "refkdt_mean",
+            "mp_mean",
+            "quartz_mean",
             "slope1km_mean",
             "smcmax_mean",
             "smcwlt_mean",
@@ -138,6 +148,8 @@ class Divides:
             "slope250m_mean",
             "aspect_circmean",
             "glacier_percent",
+            "lat",
+            "lon",
             "geometry",
         ]
 
@@ -164,6 +176,8 @@ class Divides:
             "Empirical canopy wind parameter",
             "Melt factor for snow depletion curve",
             "Reference soil infiltration parameter",
+            "Slope of Conductance to photosynthesis relationship",
+            "Mean soil quartz content",
             "modifies the gradient of the hydraulic head at the soil bottom",
             "Saturated soil moisture content",
             "Wilting point soil moisture content",
@@ -188,6 +202,8 @@ class Divides:
             "Terrain slope",
             "Terrain aspect",
             "Percentage of glacier cover within the divide",
+            "Latitude of the divide (in WGS84 degrees)",
+            "Longitude of the divide (in WGS84 degrees)",
             "GeometrySpatial Geometry (MULTIPOLYGON format) - stored in WKB binary format",
         ]
         return Schema(
@@ -201,32 +217,37 @@ class Divides:
             NestedField(8, "dksat_geomean", DoubleType(), required=False, doc=desc[7]),
             NestedField(9, "psisat_geomean", DoubleType(), required=False, doc=desc[8]),
             NestedField(10, "cwpvt_mean", DoubleType(), required=False, doc=desc[9]),
-            NestedField(11, "msfno_mean", DoubleType(), required=False, doc=desc[10]),
+            NestedField(11, "mfsno_mean", DoubleType(), required=False, doc=desc[10]),
             NestedField(12, "refkdt_mean", DoubleType(), required=False, doc=desc[11]),
-            NestedField(13, "slope1km_mean", DoubleType(), required=False, doc=desc[12]),
-            NestedField(14, "smcmax_mean", DoubleType(), required=False, doc=desc[13]),
-            NestedField(15, "smcwlt_mean", DoubleType(), required=False, doc=desc[14]),
-            NestedField(16, "vcmx_mean", DoubleType(), required=False, doc=desc[15]),
-            NestedField(17, "imperv_mean", DoubleType(), required=False, doc=desc[16]),
-            NestedField(18, "twi_q10", DoubleType(), required=False, doc=desc[17]),
-            NestedField(19, "twi_q20", DoubleType(), required=False, doc=desc[18]),
-            NestedField(20, "twi_q25", DoubleType(), required=False, doc=desc[19]),
-            NestedField(21, "twi_q30", DoubleType(), required=False, doc=desc[20]),
-            NestedField(22, "twi_q40", DoubleType(), required=False, doc=desc[21]),
-            NestedField(23, "twi_q50", DoubleType(), required=False, doc=desc[22]),
-            NestedField(24, "twi_q60", DoubleType(), required=False, doc=desc[23]),
-            NestedField(25, "twi_q70", DoubleType(), required=False, doc=desc[24]),
-            NestedField(26, "twi_q80", DoubleType(), required=False, doc=desc[25]),
-            NestedField(27, "twi_q90", DoubleType(), required=False, doc=desc[26]),
-            NestedField(28, "twi_q100", DoubleType(), required=False, doc=desc[27]),
-            NestedField(29, "cgw", DoubleType(), required=False, doc=desc[28]),
-            NestedField(30, "expon", DoubleType(), required=False, doc=desc[29]),
-            NestedField(31, "max_gw_storage", DoubleType(), required=False, doc=desc[30]),
-            NestedField(32, "elevation_mean", DoubleType(), required=False, doc=desc[31]),
-            NestedField(33, "slope250m_mean", DoubleType(), required=False, doc=desc[32]),
-            NestedField(34, "aspect_circmean", DoubleType(), required=False, doc=desc[33]),
-            NestedField(35, "glacier_percent", DoubleType(), required=False, doc=desc[34]),
-            NestedField(36, "geometry", BinaryType(), required=False, doc=desc[35]),
+            NestedField(13, "mp_mean", DoubleType(), required=False, doc=desc[12]),
+            NestedField(14, "quartz_mean", DoubleType(), required=False, doc=desc[13]),
+            NestedField(15, "slope1km_mean", DoubleType(), required=False, doc=desc[14]),
+            NestedField(16, "smcmax_mean", DoubleType(), required=False, doc=desc[15]),
+            NestedField(17, "smcwlt_mean", DoubleType(), required=False, doc=desc[16]),
+            NestedField(18, "vcmx_mean", DoubleType(), required=False, doc=desc[17]),
+            NestedField(19, "imperv_mean", DoubleType(), required=False, doc=desc[18]),
+            NestedField(20, "twi_q10", DoubleType(), required=False, doc=desc[19]),
+            NestedField(21, "twi_q20", DoubleType(), required=False, doc=desc[20]),
+            NestedField(22, "twi_q25", DoubleType(), required=False, doc=desc[21]),
+            NestedField(23, "twi_q30", DoubleType(), required=False, doc=desc[22]),
+            NestedField(24, "twi_q40", DoubleType(), required=False, doc=desc[23]),
+            NestedField(25, "twi_q50", DoubleType(), required=False, doc=desc[24]),
+            NestedField(26, "twi_q60", DoubleType(), required=False, doc=desc[25]),
+            NestedField(27, "twi_q70", DoubleType(), required=False, doc=desc[26]),
+            NestedField(28, "twi_q75", DoubleType(), required=False, doc=desc[27]),
+            NestedField(29, "twi_q80", DoubleType(), required=False, doc=desc[28]),
+            NestedField(30, "twi_q90", DoubleType(), required=False, doc=desc[29]),
+            NestedField(31, "twi_q100", DoubleType(), required=False, doc=desc[30]),
+            NestedField(32, "cgw", DoubleType(), required=False, doc=desc[31]),
+            NestedField(33, "expon", DoubleType(), required=False, doc=desc[32]),
+            NestedField(34, "max_gw_storage", DoubleType(), required=False, doc=desc[33]),
+            NestedField(35, "elevation_mean", DoubleType(), required=False, doc=desc[34]),
+            NestedField(36, "slope250m_mean", DoubleType(), required=False, doc=desc[35]),
+            NestedField(37, "aspect_circmean", DoubleType(), required=False, doc=desc[36]),
+            NestedField(38, "glacier_percent", DoubleType(), required=False, doc=desc[37]),
+            NestedField(39, "lat", DoubleType(), required=False, doc=desc[38]),
+            NestedField(40, "lon", DoubleType(), required=False, doc=desc[39]),
+            NestedField(41, "geometry", BinaryType(), required=False, doc=desc[40]),
             identifier_field_ids=[1],
         )
 
@@ -252,8 +273,10 @@ class Divides:
                 pa.field("dksat_geomean", pa.float64(), nullable=True),
                 pa.field("psisat_geomean", pa.float64(), nullable=True),
                 pa.field("cwpvt_mean", pa.float64(), nullable=True),
-                pa.field("msfno_mean", pa.float64(), nullable=True),
+                pa.field("mfsno_mean", pa.float64(), nullable=True),
                 pa.field("refkdt_mean", pa.float64(), nullable=True),
+                pa.field("mp_mean", pa.float64(), nullable=True),
+                pa.field("quartz_mean", pa.float64(), nullable=True),
                 pa.field("slope1km_mean", pa.float64(), nullable=True),
                 pa.field("smcmax_mean", pa.float64(), nullable=True),
                 pa.field("smcwlt_mean", pa.float64(), nullable=True),
@@ -278,6 +301,8 @@ class Divides:
                 pa.field("slope250m_mean", pa.float64(), nullable=True),
                 pa.field("aspect_circmean", pa.float64(), nullable=True),
                 pa.field("glacier_percent", pa.float64(), nullable=True),
+                pa.field("lat", pa.float64(), nullable=True),
+                pa.field("lon", pa.float64(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
             ]
         )

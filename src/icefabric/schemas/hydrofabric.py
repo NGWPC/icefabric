@@ -23,6 +23,8 @@ class IdType(str, Enum):
     ID = "id"
     POI_ID = "poi_id"
     VPU_ID = "vpu_id"
+    FP_ID = ("fp_id",)
+    SITE_NO = "site_no"
 
 
 class HydrofabricDomains(str, Enum):
@@ -47,6 +49,7 @@ class HydrofabricDomains(str, Enum):
     GL = "gl_hf"
     HI = "hi_hf"
     PRVI = "prvi_hf"
+    NHF = "nhf"
 
 
 class StreamflowDataSources(str, Enum):

@@ -1,8 +1,10 @@
 import pathlib
+import sqlite3
 import tempfile
 import uuid
 
 import geopandas as gpd
+import pyogrio
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import Path as FastAPIPath
 from fastapi.responses import FileResponse
@@ -10,7 +12,7 @@ from pyiceberg.expressions import EqualTo
 from starlette.background import BackgroundTask
 
 from app import get_catalog, get_graphs
-from icefabric.hydrofabric.subset import subset_hydrofabric
+from icefabric.hydrofabric import subset_hydrofabric, subset_nhf
 from icefabric.schemas import (
     DivideAttributes,
     Divides,
@@ -34,25 +36,29 @@ async def get_hydrofabric_subset_gpkg(
         ...,
         description="Identifier to start tracing from (e.g., catchment ID, POI ID, HL_URI)",
         openapi_examples={
-            "hl_uri": {"summary": "USGS Gauge", "value": "gages-01010000"},
-            "wb-id": {"summary": "Watershed ID", "value": "wb-4581"},
+            "fp_id": {"summary": "NHF Flowpath ID (NHF)", "value": 3490271},
+            "site-no": {"summary": "UGSG Site no (NHF)", "value": "02374250"},
+            "vpu-id": {"summary": "VPU ID (NHF)", "value": "01"},
+            "hl_uri": {"summary": "USGS Gauge (HFv2.2)", "value": "gages-01010000"},
+            "wb-id": {"summary": "Watershed ID (HFv2.2)", "value": "wb-4581"},
         },
     ),
     id_type: IdType = Query(
-        IdType.HL_URI,
+        ...,
         description="The type of identifier being used",
         openapi_examples={
-            "hl_uri": {"summary": "USGS Gauge", "value": IdType.HL_URI},
-            "wb-id": {"summary": "Watershed ID", "value": IdType.ID},
+            "fp_id": {"summary": "NHF Flowpath ID (NHF)", "value": IdType.FP_ID},
+            "vpu-id": {"summary": "VPU ID (NHF)", "value": "01"},
+            "hl_uri": {"summary": "USGS Gauge (HFv2.2, NHF)", "value": IdType.HL_URI},
+            "wb-id": {"summary": "Watershed ID (HFv2.2)", "value": IdType.ID},
         },
     ),
     domain: HydrofabricDomains = Query(
-        HydrofabricDomains.CONUS, description="The iceberg namespace used to query the hydrofabric"
+        HydrofabricDomains.NHF, description="The iceberg namespace used to query the hydrofabric"
     ),
     layers: list[str] | None = Query(
-        default=["divides", "flowpaths", "network", "nexus"],
+        None,
         description="Layers to include in the geopackage. Core layers (divides, flowpaths, network, nexus) are always included.",
-        examples=["divides", "flowpaths", "network", "nexus", "lakes", "pois", "hydrolocations"],
     ),
     catalog=Depends(get_catalog),
     network_graphs=Depends(get_graphs),
@@ -77,15 +83,39 @@ async def get_hydrofabric_subset_gpkg(
     tmp_path = temp_dir / f"subset_{identifier}_{unique_id}.gpkg"
 
     try:
-        # Create the subset (same as CLI logic)
-        output_layers = subset_hydrofabric(
-            catalog=catalog,
-            identifier=identifier,
-            id_type=id_type,
-            layers=layers or ["divides", "flowpaths", "network", "nexus"],
-            namespace=domain.value,
-            graph=network_graphs[domain],
-        )
+        if domain is HydrofabricDomains.NHF:
+            if id_type == IdType.VPU_ID:
+                output_layers = subset_nhf(
+                    vpu_id=identifier,
+                    catalog=catalog,
+                )
+            elif id_type == IdType.FP_ID:
+                output_layers = subset_nhf(
+                    flowpath_id=int(identifier),
+                    catalog=catalog,
+                )
+            elif id_type == IdType.HL_URI:
+                output_layers = subset_nhf(
+                    gage_id=identifier,
+                    catalog=catalog,
+                )
+            else:
+                raise ValueError(f"Incorrect ID type: {id_type} for the NHF")
+        else:
+            if id_type in [
+                IdType.HL_URI,
+                IdType.ID,
+            ]:
+                output_layers = subset_hydrofabric(
+                    catalog=catalog,
+                    identifier=identifier,
+                    id_type=id_type,
+                    layers=layers or ["divides", "flowpaths", "network", "nexus"],
+                    namespace=domain.value,
+                    graph=network_graphs[domain],
+                )
+            else:
+                raise ValueError(f"Incorrect ID type: {id_type} for the HFv2.2")
 
         # Check if we got any data
         if not output_layers:
@@ -94,30 +124,41 @@ async def get_hydrofabric_subset_gpkg(
                 detail=f"No data found for identifier '{identifier}' with type '{id_type.value}'",
             )
 
-        # Write to geopackage (same as CLI logic)
         tmp_path.parent.mkdir(parents=True, exist_ok=True)
 
         layers_written = 0
-        for table_name, layer_data in output_layers.items():
-            if len(layer_data) > 0:  # Only save non-empty layers
-                # Ensure we have a GeoDataFrame for spatial layers
-                if not isinstance(layer_data, gpd.GeoDataFrame):
-                    if hasattr(layer_data, "geometry") or "geometry" in layer_data.columns:
-                        layer_data = gpd.GeoDataFrame(layer_data)
-                    else:
-                        # For non-spatial layers (like network), convert to GeoDataFrame with empty geometry
-                        layer_data = gpd.GeoDataFrame(layer_data, geometry=[None] * len(layer_data))
+        spatial_layers = {}
+        nonspatial_layers = {}
 
-                layer_data.to_file(tmp_path, layer=table_name, driver="GPKG")
-                layers_written += 1
-                print(f"Written layer '{table_name}' with {len(layer_data)} records")
+        # Separate spatial vs non-spatial
+        for table_name, layer_data in output_layers.items():
+            if len(layer_data) > 0:
+                if isinstance(layer_data, gpd.GeoDataFrame):
+                    spatial_layers[table_name] = layer_data
+                else:
+                    nonspatial_layers[table_name] = layer_data
             else:
                 print(f"Warning: {table_name} layer is empty")
 
-        if layers_written == 0:
-            raise HTTPException(
-                status_code=404, detail=f"No non-empty layers found for identifier '{identifier}'"
-            )
+        # Write spatial layers first with pyogrio
+        for table_name, layer_data in spatial_layers.items():
+            pyogrio.write_dataframe(layer_data, tmp_path, layer=table_name)
+            layers_written += 1
+            print(f"Written spatial layer '{table_name}' with {len(layer_data)} records")
+
+        # Then write non-spatial layers with sqlite3
+        if nonspatial_layers:
+            conn = sqlite3.connect(tmp_path)
+            for table_name, layer_data in nonspatial_layers.items():
+                layer_data.to_sql(table_name, conn, if_exists="replace", index=False)
+                layers_written += 1
+                print(f"Written non-spatial layer '{table_name}' with {len(layer_data)} records")
+            conn.close()
+
+            if layers_written == 0:
+                raise HTTPException(
+                    status_code=404, detail=f"No non-empty layers found for identifier '{identifier}'"
+                )
 
         # Verify the file was created successfully
         if not tmp_path.exists():

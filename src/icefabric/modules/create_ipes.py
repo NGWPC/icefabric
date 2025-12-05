@@ -2,6 +2,7 @@ import collections
 import json
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import polars as pl
 import rustworkx as rx
@@ -172,21 +173,22 @@ def get_snow17_parameters(
     result_df[attr_names.Y.value] = wgs84_latlon[0]
     result_df[attr_names.X.value] = wgs84_latlon[1]
 
-    # Default parameter values used for oCONUS or if data is missing.
-    result_df["mfmax"] = CalibratableScheme.MFMAX.value
-    result_df["mfmin"] = CalibratableScheme.MFMIN.value
-    result_df["uadj"] = CalibratableScheme.UADJ.value
 
-    if namespace == "conus_hf" and not envca:
-        divides_list = result_df[attr_names.DIVIDE_ID.value]
-        domain = namespace.split("_")[0]
-        table_name = f"divide_parameters.snow-17_{domain}"
-        params_df = catalog.load_table(table_name).to_polars()
-        conus_param_df = (
-            params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
-        )
-        result_df.drop(columns=["mfmax", "mfmin", "uadj"], inplace=True)
-        result_df = pd.merge(conus_param_df, result_df, on=attr_names.DIVIDE_ID.value, how="left")
+    if namespace == "conus_hf":
+        if not envca:
+            divides_list = result_df[attr_names.DIVIDE_ID.value]
+            domain = namespace.split("_")[0]
+            table_name = f"divide_parameters.snow-17_{domain}"
+            params_df = catalog.load_table(table_name).to_polars()
+            conus_param_df = (
+                params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
+            )
+            result_df = pd.merge(conus_param_df, result_df, on=attr_names.DIVIDE_ID.value, how="left")
+        else:
+            #Attributes don't exist in the dataset for Canada
+            result_df["mfmax"] = CalibratableScheme.MFMAX.value
+            result_df["mfmin"] = CalibratableScheme.MFMIN.value
+            result_df["uadj"] = CalibratableScheme.UADJ.value
 
     pydantic_models = []
     for _, row_dict in result_df.iterrows():
@@ -196,9 +198,9 @@ def get_snow17_parameters(
             hru_area=row_dict[attr_names.AREA.value],
             latitude=row_dict[attr_names.Y.value],
             elev=row_dict[attr_names.ELEVATION.value],
-            mfmax=row_dict["mfmax"],
-            mfmin=row_dict["mfmin"],
-            uadj=row_dict["uadj"],
+            mfmax=row_dict[attr_names.MFMAX.value],
+            mfmin=row_dict[attr_names.MFMIN.value],
+            uadj=row_dict[attr_names.UADJ.value],
         )
         pydantic_models.append(model_instance)
     return pydantic_models
@@ -504,48 +506,36 @@ def get_sacsma_parameters(
     result_df = gauge["divides"][[attr_names.DIVIDE_ID.value, attr_names.AREA.value]]
 
     # Default parameter values used only for CONUS
-    result_df["uztwm"] = SacSmaValues.UZTWM.value
-    result_df["uzfwm"] = SacSmaValues.UZFWM.value
-    result_df["lztwm"] = SacSmaValues.LZTWM.value
-    result_df["lzfpm"] = SacSmaValues.LZFPM.value
-    result_df["lzfsm"] = SacSmaValues.LZFSM.value
-    result_df["adimp"] = SacSmaValues.ADIMP.value
-    result_df["uzk"] = SacSmaValues.UZK.value
-    result_df["lzpk"] = SacSmaValues.LZPK.value
-    result_df["lzsk"] = SacSmaValues.LZSK.value
-    result_df["zperc"] = SacSmaValues.ZPERC.value
-    result_df["rexp"] = SacSmaValues.REXP.value
-    result_df["pctim"] = SacSmaValues.PCTIM.value
-    result_df["pfree"] = SacSmaValues.PFREE.value
-    result_df["riva"] = SacSmaValues.RIVA.value
-    result_df["side"] = SacSmaValues.SIDE.value
-    result_df["rserv"] = SacSmaValues.RSERV.value
 
-    if namespace == "conus_hf" and not envca:
-        divides_list = result_df[attr_names.DIVIDE_ID.value]
-        domain = namespace.split("_")[0]
-        table_name = f"divide_parameters.sac-sma_{domain}"
-        params_df = catalog.load_table(table_name).to_polars()
-        conus_param_df = (
-            params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
-        )
-        result_df.drop(
-            columns=[
-                "uztwm",
-                "uzfwm",
-                "lztwm",
-                "lzfpm",
-                "lzfsm",
-                "uzk",
-                "lzpk",
-                "lzsk",
-                "zperc",
-                "rexp",
-                "pfree",
-            ],
-            inplace=True,
-        )
-        result_df = pd.merge(conus_param_df, result_df, on=attr_names.DIVIDE_ID.value, how="left")
+
+    if namespace == "conus_hf":
+        if not envca:
+            divides_list = result_df[attr_names.DIVIDE_ID.value]
+            domain = namespace.split("_")[0]
+            table_name = f"divide_parameters.sac-sma_{domain}"
+            params_df = catalog.load_table(table_name).to_polars()
+            conus_param_df = (
+                params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
+            )
+            result_df = pd.merge(conus_param_df, result_df, on=attr_names.DIVIDE_ID.value, how="left")
+        else:
+            result_df["uztwm"] = SacSmaValues.UZTWM.value
+            result_df["uzfwm"] = SacSmaValues.UZFWM.value
+            result_df["lztwm"] = SacSmaValues.LZTWM.value
+            result_df["lzfpm"] = SacSmaValues.LZFPM.value
+            result_df["lzfsm"] = SacSmaValues.LZFSM.value
+            result_df["adimp"] = SacSmaValues.ADIMP.value
+            result_df["uzk"] = SacSmaValues.UZK.value
+            result_df["lzpk"] = SacSmaValues.LZPK.value
+            result_df["lzsk"] = SacSmaValues.LZSK.value
+            result_df["zperc"] = SacSmaValues.ZPERC.value
+            result_df["rexp"] = SacSmaValues.REXP.value
+            result_df["pctim"] = SacSmaValues.PCTIM.value
+            result_df["pfree"] = SacSmaValues.PFREE.value
+            result_df["riva"] = SacSmaValues.RIVA.value
+            result_df["side"] = SacSmaValues.SIDE.value
+            result_df["rserv"] = SacSmaValues.RSERV.value
+
 
     pydantic_models = []
     for _, row_dict in result_df.iterrows():
@@ -791,48 +781,51 @@ def get_ueb_parameters(
     divide_attr_df[attr_names.Y.value] = wgs84_latlon[0]
     divide_attr_df[attr_names.X.value] = wgs84_latlon[1]
 
-    # Default parameter values
-    divide_attr_df["jan_temp_range"] = UEBValues.JAN_TEMP.value
-    divide_attr_df["feb_temp_range"] = UEBValues.FEB_TEMP.value
-    divide_attr_df["mar_temp_range"] = UEBValues.MAR_TEMP.value
-    divide_attr_df["apr_temp_range"] = UEBValues.APR_TEMP.value
-    divide_attr_df["may_temp_range"] = UEBValues.MAY_TEMP.value
-    divide_attr_df["jun_temp_range"] = UEBValues.JUN_TEMP.value
-    divide_attr_df["jul_temp_range"] = UEBValues.JUL_TEMP.value
-    divide_attr_df["aug_temp_range"] = UEBValues.AUG_TEMP.value
-    divide_attr_df["sep_temp_range"] = UEBValues.SEP_TEMP.value
-    divide_attr_df["oct_temp_range"] = UEBValues.OCT_TEMP.value
-    divide_attr_df["nov_temp_range"] = UEBValues.NOV_TEMP.value
-    divide_attr_df["dec_temp_range"] = UEBValues.DEC_TEMP.value
 
-    if namespace == "conus_hf" and not envca:
-        divides_list = divide_attr_df[attr_names.DIVIDE_ID.value]
-        domain = namespace.split("_")[0]
-        table_name = f"divide_parameters.ueb_{domain}"
-        params_df = catalog.load_table(table_name).to_polars()
-        conus_param_df = (
-            params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
-        )
-        col2drop = [col for col in divide_attr_df.columns if col.endswith("_temp_range")]
-        divide_attr_df.drop(columns=col2drop, inplace=True)
-        divide_attr_df = pd.merge(conus_param_df, divide_attr_df, on=attr_names.DIVIDE_ID.value, how="left")
-        divide_attr_df.rename(
-            columns={
-                "b01": "jan_temp_range",
-                "b02": "feb_temp_range",
-                "b03": "mar_temp_range",
-                "b04": "apr_temp_range",
-                "b05": "may_temp_range",
-                "b06": "jun_temp_range",
-                "b07": "jul_temp_range",
-                "b08": "aug_temp_range",
-                "b09": "sep_temp_range",
-                "b10": "oct_temp_range",
-                "b11": "nov_temp_range",
-                "b12": "dec_temp_range",
-            },
-            inplace=True,
-        )
+    if namespace == "conus_hf":
+        if not envca:
+            divides_list = divide_attr_df[attr_names.DIVIDE_ID.value]
+            domain = namespace.split("_")[0]
+            table_name = f"divide_parameters.ueb_{domain}"
+            params_df = catalog.load_table(table_name).to_polars()
+            conus_param_df = (
+                params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
+            )
+            col2drop = [col for col in divide_attr_df.columns if col.endswith("_temp_range")]
+            divide_attr_df.drop(columns=col2drop, inplace=True)
+            divide_attr_df = pd.merge(conus_param_df, divide_attr_df, on=attr_names.DIVIDE_ID.value, how="left")
+            divide_attr_df.rename(
+                columns={
+                    "b01": "jan_temp_range",
+                    "b02": "feb_temp_range",
+                    "b03": "mar_temp_range",
+                    "b04": "apr_temp_range",
+                    "b05": "may_temp_range",
+                    "b06": "jun_temp_range",
+                    "b07": "jul_temp_range",
+                    "b08": "aug_temp_range",
+                    "b09": "sep_temp_range",
+                    "b10": "oct_temp_range",
+                    "b11": "nov_temp_range",
+                    "b12": "dec_temp_range",
+                },
+                inplace=True,
+            )
+        else:
+            # Default parameter values
+            divide_attr_df["jan_temp_range"] = UEBValues.JAN_TEMP.value
+            divide_attr_df["feb_temp_range"] = UEBValues.FEB_TEMP.value
+            divide_attr_df["mar_temp_range"] = UEBValues.MAR_TEMP.value
+            divide_attr_df["apr_temp_range"] = UEBValues.APR_TEMP.value
+            divide_attr_df["may_temp_range"] = UEBValues.MAY_TEMP.value
+            divide_attr_df["jun_temp_range"] = UEBValues.JUN_TEMP.value
+            divide_attr_df["jul_temp_range"] = UEBValues.JUL_TEMP.value
+            divide_attr_df["aug_temp_range"] = UEBValues.AUG_TEMP.value
+            divide_attr_df["sep_temp_range"] = UEBValues.SEP_TEMP.value
+            divide_attr_df["oct_temp_range"] = UEBValues.OCT_TEMP.value
+            divide_attr_df["nov_temp_range"] = UEBValues.NOV_TEMP.value
+            divide_attr_df["dec_temp_range"] = UEBValues.DEC_TEMP.value
+
 
     pydantic_models = []
     for _, row_dict in divide_attr_df.iterrows():
@@ -844,18 +837,18 @@ def get_ueb_parameters(
             latitude=row_dict[attr_names.Y.value],
             elevation=row_dict[attr_names.ELEVATION.value],
             standard_atm_pressure=round(Atmosphere(row_dict[attr_names.ELEVATION.value]).pressure[0], 4),
-            jan_temp_range=row_dict["jan_temp_range"],
-            feb_temp_range=row_dict["feb_temp_range"],
-            mar_temp_range=row_dict["mar_temp_range"],
-            apr_temp_range=row_dict["apr_temp_range"],
-            may_temp_range=row_dict["may_temp_range"],
-            jun_temp_range=row_dict["jun_temp_range"],
-            jul_temp_range=row_dict["jul_temp_range"],
-            aug_temp_range=row_dict["aug_temp_range"],
-            sep_temp_range=row_dict["sep_temp_range"],
-            oct_temp_range=row_dict["oct_temp_range"],
-            nov_temp_range=row_dict["nov_temp_range"],
-            dec_temp_range=row_dict["dec_temp_range"],
+            jan_temp_range=row_dict[attr_names.JAN.value],
+            feb_temp_range=row_dict[attr_names.FEB.value],
+            mar_temp_range=row_dict[attr_names.MAR.value],
+            apr_temp_range=row_dict[attr_names.APR.value],
+            may_temp_range=row_dict[attr_names.MAY.value],
+            jun_temp_range=row_dict[attr_names.JUN.value],
+            jul_temp_range=row_dict[attr_names.JUL.value],
+            aug_temp_range=row_dict[attr_names.AUG.value],
+            sep_temp_range=row_dict[attr_names.SEP.value],
+            oct_temp_range=row_dict[attr_names.OCT.value],
+            nov_temp_range=row_dict[attr_names.NOV.value],
+            dec_temp_range=row_dict[attr_names.DEC.value],
         )
         pydantic_models.append(model_instance)
     return pydantic_models
@@ -906,13 +899,15 @@ def get_cfe_parameters(
     df = pd.DataFrame(gauge["divide-attributes"])
     attr_names = select_attr_names(namespace)
     divides_list = df[attr_names.DIVIDE_ID.value]
-    domain = namespace.split("_")[0]
-    table_name = f"divide_parameters.cfe-x_{domain}"
-    params_df = catalog.load_table(table_name).to_polars()
-    conus_param_df = (
-        params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
-    )
-    df = pd.merge(conus_param_df, df, on=attr_names.DIVIDE_ID.value, how="left")
+
+    if namespace == "conus_hf":
+        domain = namespace.split("_")[0]
+        table_name = f"divide_parameters.cfe-x_{domain}"
+        params_df = catalog.load_table(table_name).to_polars()
+        conus_param_df = (
+            params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
+        )
+        df = pd.merge(conus_param_df, df, on=attr_names.DIVIDE_ID.value, how="left")
 
     if rootzone_aet:
         is_aet_rootzone = True
@@ -957,15 +952,15 @@ def get_cfe_parameters(
         # Instantiate the Pydantic model for each row
         if cfe_version == "CFE-X":
             a_Xinanjiang_inflection_point_parameter = {
-                "value": row_dict["a_Xinanjiang_inflection_point_parameter"],
+                "value": row_dict[attr_names.AXAJ.value],
                 "units": CFEUnits.A_XINANJIANG_INFLECT.value,
             }
             b_Xinanjiang_shape_parameter = {
-                "value": row_dict["b_Xinanjiang_shape_parameter"],
+                "value": row_dict[attr_names.BXAJ.value],
                 "units": CFEUnits.B_XINANJIANG_SHAPE.value,
             }
             x_Xinanjiang_shape_parameter = {
-                "value": row_dict["x_Xinanjiang_shape_parameter"],
+                "value": row_dict[attr_names.XXAJ.value],
                 "units": CFEUnits.X_XINANJIANG_SHAPE.value,
             }
             urban_decimal_fraction = {

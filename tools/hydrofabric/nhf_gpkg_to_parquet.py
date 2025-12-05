@@ -10,17 +10,7 @@ from pyarrow import parquet as pq
 from pyogrio.errors import DataLayerError
 
 from icefabric.helpers import load_creds
-from icefabric.schemas.iceberg_tables.hydrofabric_update import (
-    Divides,
-    Flowpaths,
-    Gages,
-    Hydrolocations,
-    Nexus,
-    ReferenceFlowpaths,
-    VirtualFlowpaths,
-    VirtualNexus,
-    Waterbodies,
-)
+from icefabric.schemas.iceberg_tables import nhf_layers
 
 load_creds()
 
@@ -40,18 +30,7 @@ def nhf_gpkg_to_parquet(input_file: Path, output_folder: Path) -> None:
     FileNotFoundError
         If the input file doesn't exist
     """
-    layers = [
-        ("divides", Divides),
-        ("flowpaths", Flowpaths),
-        ("nexus", Nexus),
-        ("virtual_flowpaths", VirtualFlowpaths),
-        ("virtual_nexus", VirtualNexus),
-        ("gages", Gages),
-        ("waterbodies", Waterbodies),
-        ("reference_flowpaths", ReferenceFlowpaths),
-        ("hydrolocations", Hydrolocations),
-    ]
-    for layer, schema in layers:
+    for layer, schema in nhf_layers.items():
         if not input_file.exists():
             raise FileNotFoundError(f"Input file not found: {input_file}")
 

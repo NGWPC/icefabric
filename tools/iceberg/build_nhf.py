@@ -9,7 +9,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import yaml
 from pyiceberg.catalog import load_catalog
-from pyiceberg.transforms import BucketTransform, IdentityTransform
+from pyiceberg.transforms import IdentityTransform
 
 from icefabric.helpers import load_creds
 from icefabric.schemas.iceberg_tables import nhf_layers
@@ -31,8 +31,40 @@ LOCATION = {
 warnings.filterwarnings("ignore", category=ResourceWarning)
 
 
+def tear_down_nhf(catalog_type: str):
+    """
+    Tears down the hydrofabric Iceberg tables
+
+    Parameters
+    ----------
+    catalog_type : str
+        the type of catalog. sql is local, glue is production
+    """
+    catalog = load_catalog(catalog_type)
+    namespace = "nhf"
+
+    print("Tearing down existing NHF tables...")
+    for layer in nhf_layers.keys():
+        table_identifier = f"{namespace}.{layer}"
+        if catalog.table_exists(table_identifier):
+            catalog.purge_table(table_identifier)
+            print(f"Purged NHF layer table: {table_identifier}")
+        else:
+            print(f"NHF layer table {table_identifier} does not exist. Skipping purge.")
+
+    print("Tearing down existing NHF snapshot table...")
+    snapshot_namespace = "nhf_snapshots"
+    snapshot_table_identifier = f"{snapshot_namespace}.id"
+    if catalog.table_exists(snapshot_table_identifier):
+        catalog.purge_table(snapshot_table_identifier)
+        print(f"Purged snapshot table: {snapshot_table_identifier}")
+    else:
+        print(f"Snapshot table {snapshot_table_identifier} does not exist. Skipping purge.")
+
+
 def build_nhf(catalog_type: str, file_dir: str):
-    """Builds the hydrofabric Iceberg tables
+    """
+    Builds the hydrofabric Iceberg tables
 
     Parameters
     ----------
@@ -79,9 +111,10 @@ def build_nhf(catalog_type: str, file_dir: str):
             partition_spec = iceberg_table.spec()
             if len(partition_spec.fields) == 0:
                 with iceberg_table.update_spec() as update:
-                    update.add_field(
-                        schema_id_field, BucketTransform(100), f"{schema_id_field}_bucket_partition"
-                    )
+                    # TODO - look into bucket partitioning during planning/innovation
+                    # update.add_field(
+                    #     schema_id_field, BucketTransform(100), f"{schema_id_field}_bucket_partition"
+                    # )
                     try:
                         schema.schema().find_field("vpu_id")
                         update.add_field("vpu_id", IdentityTransform(), "vpu_id_partition")
@@ -131,7 +164,15 @@ if __name__ == "__main__":
         required=True,
         help="Path to the folder containing Hydrofabric parquet files",
     )
+    parser.add_argument(
+        "--delete-old",
+        action="store_true",
+        default=False,
+        help="Purges old catalog tables before building new ones - use with caution! Only use if the schemas have changed.",
+    )
 
     args = parser.parse_args()
 
+    if args.delete_old:
+        tear_down_nhf(catalog_type=args.catalog)
     build_nhf(catalog_type=args.catalog, file_dir=args.files)

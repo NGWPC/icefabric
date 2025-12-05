@@ -1,5 +1,3 @@
-import pathlib
-
 import streamlit as st
 from botocore.exceptions import ClientError
 
@@ -11,11 +9,9 @@ from app.streamlit.helpers import (
 )
 from app.streamlit.tooltips import hf_subset_options_explanation
 from icefabric.cli.streamflow import NoResultsFoundError
-from tools.hydrofabric.nhf_subset import subset_hydrofabric
+from icefabric.hydrofabric import subset_nhf
 
 st.session_state.NHF_SUBSET_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-NHF_PARQUETS_DIR = pathlib.Path("data/nhf_parquets")
-
 
 st.set_page_config(page_title="NGWPC Hydrofabric", layout="wide")
 st.title("NGWPC Hydrofabric")
@@ -58,17 +54,11 @@ if subset_submit and submit_valid:
                     f"**Subsetting hydrofabric ({subset_type} {subset_user_sel})...**", show_time=True
                 ):
                     if subset_type == "Flowpath ID":
-                        subset_hydrofabric(
-                            parquet_dir=NHF_PARQUETS_DIR, flowpath_id=subset_user_sel, output=subset_gpkg_file
-                        )
+                        subset_nhf(catalog=True, flowpath_id=subset_user_sel, output=subset_gpkg_file)
                     elif subset_type == "Gage ID":
-                        subset_hydrofabric(
-                            parquet_dir=NHF_PARQUETS_DIR, gage_id=subset_user_sel, output=subset_gpkg_file
-                        )
+                        subset_nhf(catalog=True, gage_id=subset_user_sel, output=subset_gpkg_file)
                     elif subset_type == "VPU ID":
-                        subset_hydrofabric(
-                            parquet_dir=NHF_PARQUETS_DIR, vpu_id=subset_user_sel, output=subset_gpkg_file
-                        )
+                        subset_nhf(catalog=True, vpu_id=subset_user_sel, output=subset_gpkg_file)
             with r_col:
                 post_transient_success_msg("Subsetting complete!")
             subset_successful = True

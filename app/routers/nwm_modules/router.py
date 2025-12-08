@@ -72,8 +72,8 @@ async def get_sft_ipes(
     return config_mapper["sft"](
         catalog=catalog,
         namespace=domain.value,
-        identifier=f"gages-{identifier}",
-        graph=network_graphs[domain],
+        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
+        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
         use_schaake=use_schaake,
     )
 
@@ -116,8 +116,8 @@ async def get_snow17_ipes(
     return config_mapper["snow17"](
         catalog=catalog,
         namespace=domain.value,
-        identifier=f"gages-{identifier}",
-        graph=network_graphs[domain],
+        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
+        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
         envca=envca,
     )
 
@@ -160,8 +160,8 @@ async def get_smp_ipes(
     return config_mapper["smp"](
         catalog=catalog,
         namespace=domain.value,
-        identifier=f"gages-{identifier}",
-        graph=network_graphs[domain],
+        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
+        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
         extra_module=module,
     )
 
@@ -198,8 +198,8 @@ async def get_lstm_ipes(
     return config_mapper["lstm"](
         catalog=catalog,
         namespace=domain.value,
-        identifier=f"gages-{identifier}",
-        graph=network_graphs[domain],
+        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
+        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
     )
 
 
@@ -249,8 +249,8 @@ async def get_lasam_ipes(
     return config_mapper["lasam"](
         catalog=catalog,
         namespace=domain.value,
-        identifier=f"gages-{identifier}",
-        graph=network_graphs[domain],
+        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
+        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
         sft_included=sft_included,
         soil_params_file=soil_params_file,
     )
@@ -288,8 +288,8 @@ async def get_noahowp_ipes(
     return config_mapper["noah_owp"](
         catalog=catalog,
         namespace=domain.value,
-        identifier=f"gages-{identifier}",
-        graph=network_graphs[domain],
+        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
+        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
     )
 
 
@@ -331,8 +331,8 @@ async def get_sacsma_ipes(
     return config_mapper["sacsma"](
         catalog=catalog,
         namespace=domain.value,
-        identifier=f"gages-{identifier}",
-        graph=network_graphs[domain],
+        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
+        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
         envca=envca,
     )
 
@@ -369,8 +369,8 @@ async def get_troute_ipes(
     return config_mapper["troute"](
         catalog=catalog,
         namespace=domain.value,
-        identifier=f"gages-{identifier}",
-        graph=network_graphs[domain],
+        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
+        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
     )
 
 
@@ -406,8 +406,8 @@ async def get_topmodel_ipes(
     return config_mapper["topmodel"](
         catalog=catalog,
         namespace=domain.value,
-        identifier=f"gages-{identifier}",
-        graph=network_graphs[domain],
+        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
+        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
     )
 
 
@@ -443,8 +443,8 @@ async def get_topoflow_ipes(
     return config_mapper["topoflow"](
         catalog=catalog,
         namespace=domain.value,
-        identifier=f"gages-{identifier}",
-        graph=network_graphs[domain],
+        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
+        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
     )
 
 
@@ -511,8 +511,8 @@ async def get_ueb_ipes(
     return config_mapper["ueb"](
         catalog=catalog,
         namespace=domain.value,
-        identifier=f"gages-{identifier}",
-        graph=network_graphs[domain],
+        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
+        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
         envca=envca,
     )
 
@@ -567,8 +567,8 @@ async def get_cfe_ipes(
     return config_mapper["cfe"](
         catalog=catalog,
         namespace=domain.value,
-        identifier=f"gages-{identifier}",
-        graph=network_graphs[domain],
+        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
+        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
         cfe_version=cfe_version,
         sft_included=sft_included,
         rootzone_aet=rootzone_aet,

@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class FloatWithUnits(BaseModel):
     """Pydantic class to represent a parameter's float value and units"""
 
-    value: float
+    value: float | None
     units: str | None
 
 
@@ -897,8 +897,8 @@ class Topmodel(BaseModel):
     """Pydantic model for Topmodel module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str = Field(..., description="The catchment ID")
-    divide_id: str = Field(..., description="The catchment ID")
+    catchment: str | float = Field(..., description="The catchment ID")
+    divide_id: str | float = Field(..., description="The catchment ID")
     num_sub_catchments: int = Field(default=1, description="Number of sub catchments")
     imap: int = Field(default=1, description="NA")
     twi: list[dict] = Field(default=[{"twi": "dist_4.twi"}], description="NA")
@@ -986,7 +986,7 @@ class Topoflow(BaseModel):
     """Pydantic model for Topoflow module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    site_prefix: str = Field(..., description="The catchment ID")
+    site_prefix: str | float = Field(..., description="The catchment ID")
     da: float = Field(..., description="drainage area")
     slope: float = Field(..., description="terrain slope in degrees")
     aspect: float = Field(..., description="terrain aspect in degrees")
@@ -1264,7 +1264,7 @@ class CFE(BaseModel):
     """Pydantic model for CFE module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str = Field(..., description="The catchment ID")
+    catchment: str | float = Field(..., description="The catchment ID")
     surface_partitioning_scheme: str = Field(..., description="Selects Xinanjiang or Schaake")
     surface_runoff_scheme: str = Field(
         default=CFEValues.SRFC_RUNOFF_SCHEME.value,

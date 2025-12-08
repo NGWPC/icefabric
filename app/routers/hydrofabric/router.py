@@ -48,7 +48,8 @@ async def get_hydrofabric_subset_gpkg(
         description="The type of identifier being used",
         openapi_examples={
             "fp_id": {"summary": "NHF Flowpath ID (NHF)", "value": IdType.FP_ID},
-            "vpu-id": {"summary": "VPU ID (NHF)", "value": "01"},
+            "vpu-id": {"summary": "VPU ID (NHF)", "value": IdType.VPU_ID},
+            "site-no": {"summary": "UGSG Site no (NHF)", "value": IdType.SITE_NO},
             "hl_uri": {"summary": "USGS Gauge (HFv2.2, NHF)", "value": IdType.HL_URI},
             "wb-id": {"summary": "Watershed ID (HFv2.2)", "value": IdType.ID},
         },
@@ -94,7 +95,7 @@ async def get_hydrofabric_subset_gpkg(
                     flowpath_id=int(identifier),
                     catalog=catalog,
                 )
-            elif id_type == IdType.HL_URI:
+            elif id_type == IdType.SITE_NO:
                 output_layers = subset_nhf(
                     gage_id=identifier,
                     catalog=catalog,

@@ -35,8 +35,12 @@ class Divides:
         Saturated capillary head
     cwpvt_mean : float
         Empirical canopy wind parameter
-    msfno_mean : float
+    mp_mean : float
+        Slope of Conductance to photosynthesis relationship
+    mfsno_mean : float
         Melt factor for snow depletion curve
+    quartz_mean : float
+        Mean soil quartz content
     refkdt_mean : float
         Reference soil infiltration parameter
     slope1km_mean : float
@@ -57,14 +61,98 @@ class Divides:
         Topographic wetness index 3rd quartile
     twi_q100 : float
         Topographic wetness index 4th quartile
+    twi_q10 : float
+        Topographic wetness index 10th percentile
+    twi_q20 : float
+        Topographic wetness index 20th percentile
+    twi_q30 : float
+        Topographic wetness index 30th percentile
+    twi_q40 : float
+        Topographic wetness index 40th percentile
+    twi_q60 : float
+        Topographic wetness index 60th percentile
+    twi_q70 : float
+        Topographic wetness index 70th percentile
+    twi_q80 : float
+        Topographic wetness index 80th percentile
+    twi_q90 : float
+        Topographic wetness index 90th percentile
     elevation_mean : float
         Terrain elevation
     slope250m_mean : float
         Terrain slope
     aspect_circmean : float
         Terrain aspect
+    lzfpm_mean : float
+        Maximum lower zone free water mean (primary)
+    lzpk_mean : float
+        Lower zone recession coefficient mean (primary)
+    lztwm_mean : float
+        Maximum lower zone tension water mean
+    rexp_mean : float
+        Percolation equation exponent mean
+    uzk_mean : float
+        Upper zone recession coefficient mean
+    zperc_mean : float
+        Minimum percolation rate coefficient mean
+    lzfsm_mean : float
+        Maximum lower zone free water mean (secondary aka supplemental)
+    lzsk_mean : float
+        Lower zone recession coefficient mean, (secondary aka supplemental)
+    pfree_mean : float
+        Fraction of water percolating from upper zone directly to lower zone free water storage (mean)
+    uzfwm_mean : float
+        Maximum upper zone free water mean
+    uztwm_mean : float
+        Upper zone tension water maximum storage mean
+    mfmin_mean : float
+        Minimum non-rain melt factor mean
+    mfmax_mean : float
+        Maximum non-rain melt factor mean
+    uadj_mean : float
+        Average wind function for rain on snow (mean)
+    a_xinanjiang_inflection_point_parameter : float
+        Inflection point parameter for the Xinanjiang runoff generation model configuration
+    b_xinanjiang_shape_parameter : float
+        Main, exponential shape parameter for the Xinanjiang runoff generation model configuration
+    x_xinanjiang_shape_parameter : float
+        Secondary, modifier shape parameter for the Xinanjiang runoff generation model configuration
+    temp_delta_jan_mean : float
+        The average temp change for the month of January
+    temp_delta_feb_mean : float
+        The average temp change for the month of February
+    temp_delta_mar_mean : float
+        The average temp change for the month of March
+    temp_delta_apr_mean : float
+        The average temp change for the month of April
+    temp_delta_may_mean : float
+        The average temp change for the month of May
+    temp_delta_jun_mean : float
+        The average temp change for the month of June
+    temp_delta_jul_mean : float
+        The average temp change for the month of July
+    temp_delta_aug_mean : float
+        The average temp change for the month of August
+    temp_delta_sep_mean : float
+        The average temp change for the month of September
+    temp_delta_oct_mean : float
+        The average temp change for the month of October
+    temp_delta_nov_mean : float
+        The average temp change for the month of November
+    temp_delta_dec_mean : float
+        The average temp change for the month of December
+    lat : float
+        Latitude of the divide (in WGS84 degrees)
+    lon : float
+        Longitude of the divide (in WGS84 degrees)
     glacier_percent : float
         Percentage of glacier cover within the divide
+    cgw : float
+        Groundwater Coefficient
+    expon : float
+        Groundwater Exponent
+    max_gw_storage : float
+        The total height of the baseflow "bucket"
     geometry : binary
         Spatial Geometry (MULTIPOLYGON format) - stored in WKB binary format
     """
@@ -90,7 +178,9 @@ class Divides:
             "dksat_geomean",
             "psisat_geomean",
             "cwpvt_mean",
-            "msfno_mean",
+            "mp_mean",
+            "mfsno_mean",
+            "quartz_mean",
             "refkdt_mean",
             "slope1km_mean",
             "smcmax_mean",
@@ -101,10 +191,52 @@ class Divides:
             "twi_q50",
             "twi_q75",
             "twi_q100",
+            "twi_q10",
+            "twi_q20",
+            "twi_q30",
+            "twi_q40",
+            "twi_q60",
+            "twi_q70",
+            "twi_q80",
+            "twi_q90",
             "elevation_mean",
             "slope250m_mean",
             "aspect_circmean",
+            "lzfpm_mean",
+            "lzpk_mean",
+            "lztwm_mean",
+            "rexp_mean",
+            "uzk_mean",
+            "zperc_mean",
+            "lzfsm_mean",
+            "lzsk_mean",
+            "pfree_mean",
+            "uzfwm_mean",
+            "uztwm_mean",
+            "mfmin_mean",
+            "mfmax_mean",
+            "uadj_mean",
+            "a_xinanjiang_inflection_point_parameter",
+            "b_xinanjiang_shape_parameter",
+            "x_xinanjiang_shape_parameter",
+            "temp_delta_jan_mean",
+            "temp_delta_feb_mean",
+            "temp_delta_mar_mean",
+            "temp_delta_apr_mean",
+            "temp_delta_may_mean",
+            "temp_delta_jun_mean",
+            "temp_delta_jul_mean",
+            "temp_delta_aug_mean",
+            "temp_delta_sep_mean",
+            "temp_delta_oct_mean",
+            "temp_delta_nov_mean",
+            "temp_delta_dec_mean",
+            "lat",
+            "lon",
             "glacier_percent",
+            "cgw",
+            "expon",
+            "max_gw_storage",
             "geometry",
         ]
 
@@ -124,14 +256,16 @@ class Divides:
             "Divide Type (one of independent, aggregate, connectors)",
             "Incremental Areas of Divide [square kilometers]",
             "beta exponent on Clapp-Hornberger (1978) soil water relations",
-            "Dominent soil type category",
-            "Dominent vegetation type category",
+            "Dominant soil type category",
+            "Dominant vegetation type category",
             "Saturated hydraulic conductivity",
             "Saturated capillary head",
             "Empirical canopy wind parameter",
+            "Slope of Conductance to photosynthesis relationship",
             "Melt factor for snow depletion curve",
+            "Mean soil quartz content",
             "Reference soil infiltration parameter",
-            "modifies the gradient of the hydraulic head at the soil bottom",
+            "Modifies the gradient of the hydraulic head at the soil bottom",
             "Saturated soil moisture content",
             "Wilting point soil moisture content",
             "Maximum rate of carboxylation at 25 C",
@@ -140,11 +274,53 @@ class Divides:
             "Topographic wetness index 2nd quartile",
             "Topographic wetness index 3rd quartile",
             "Topographic wetness index 4th quartile",
+            "Topographic wetness index 10th percentile",
+            "Topographic wetness index 20th percentile",
+            "Topographic wetness index 30th percentile",
+            "Topographic wetness index 40th percentile",
+            "Topographic wetness index 60th percentile",
+            "Topographic wetness index 70th percentile",
+            "Topographic wetness index 80th percentile",
+            "Topographic wetness index 90th percentile",
             "Terrain elevation",
             "Terrain slope",
             "Terrain aspect",
+            "Maximum lower zone free water mean (primary)",
+            "Lower zone recession coefficient mean (primary)",
+            "Maximum lower zone tension water mean",
+            "Percolation equation exponent mean",
+            "Upper zone recession coefficient mean",
+            "Minimum percolation rate coefficient mean",
+            "Maximum lower zone free water mean (secondary aka supplemental)",
+            "Lower zone recession coefficient mean, (secondary aka supplemental)",
+            "Fraction of water percolating from upper zone directly to lower zone free water storage (mean)",
+            "Maximum upper zone free water mean",
+            "Upper zone tension water maximum storage mean",
+            "Minimum non-rain melt factor mean",
+            "Maximum non-rain melt factor mean",
+            "Average wind function for rain on snow (mean)",
+            "Inflection point parameter for the Xinanjiang runoff generation model configuration",
+            "Main, exponential shape parameter for the Xinanjiang runoff generation model configuration",
+            "Secondary, modifier shape parameter for the Xinanjiang runoff generation model configuration",
+            "The average temp change for the month of January",
+            "The average temp change for the month of February",
+            "The average temp change for the month of March",
+            "The average temp change for the month of April",
+            "The average temp change for the month of May",
+            "The average temp change for the month of June",
+            "The average temp change for the month of July",
+            "The average temp change for the month of August",
+            "The average temp change for the month of September",
+            "The average temp change for the month of October",
+            "The average temp change for the month of November",
+            "The average temp change for the month of December",
+            "Latitude of the divide (in WGS84 degrees)",
+            "Longitude of the divide (in WGS84 degrees)",
             "Percentage of glacier cover within the divide",
-            "GeometrySpatial Geometry (MULTIPOLYGON format) - stored in WKB binary format",
+            "Groundwater Coefficient",
+            "Groundwater Exponent",
+            'The total height of the baseflow "bucket"',
+            "Spatial Geometry (MULTIPOLYGON format) - stored in WKB binary format",
         ]
         return Schema(
             NestedField(1, "div_id", LongType(), required=True, doc=desc[0]),
@@ -157,22 +333,68 @@ class Divides:
             NestedField(8, "dksat_geomean", DoubleType(), required=False, doc=desc[7]),
             NestedField(9, "psisat_geomean", DoubleType(), required=False, doc=desc[8]),
             NestedField(10, "cwpvt_mean", DoubleType(), required=False, doc=desc[9]),
-            NestedField(11, "msfno_mean", DoubleType(), required=False, doc=desc[10]),
-            NestedField(12, "refkdt_mean", DoubleType(), required=False, doc=desc[11]),
-            NestedField(13, "slope1km_mean", DoubleType(), required=False, doc=desc[12]),
-            NestedField(14, "smcmax_mean", DoubleType(), required=False, doc=desc[13]),
-            NestedField(15, "smcwlt_mean", DoubleType(), required=False, doc=desc[14]),
-            NestedField(16, "vcmx_mean", DoubleType(), required=False, doc=desc[15]),
-            NestedField(17, "imperv_mean", DoubleType(), required=False, doc=desc[16]),
-            NestedField(18, "twi_q25", DoubleType(), required=False, doc=desc[17]),
-            NestedField(19, "twi_q50", DoubleType(), required=False, doc=desc[18]),
-            NestedField(20, "twi_q75", DoubleType(), required=False, doc=desc[19]),
-            NestedField(21, "twi_q100", DoubleType(), required=False, doc=desc[20]),
-            NestedField(22, "elevation_mean", DoubleType(), required=False, doc=desc[21]),
-            NestedField(23, "slope250m_mean", DoubleType(), required=False, doc=desc[22]),
-            NestedField(24, "aspect_circmean", DoubleType(), required=False, doc=desc[23]),
-            NestedField(25, "glacier_percent", DoubleType(), required=False, doc=desc[24]),
-            NestedField(25, "geometry", BinaryType(), required=False, doc=desc[25]),
+            NestedField(11, "mp_mean", DoubleType(), required=False, doc=desc[10]),
+            NestedField(12, "mfsno_mean", DoubleType(), required=False, doc=desc[11]),
+            NestedField(13, "quartz_mean", DoubleType(), required=False, doc=desc[12]),
+            NestedField(14, "refkdt_mean", DoubleType(), required=False, doc=desc[13]),
+            NestedField(15, "slope1km_mean", DoubleType(), required=False, doc=desc[14]),
+            NestedField(16, "smcmax_mean", DoubleType(), required=False, doc=desc[15]),
+            NestedField(17, "smcwlt_mean", DoubleType(), required=False, doc=desc[16]),
+            NestedField(18, "vcmx_mean", DoubleType(), required=False, doc=desc[17]),
+            NestedField(19, "imperv_mean", DoubleType(), required=False, doc=desc[18]),
+            NestedField(20, "twi_q25", DoubleType(), required=False, doc=desc[19]),
+            NestedField(21, "twi_q50", DoubleType(), required=False, doc=desc[20]),
+            NestedField(22, "twi_q75", DoubleType(), required=False, doc=desc[21]),
+            NestedField(23, "twi_q100", DoubleType(), required=False, doc=desc[22]),
+            NestedField(24, "twi_q10", DoubleType(), required=False, doc=desc[23]),
+            NestedField(25, "twi_q20", DoubleType(), required=False, doc=desc[24]),
+            NestedField(26, "twi_q30", DoubleType(), required=False, doc=desc[25]),
+            NestedField(27, "twi_q40", DoubleType(), required=False, doc=desc[26]),
+            NestedField(28, "twi_q60", DoubleType(), required=False, doc=desc[27]),
+            NestedField(29, "twi_q70", DoubleType(), required=False, doc=desc[28]),
+            NestedField(30, "twi_q80", DoubleType(), required=False, doc=desc[29]),
+            NestedField(31, "twi_q90", DoubleType(), required=False, doc=desc[30]),
+            NestedField(32, "elevation_mean", DoubleType(), required=False, doc=desc[31]),
+            NestedField(33, "slope250m_mean", DoubleType(), required=False, doc=desc[32]),
+            NestedField(34, "aspect_circmean", DoubleType(), required=False, doc=desc[33]),
+            NestedField(35, "lzfpm_mean", DoubleType(), required=False, doc=desc[34]),
+            NestedField(36, "lzpk_mean", DoubleType(), required=False, doc=desc[35]),
+            NestedField(37, "lztwm_mean", DoubleType(), required=False, doc=desc[36]),
+            NestedField(38, "rexp_mean", DoubleType(), required=False, doc=desc[37]),
+            NestedField(39, "uzk_mean", DoubleType(), required=False, doc=desc[38]),
+            NestedField(40, "zperc_mean", DoubleType(), required=False, doc=desc[39]),
+            NestedField(41, "lzfsm_mean", DoubleType(), required=False, doc=desc[40]),
+            NestedField(42, "lzsk_mean", DoubleType(), required=False, doc=desc[41]),
+            NestedField(43, "pfree_mean", DoubleType(), required=False, doc=desc[42]),
+            NestedField(44, "uzfwm_mean", DoubleType(), required=False, doc=desc[43]),
+            NestedField(45, "uztwm_mean", DoubleType(), required=False, doc=desc[44]),
+            NestedField(46, "mfmin_mean", DoubleType(), required=False, doc=desc[45]),
+            NestedField(47, "mfmax_mean", DoubleType(), required=False, doc=desc[46]),
+            NestedField(48, "uadj_mean", DoubleType(), required=False, doc=desc[47]),
+            NestedField(
+                49, "a_xinanjiang_inflection_point_parameter", DoubleType(), required=False, doc=desc[48]
+            ),
+            NestedField(50, "b_xinanjiang_shape_parameter", DoubleType(), required=False, doc=desc[49]),
+            NestedField(51, "x_xinanjiang_shape_parameter", DoubleType(), required=False, doc=desc[50]),
+            NestedField(52, "temp_delta_jan_mean", DoubleType(), required=False, doc=desc[51]),
+            NestedField(53, "temp_delta_feb_mean", DoubleType(), required=False, doc=desc[52]),
+            NestedField(54, "temp_delta_mar_mean", DoubleType(), required=False, doc=desc[53]),
+            NestedField(55, "temp_delta_apr_mean", DoubleType(), required=False, doc=desc[54]),
+            NestedField(56, "temp_delta_may_mean", DoubleType(), required=False, doc=desc[55]),
+            NestedField(57, "temp_delta_jun_mean", DoubleType(), required=False, doc=desc[56]),
+            NestedField(58, "temp_delta_jul_mean", DoubleType(), required=False, doc=desc[57]),
+            NestedField(59, "temp_delta_aug_mean", DoubleType(), required=False, doc=desc[58]),
+            NestedField(60, "temp_delta_sep_mean", DoubleType(), required=False, doc=desc[59]),
+            NestedField(61, "temp_delta_oct_mean", DoubleType(), required=False, doc=desc[60]),
+            NestedField(62, "temp_delta_nov_mean", DoubleType(), required=False, doc=desc[61]),
+            NestedField(63, "temp_delta_dec_mean", DoubleType(), required=False, doc=desc[62]),
+            NestedField(64, "lat", DoubleType(), required=False, doc=desc[63]),
+            NestedField(65, "lon", DoubleType(), required=False, doc=desc[64]),
+            NestedField(66, "glacier_percent", DoubleType(), required=False, doc=desc[65]),
+            NestedField(67, "cgw", DoubleType(), required=False, doc=desc[66]),
+            NestedField(68, "expon", DoubleType(), required=False, doc=desc[67]),
+            NestedField(69, "max_gw_storage", DoubleType(), required=False, doc=desc[68]),
+            NestedField(70, "geometry", BinaryType(), required=False, doc=desc[69]),
             identifier_field_ids=[1],
         )
 
@@ -198,7 +420,9 @@ class Divides:
                 pa.field("dksat_geomean", pa.float64(), nullable=True),
                 pa.field("psisat_geomean", pa.float64(), nullable=True),
                 pa.field("cwpvt_mean", pa.float64(), nullable=True),
-                pa.field("msfno_mean", pa.float64(), nullable=True),
+                pa.field("mp_mean", pa.float64(), nullable=True),
+                pa.field("mfsno_mean", pa.float64(), nullable=True),
+                pa.field("quartz_mean", pa.float64(), nullable=True),
                 pa.field("refkdt_mean", pa.float64(), nullable=True),
                 pa.field("slope1km_mean", pa.float64(), nullable=True),
                 pa.field("smcmax_mean", pa.float64(), nullable=True),
@@ -209,10 +433,52 @@ class Divides:
                 pa.field("twi_q50", pa.float64(), nullable=True),
                 pa.field("twi_q75", pa.float64(), nullable=True),
                 pa.field("twi_q100", pa.float64(), nullable=True),
+                pa.field("twi_q10", pa.float64(), nullable=True),
+                pa.field("twi_q20", pa.float64(), nullable=True),
+                pa.field("twi_q30", pa.float64(), nullable=True),
+                pa.field("twi_q40", pa.float64(), nullable=True),
+                pa.field("twi_q60", pa.float64(), nullable=True),
+                pa.field("twi_q70", pa.float64(), nullable=True),
+                pa.field("twi_q80", pa.float64(), nullable=True),
+                pa.field("twi_q90", pa.float64(), nullable=True),
                 pa.field("elevation_mean", pa.float64(), nullable=True),
                 pa.field("slope250m_mean", pa.float64(), nullable=True),
                 pa.field("aspect_circmean", pa.float64(), nullable=True),
+                pa.field("lzfpm_mean", pa.float64(), nullable=True),
+                pa.field("lzpk_mean", pa.float64(), nullable=True),
+                pa.field("lztwm_mean", pa.float64(), nullable=True),
+                pa.field("rexp_mean", pa.float64(), nullable=True),
+                pa.field("uzk_mean", pa.float64(), nullable=True),
+                pa.field("zperc_mean", pa.float64(), nullable=True),
+                pa.field("lzfsm_mean", pa.float64(), nullable=True),
+                pa.field("lzsk_mean", pa.float64(), nullable=True),
+                pa.field("pfree_mean", pa.float64(), nullable=True),
+                pa.field("uzfwm_mean", pa.float64(), nullable=True),
+                pa.field("uztwm_mean", pa.float64(), nullable=True),
+                pa.field("mfmin_mean", pa.float64(), nullable=True),
+                pa.field("mfmax_mean", pa.float64(), nullable=True),
+                pa.field("uadj_mean", pa.float64(), nullable=True),
+                pa.field("a_xinanjiang_inflection_point_parameter", pa.float64(), nullable=True),
+                pa.field("b_xinanjiang_shape_parameter", pa.float64(), nullable=True),
+                pa.field("x_xinanjiang_shape_parameter", pa.float64(), nullable=True),
+                pa.field("temp_delta_jan_mean", pa.float64(), nullable=True),
+                pa.field("temp_delta_feb_mean", pa.float64(), nullable=True),
+                pa.field("temp_delta_mar_mean", pa.float64(), nullable=True),
+                pa.field("temp_delta_apr_mean", pa.float64(), nullable=True),
+                pa.field("temp_delta_may_mean", pa.float64(), nullable=True),
+                pa.field("temp_delta_jun_mean", pa.float64(), nullable=True),
+                pa.field("temp_delta_jul_mean", pa.float64(), nullable=True),
+                pa.field("temp_delta_aug_mean", pa.float64(), nullable=True),
+                pa.field("temp_delta_sep_mean", pa.float64(), nullable=True),
+                pa.field("temp_delta_oct_mean", pa.float64(), nullable=True),
+                pa.field("temp_delta_nov_mean", pa.float64(), nullable=True),
+                pa.field("temp_delta_dec_mean", pa.float64(), nullable=True),
+                pa.field("lat", pa.float64(), nullable=True),
+                pa.field("lon", pa.float64(), nullable=True),
                 pa.field("glacier_percent", pa.float64(), nullable=True),
+                pa.field("cgw", pa.float64(), nullable=True),
+                pa.field("expon", pa.float64(), nullable=True),
+                pa.field("max_gw_storage", pa.float64(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
             ]
         )

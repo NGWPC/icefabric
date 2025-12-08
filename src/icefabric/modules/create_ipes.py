@@ -205,36 +205,36 @@ def get_snow17_parameters(
     if namespace == HydrofabricDomains.CONUS:
         #Get divide area from divides layer
         divides_df = gauge["divides"][[attr_names.DIVIDE_ID.value, attr_names.AREA.value]]
-        result_df = pd.merge(divide_attr_df, divides_df, on="divide_id", how="left")
+        divide_attr_df = pd.merge(divide_attr_df, divides_df, on="divide_id", how="left")
 
         #Convert elevation from cm to m
-        result_df[attr_names.ELEVATION.value] = result_df[attr_names.ELEVATION.value] * 0.01
+        divide_attr_df[attr_names.ELEVATION.value] = divide_attr_df[attr_names.ELEVATION.value] * 0.01
 
         #Convert CRS to WGS84 (EPSG4326)
         crs = gauge["divides"].crs
         transformer = Transformer.from_crs(crs, 4326)
-        wgs84_latlon = transformer.transform(result_df[attr_names.X.value], result_df[attr_names.Y.value])
-        result_df[attr_names.Y.value] = wgs84_latlon[0]
-        result_df[attr_names.X.value] = wgs84_latlon[1]
+        wgs84_latlon = transformer.transform(divide_attr_df[attr_names.X.value], divide_attr_df[attr_names.Y.value])
+        divide_attr_df[attr_names.Y.value] = wgs84_latlon[0]
+        divide_attr_df[attr_names.X.value] = wgs84_latlon[1]
 
         # Get Snow17 parameters from Iceberg tables
         if not envca:
-            divides_list = result_df[attr_names.DIVIDE_ID.value]
+            divides_list = divide_attr_df[attr_names.DIVIDE_ID.value]
             domain = namespace.split("_")[0]
             table_name = f"divide_parameters.snow-17_{domain}"
             params_df = catalog.load_table(table_name).to_polars()
             conus_param_df = (
                 params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
             )
-            result_df = pd.merge(conus_param_df, result_df, on=attr_names.DIVIDE_ID.value, how="left")
+            divide_attr_df = pd.merge(divide_attr_df, conus_param_df, on=attr_names.DIVIDE_ID.value, how="left")
         else:
             #Attributes don't exist in the dataset for Canada
-            result_df["mfmax"] = CalibratableScheme.MFMAX.value
-            result_df["mfmin"] = CalibratableScheme.MFMIN.value
-            result_df["uadj"] = CalibratableScheme.UADJ.value
+            divide_attr_df["mfmax"] = CalibratableScheme.MFMAX.value
+            divide_attr_df["mfmin"] = CalibratableScheme.MFMIN.value
+            divide_attr_df["uadj"] = CalibratableScheme.UADJ.value
 
     pydantic_models = []
-    for _, row_dict in result_df.iterrows():
+    for _, row_dict in divide_attr_df.iterrows():
         model_instance = Snow17(
             catchment=row_dict[attr_names.DIVIDE_ID.value],
             hru_id=row_dict[attr_names.DIVIDE_ID.value],
@@ -371,20 +371,20 @@ def get_lstm_parameters(catalog: Catalog, namespace: str, identifier: str, graph
     if namespace == HydrofabricDomains.CONUS:
         #Get divide area from divides layer
         divides_df = gauge["divides"][[attr_names.DIVIDE_ID.value, attr_names.AREA.value]]
-        result_df = pd.merge(divide_attr_df, divides_df, on=attr_names.DIVIDE_ID.value, how="left")
+        divide_attr_df = pd.merge(divide_attr_df, divides_df, on=attr_names.DIVIDE_ID.value, how="left")
 
         # Convert elevation from cm to m
-        result_df[attr_names.ELEVATION.value] = result_df[attr_names.ELEVATION.value] * 0.01
+        divide_attr_df[attr_names.ELEVATION.value] = divide_attr_df[attr_names.ELEVATION.value] * 0.01
 
         # Convert CRS to WGS84 (EPSG4326)
         crs = gauge["divides"].crs
         transformer = Transformer.from_crs(crs, 4326)
-        wgs84_latlon = transformer.transform(result_df[attr_names.X.value], result_df[attr_names.Y.value])
-        result_df[attr_names.Y.value] = wgs84_latlon[0]
-        result_df[attr_names.X.value] = wgs84_latlon[1]
+        wgs84_latlon = transformer.transform(divide_attr_df[attr_names.X.value], divide_attr_df[attr_names.Y.value])
+        divide_attr_df[attr_names.Y.value] = wgs84_latlon[0]
+        divide_attr_df[attr_names.X.value] = wgs84_latlon[1]
 
     pydantic_models = []
-    for _, row_dict in result_df.iterrows():
+    for _, row_dict in divide_attr_df.iterrows():
         # Instantiate the Pydantic model for each row
         model_instance = LSTM(
             catchment=row_dict[attr_names.DIVIDE_ID.value],
@@ -595,17 +595,17 @@ def get_sacsma_parameters(
             catchment=row_dict[attr_names.DIVIDE_ID.value],
             hru_id=row_dict[attr_names.DIVIDE_ID.value],
             hru_area=row_dict[attr_names.AREA.value],
-            uztwm=row_dict["uztwm"],
-            uzfwm=row_dict["uzfwm"],
-            lztwm=row_dict["lztwm"],
-            lzfpm=row_dict["lzfpm"],
-            lzfsm=row_dict["lzfsm"],
-            uzk=row_dict["uzk"],
-            lzpk=row_dict["lzpk"],
-            lzsk=row_dict["lzsk"],
-            zperc=row_dict["zperc"],
-            rexp=row_dict["rexp"],
-            pfree=row_dict["pfree"],
+            uztwm=row_dict[attr_names.UZTWM.value],
+            uzfwm=row_dict[attr_names.UZFWM.value],
+            lztwm=row_dict[attr_names.LZTWM.value],
+            lzfpm=row_dict[attr_names.LZFPM.value],
+            lzfsm=row_dict[attr_names.LZFSM.value],
+            uzk=row_dict[attr_names.UZK.value],
+            lzpk=row_dict[attr_names.LZPK.value],
+            lzsk=row_dict[attr_names.LZSK.value],
+            zperc=row_dict[attr_names.ZPERC.value],
+            rexp=row_dict[attr_names.REXP.value],
+            pfree=row_dict[attr_names.PFREE.value],
         )
         pydantic_models.append(model_instance)
     return pydantic_models
@@ -787,7 +787,7 @@ def get_topoflow_parameters(
             lon=row_dict[attr_names.X.value],
             lat=row_dict[attr_names.Y.value],
             elev=row_dict[attr_names.ELEVATION.value],
-            glacier_percent=row_dict["glacier_percent"],
+            glacier_percent=row_dict[attr_names.GLACIER_PERCENT.value],
         )
         pydantic_models.append(model_instance)
     return pydantic_models
@@ -834,7 +834,7 @@ def get_ueb_parameters(
     attr_names = select_attr_names(namespace)
 
     #Run items specifically for HF2.2
-    if namespace is HydrofabricDomains.CONUS:
+    if namespace == HydrofabricDomains.CONUS:
         # Convert elevation from cm to m
         divide_attr_df[attr_names.ELEVATION.value] = divide_attr_df[attr_names.ELEVATION.value] * 0.01
 
@@ -1029,7 +1029,7 @@ def get_cfe_parameters(
                 "units": CFEUnits.X_XINANJIANG_SHAPE.value,
             }
             urban_decimal_fraction = {
-                "value": row_dict["mean.impervious"],
+                "value": row_dict[attr_names.IMPERVIOUS.value],
                 "units": CFEUnits.URBAN_FRACT.value,
             }
 

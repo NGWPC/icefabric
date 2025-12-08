@@ -44,7 +44,7 @@ class SFT(BaseModel):
     """Pydantic model for SFT (Snow Freeze Thaw) module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str = Field(..., description="The catchment ID")
+    catchment: str | int = Field(..., description="The catchment ID")
     soil_moisture_bmi: int = Field(default=1, description="Soil moisture BMI parameter")
     soil_params_smcmax: FloatWithUnits = Field(
         ..., description="Maximum soil moisture content", alias="smcmax"
@@ -153,8 +153,8 @@ class Snow17(BaseModel):
     """Pydantic model for Snow-17 module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str = Field(..., description="The catchment ID")
-    hru_id: str = Field(..., description="Unique divide identifier")
+    catchment: str | int = Field(..., description="The catchment ID")
+    hru_id: str | int = Field(..., description="Unique divide identifier")
     hru_area: float = Field(..., description="Incremental areas of divide")
     latitude: float = Field(..., description="Y coordinates of divide centroid")
     elev: float = Field(..., description="Elevation from DEM")
@@ -249,7 +249,7 @@ class SMP(BaseModel):
     """Pydantic model for SMP module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str = Field(..., description="The catchment ID")
+    catchment: str | int = Field(..., description="The catchment ID")
     soil_params_smcmax: FloatWithUnits = Field(
         ..., description="Maximum soil moisture content", alias="smcmax"
     )
@@ -347,40 +347,40 @@ class SacSma(BaseModel):
     """Pydantic model for SAC SMA module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str = Field(..., description="The catchment ID")
-    hru_id: str = Field(..., description="Unique divide identifier")
+    catchment: str | int = Field(..., description="The catchment ID")
+    hru_id: str | int = Field(..., description="Unique divide identifier")
     hru_area: float = Field(..., description="Incremental areas of divide")
-    uztwm: float = Field(
+    uztwm: float | None = Field(
         default=float(SacSmaValues.UZTWM.value), description="Maximum upper zone tension water"
     )
-    uzfwm: float = Field(default=float(SacSmaValues.UZFWM.value), description="Maximum upper zone free water")
-    lztwm: float = Field(
+    uzfwm: float | None = Field(default=float(SacSmaValues.UZFWM.value), description="Maximum upper zone free water")
+    lztwm: float | None = Field(
         default=float(SacSmaValues.LZTWM.value), description="Maximum lower zone tension water"
     )
-    lzfpm: float = Field(
+    lzfpm: float | None = Field(
         default=float(SacSmaValues.LZFPM.value), description="Maximum lower zone free water, primary"
     )
-    lzfsm: float = Field(
+    lzfsm: float  | None = Field(
         default=float(SacSmaValues.LZFSM.value), description="Maximum lower zone free water, secondary"
     )
     adimp: float = Field(
         default=float(SacSmaValues.ADIMP.value), description="Additional 'impervious' area due to saturation"
     )
-    uzk: float = Field(default=float(SacSmaValues.UZK.value), description="Upper zone recession coefficient")
-    lzpk: float = Field(
+    uzk: float | None = Field(default=float(SacSmaValues.UZK.value), description="Upper zone recession coefficient")
+    lzpk: float | None = Field(
         default=float(SacSmaValues.LZPK.value), description="Lower zone recession coefficient, primary"
     )
-    lzsk: float = Field(
+    lzsk: float | None = Field(
         default=float(SacSmaValues.LZSK.value), description="Lower zone recession coefficient, secondary"
     )
-    zperc: float = Field(
+    zperc: float | None = Field(
         default=float(SacSmaValues.ZPERC.value), description="Minimum percolation rate coefficient"
     )
-    rexp: float = Field(default=float(SacSmaValues.REXP.value), description="Percolation equation exponent")
+    rexp: float | None = Field(default=float(SacSmaValues.REXP.value), description="Percolation equation exponent")
     pctim: float = Field(
         default=float(SacSmaValues.PCTIM.value), description="Minimum percent impervious area"
     )
-    pfree: float = Field(
+    pfree: float | None = Field(
         default=float(SacSmaValues.PFREE.value),
         description="Percent percolating directly to lower zone free water",
     )
@@ -449,7 +449,7 @@ class LSTM(BaseModel):
     """
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str = Field(..., description="The catchment ID")
+    catchment: str | int = Field(..., description="The catchment ID")
     area_sqkm: float = Field(..., description="Allows bmi to adjust a weighted output")
     basin_id: str = Field(
         ..., description="Refer to https://github.com/NOAA-OWP/lstm/blob/master/bmi_config_files/README.md"
@@ -498,7 +498,7 @@ class LASAM(BaseModel):
     """Pydantic model for LASAM module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str = Field(..., description="The catchment ID")
+    catchment: str | int = Field(..., description="The catchment ID")
     layer_thickness: str = Field(default="200.0[cm]", description="Thickness of each layer (array)")
     initial_psi: str = Field(default="2000.0[cm]", description="NA")
     forcing_resolution: str = Field(default="3600[sec]", description="NA")
@@ -568,7 +568,7 @@ class NoahOwpModular(BaseModel):
     """Pydantic model for Noah OWP module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str = Field(..., description="The catchment ID")
+    catchment: str | int = Field(..., description="The catchment ID")
     general_table: str = Field(default="GENPARM.TBL", description="General param tables and misc params")
     soil_table: str = Field(default="SOILPARM.TBL", description="Soil param table")
     noahowp_table: str = Field(default="MPTABLE.TBL", description="Model param tables (includes veg)")
@@ -852,7 +852,7 @@ class TRoute(BaseModel):
     }
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str = Field(..., description="The catchment ID")
+    catchment: str | int = Field(..., description="The catchment ID")
     bmi_param: dict = Field(default=bmi_param, description="BMI Parameters")
     log_param: dict = Field(default=log_param, description="Log Parameters")
     nwtopo_param: dict = Field(default=nwtopo_param, description="Network Topology Parameters")
@@ -897,8 +897,8 @@ class Topmodel(BaseModel):
     """Pydantic model for Topmodel module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str | float = Field(..., description="The catchment ID")
-    divide_id: str | float = Field(..., description="The catchment ID")
+    catchment: str | int = Field(..., description="The catchment ID")
+    divide_id: str | int = Field(..., description="The catchment ID")
     num_sub_catchments: int = Field(default=1, description="Number of sub catchments")
     imap: int = Field(default=1, description="NA")
     twi: list[dict] = Field(default=[{"twi": "dist_4.twi"}], description="NA")
@@ -986,7 +986,7 @@ class Topoflow(BaseModel):
     """Pydantic model for Topoflow module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    site_prefix: str | float = Field(..., description="The catchment ID")
+    site_prefix: str | int = Field(..., description="The catchment ID")
     da: float = Field(..., description="drainage area")
     slope: float = Field(..., description="terrain slope in degrees")
     aspect: float = Field(..., description="terrain aspect in degrees")
@@ -1094,7 +1094,7 @@ class UEB(BaseModel):
     """Pydantic model for UEB module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str = Field(..., description="The catchment ID")
+    catchment: str | int = Field(..., description="The catchment ID")
     aspect: float = Field(..., description="Aspect computed from DEM")
     slope: float = Field(..., description="Slope")
     longitude: float = Field(..., description="X coordinates of divide centroid")
@@ -1264,7 +1264,7 @@ class CFE(BaseModel):
     """Pydantic model for CFE module configuration"""
 
     model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
-    catchment: str | float = Field(..., description="The catchment ID")
+    catchment: str | int = Field(..., description="The catchment ID")
     surface_partitioning_scheme: str = Field(..., description="Selects Xinanjiang or Schaake")
     surface_runoff_scheme: str = Field(
         default=CFEValues.SRFC_RUNOFF_SCHEME.value,

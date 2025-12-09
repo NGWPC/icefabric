@@ -162,14 +162,14 @@ def test_topoflow_parameters(mock_catalog, sample_graph, test_identifiers):
     catalog = mock_catalog("glue")
     namespace = "mock_hf"
     for identifier in test_identifiers:
-        lstm_models = get_topoflow_parameters(
+        topoflow_models = get_topoflow_parameters(
             catalog,
             namespace,
             identifier,
             graph=sample_graph,
         )
 
-        assert len(lstm_models) > 0, f"No Topoflow parameters generated for {identifier}"
+        assert len(topoflow_models) > 0, f"No Topoflow parameters generated for {identifier}"
 
 
 @pytest.mark.parametrize("version", ["CFE-S", "CFE-X"])

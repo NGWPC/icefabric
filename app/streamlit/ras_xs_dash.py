@@ -25,6 +25,8 @@ tmp_path = temp_dir / "xs_subset.gpkg"
 
 st.set_page_config(page_title="RAS XS", layout="wide")
 
+catalog = st.session_state.catalog
+
 with st.container():
     st.title("RAS XS")
     st.markdown(
@@ -69,9 +71,9 @@ if l_col.button("Submit"):
     try:
         with st.spinner(text="Fetching data..."):
             if xs_id is not None:
-                xs_gdf = get_data(xs_dom, xs_id)
+                xs_gdf = get_data(catalog, xs_dom, xs_id)
             elif all(var is not None for var in bbox_list):
-                xs_gdf = get_data(xs_dom, bbox_list)
+                xs_gdf = get_data(catalog, xs_dom, bbox_list)
 
         if xs_gdf.empty:
             l_col.error(
@@ -80,7 +82,7 @@ if l_col.button("Submit"):
         else:
             # Format and display map
             with st.spinner(text="Generating map..."):
-                xs_map = format_xs_map(xs_gdf)
+                xs_map = format_xs_map(catalog, xs_gdf)
                 r_col.markdown("#### Map")
                 with r_col:
                     st_folium(fig=xs_map, width=725, returned_objects=[])

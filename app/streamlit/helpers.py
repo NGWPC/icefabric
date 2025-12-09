@@ -4,7 +4,6 @@ import geopandas as gpd
 import pandas as pd
 import polars as pl
 import streamlit as st
-from pyiceberg.catalog import load_catalog
 from pyiceberg.expressions import In
 from shapely.geometry import box
 
@@ -17,14 +16,13 @@ domain_class_map = {"representative": RepresentativeRasXS, "conflated": Conflate
 
 
 @st.cache_data(show_spinner=False)
-def get_data(xs_dom, subset):
+def get_data(_catalog, xs_dom, subset):
     """Helper to call XS subsetting function. Caches the results."""
-    catalog = load_catalog("glue")
     if type(subset) is str:
-        xs_gdf = subset_xs(catalog=catalog, xstype=xs_dom, identifier=subset)
+        xs_gdf = subset_xs(catalog=_catalog, xstype=xs_dom, identifier=subset)
     elif type(subset) is list:
         bbox = box(*subset)
-        xs_gdf = subset_xs(catalog=catalog, xstype=xs_dom, bbox=bbox)
+        xs_gdf = subset_xs(catalog=_catalog, xstype=xs_dom, bbox=bbox)
     return xs_gdf
 
 
@@ -35,17 +33,16 @@ def convert_for_download(gdf, tmp_path):
     gpd.GeoDataFrame(gdf).to_file(tmp_path, driver="GPKG", mode="w")
 
 
-def format_xs_map(xs_gdf):
+def format_xs_map(_catalog, xs_gdf):
     """Helper to create/format a folium map to display the cross-sectional data."""
-    catalog = load_catalog("glue")
     # Pull and filter reference divides/flowpaths from the catalog
     reference_divides = to_geopandas(
-        catalog.load_table("conus_reference.reference_divides")
+        _catalog.load_table("conus_reference.reference_divides")
         .scan(row_filter=In("flowpath_id", xs_gdf["flowpath_id"]))
         .to_pandas()
     )
     reference_flowpaths = to_geopandas(
-        catalog.load_table("conus_reference.reference_flowpaths")
+        _catalog.load_table("conus_reference.reference_flowpaths")
         .scan(row_filter=In("flowpath_id", xs_gdf["flowpath_id"]))
         .to_pandas()
     )

@@ -353,20 +353,24 @@ class SacSma(BaseModel):
     uztwm: float | None = Field(
         default=float(SacSmaValues.UZTWM.value), description="Maximum upper zone tension water"
     )
-    uzfwm: float | None = Field(default=float(SacSmaValues.UZFWM.value), description="Maximum upper zone free water")
+    uzfwm: float | None = Field(
+        default=float(SacSmaValues.UZFWM.value), description="Maximum upper zone free water"
+    )
     lztwm: float | None = Field(
         default=float(SacSmaValues.LZTWM.value), description="Maximum lower zone tension water"
     )
     lzfpm: float | None = Field(
         default=float(SacSmaValues.LZFPM.value), description="Maximum lower zone free water, primary"
     )
-    lzfsm: float  | None = Field(
+    lzfsm: float | None = Field(
         default=float(SacSmaValues.LZFSM.value), description="Maximum lower zone free water, secondary"
     )
     adimp: float = Field(
         default=float(SacSmaValues.ADIMP.value), description="Additional 'impervious' area due to saturation"
     )
-    uzk: float | None = Field(default=float(SacSmaValues.UZK.value), description="Upper zone recession coefficient")
+    uzk: float | None = Field(
+        default=float(SacSmaValues.UZK.value), description="Upper zone recession coefficient"
+    )
     lzpk: float | None = Field(
         default=float(SacSmaValues.LZPK.value), description="Lower zone recession coefficient, primary"
     )
@@ -376,7 +380,9 @@ class SacSma(BaseModel):
     zperc: float | None = Field(
         default=float(SacSmaValues.ZPERC.value), description="Minimum percolation rate coefficient"
     )
-    rexp: float | None = Field(default=float(SacSmaValues.REXP.value), description="Percolation equation exponent")
+    rexp: float | None = Field(
+        default=float(SacSmaValues.REXP.value), description="Percolation equation exponent"
+    )
     pctim: float = Field(
         default=float(SacSmaValues.PCTIM.value), description="Minimum percent impervious area"
     )

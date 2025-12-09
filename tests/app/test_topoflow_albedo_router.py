@@ -1,5 +1,7 @@
-from icefabric.schemas.modules import AlbedoValues
 import pytest
+
+from icefabric.schemas.modules import AlbedoValues
+
 
 @pytest.mark.skip(reason="albedo not used at this time")
 def test_albedo_endpoint(client):
@@ -8,6 +10,7 @@ def test_albedo_endpoint(client):
         response = client.get(f"/v1/modules/topoflow/albedo?landcover={landcover}")
         assert response.status_code == 200
         assert response.text == str(albedo.value)
+
 
 @pytest.mark.skip(reason="albedo not used at this time")
 def test_albedo_endpoint__422(client):

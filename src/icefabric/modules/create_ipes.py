@@ -644,7 +644,10 @@ def get_troute_parameters(
 
     pydantic_models = []
     for _, row_dict in divide_attr_df.iterrows():
-        model_instance = TRoute(catchment=row_dict["divide_id"], nwtopo_param=nwtopo_param)
+        if namespace == HydrofabricDomains.NHF:
+            model_instance = TRoute(catchment=row_dict["div_id"], nwtopo_param=nwtopo_param)
+        else:
+            model_instance = TRoute(catchment=row_dict["divide_id"], nwtopo_param=nwtopo_param)
         pydantic_models.append(model_instance)
     return pydantic_models
 

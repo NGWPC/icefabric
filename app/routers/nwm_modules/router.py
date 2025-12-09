@@ -616,8 +616,21 @@ async def get_calibratable_parameter_metadata(
     module: str = Query(
         ...,
         description="module name",
-        examples=["cfe-x"],
-        openapi_examples={"cfe_example": {"summary": "CFE Example", "value": "cfe-x"}},
+        openapi_examples={
+            "CFE-S": {"summary": "CFE-S", "value": "cfe-s"},
+            "CFE-X": {"summary": "CFE-X", "value": "cfe-x"},
+            "LASAM": {"summary": "LASAM", "value": "lasam"},
+            "LSTM": {"summary": "LSTM", "value": "lstm"},
+            "NOAH-OWP": {"summary": "NOAH-OWP", "value": "noahowp"},
+            "SACSMA": {"summary": "SACSMA", "value": "sacsma"},
+            "SFT": {"summary": "SFT", "value": "sft"},
+            "SMP": {"summary": "SMP", "value": "smp"},
+            "SNOW-17": {"summary": "SNOW-17", "value": "snow17"},
+            "TROUTE": {"summary": "TROUTE", "value": "troute"},
+            "TOPMODEL": {"summary": "TOPMODEL", "value": "topmodel"},
+            "TOPOFLOW": {"summary": "TOPOFLOW", "value": "topoflow"},
+            "UEB": {"summary": "UEB", "value": "ueb"},
+        },
     ),
     catalog: Catalog = Depends(get_catalog),
 ):

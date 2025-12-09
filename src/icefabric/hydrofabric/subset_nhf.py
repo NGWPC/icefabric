@@ -9,10 +9,9 @@ import geopandas as gpd
 import polars as pl
 import pyogrio
 import rustworkx as rx
-from pyiceberg.catalog import Catalog, load_catalog
+from pyiceberg.catalog import Catalog
 
 from icefabric.cli.streamflow import NoResultsFoundError
-from icefabric.helpers.creds import load_creds
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -304,7 +303,7 @@ def subset_nhf(
     flowpath_id: int | None = None,
     gage_id: str | None = None,
     vpu_id: str | None = None,
-    catalog: bool = False,
+    catalog: Catalog | None = None,
     parquet_dir: Path | None = None,
     output: Path | None = None,
 ) -> dict[str, gpd.GeoDataFrame]:
@@ -340,19 +339,14 @@ def subset_nhf(
         sys.exit(1)
 
     # Initialize data source
-    iceberg_catalog: Catalog | None = None
-    if catalog:
-        logger.debug("Using Iceberg catalog...")
-        load_creds()
-        iceberg_catalog = load_catalog("glue")
-    else:
+    if catalog is None:
         if parquet_dir is None:
             logger.error("Must provide --parquet-dir when not using --catalog")
             sys.exit(1)
         if not parquet_dir.exists():
             raise FileNotFoundError(f"Parquet directory not found: {parquet_dir}")
 
-    source = HydrofabricSource(parquet_dir=parquet_dir, catalog=iceberg_catalog)
+    source = HydrofabricSource(parquet_dir=parquet_dir, catalog=catalog)
 
     # ==================================================================
     # VPU PATH - no graph needed, just filter by vpu_id

@@ -62,7 +62,6 @@ class DivideAttributesHF(enum.Enum):
     DEC = "dec_temp_range"
 
 
-
 class DivideAttributesNHF(enum.Enum):
     """Enum containing NHF divide attribute names"""
 
@@ -100,7 +99,7 @@ class DivideAttributesNHF(enum.Enum):
     BXAJ = "b_xinanjiang_shape_parameter"
     XXAJ = "x_xinanjiang_shape_parameter"
     LZFPM = "lzfpm_mean"
-    LZPK =  "lzpk_mean"
+    LZPK = "lzpk_mean"
     LZTWM = "lztwm_mean"
     REXP = "rexp_mean"
     UZK = "uzk_mean"

@@ -1,4 +1,3 @@
-import collections
 import json
 
 import geopandas as gpd
@@ -150,7 +149,7 @@ def get_sft_parameters(
 
     pydantic_models = []
     for _, row_dict in divide_attr_df.iterrows():
-        #Quartz doesn't exist in the HF2.2 divide attributes, use default value.
+        # Quartz doesn't exist in the HF2.2 divide attributes, use default value.
         if namespace == HydrofabricDomains.NHF:
             quartz_value = row_dict[attr_names.QUARTZ.value]
         else:
@@ -630,14 +629,17 @@ def get_troute_parameters(
     Returns
     -------
     list[TRoute]
-        The list of all initial parameters for catchments using TRoute
+        The list of TRoute parameters for the gauge.
     """
-    gauge = get_subset(catalog=catalog, identifier=identifier, namespace=namespace, graph=graph)
-
     pydantic_models = TRoute()
+
+    # Add geopackage filename
     gpkg_string = f"hydrofabric_subset_{identifier}_site_no.gpkg"
     pydantic_models.network_topology_parameters["supernetwork_parameters"]["geo_file_path"] = gpkg_string
-    pydantic_models.network_topology_parameters["waterbody_parameters"]["level_pool"]["level_pool_waterbody_parameter_file_path"] = gpkg_string
+    pydantic_models.network_topology_parameters["waterbody_parameters"]["level_pool"][
+        "level_pool_waterbody_parameter_file_path"
+    ] = gpkg_string
+
     return [pydantic_models]
 
 

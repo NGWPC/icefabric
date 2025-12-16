@@ -150,12 +150,18 @@ def get_sft_parameters(
 
     pydantic_models = []
     for _, row_dict in divide_attr_df.iterrows():
+        #Quartz doesn't exist in the HF2.2 divide attributes, use default value.
+        if namespace == HydrofabricDomains.NHF:
+            quartz_value = row_dict[attr_names.QUARTZ.value]
+        else:
+            quartz_value = 1.0
         # Instantiate the Pydantic model for each row
         model_instance = SFT(
             catchment=row_dict[attr_names.DIVIDE_ID.value],
             smcmax={"value": row_dict[attr_names.SMCMAX.value], "units": "m/m"},
             b={"value": row_dict[attr_names.BEXP.value], "units": None},
             satpsi={"value": row_dict[attr_names.PSISAT.value], "units": "m"},
+            quartz={"value": quartz_value, "units": "m"},
             ice_fraction_scheme=IceFractionScheme.XINANJIANG
             if use_schaake is False
             else IceFractionScheme.SCHAAKE,
@@ -628,28 +634,11 @@ def get_troute_parameters(
     """
     gauge = get_subset(catalog=catalog, identifier=identifier, namespace=namespace, graph=graph)
 
-    # Extraction of relevant features from divide attributes layer
-    divide_attr_df = (
-        pd.DataFrame(gauge["divide-attributes"])
-        if namespace != HydrofabricDomains.NHF
-        else pd.DataFrame(gauge["divides"])
-    )
-    # Replace any NaNs in dataframe with None so it can be converted to JSON by FastAPI
-    divide_attr_df = divide_attr_df.replace({np.nan: None})
-    nwtopo_param = collections.defaultdict(dict)
-    nwtopo_param["supernetwork_parameters"].update({"geo_file_path": f"gauge_{identifier}.gpkg"})
-    nwtopo_param["waterbody_parameters"].update(
-        {"level_pool": {"level_pool_waterbody_parameter_file_path": f"gauge_{identifier}.gpkg"}}
-    )
-
-    pydantic_models = []
-    for _, row_dict in divide_attr_df.iterrows():
-        if namespace == HydrofabricDomains.NHF:
-            model_instance = TRoute(catchment=row_dict["div_id"], nwtopo_param=nwtopo_param)
-        else:
-            model_instance = TRoute(catchment=row_dict["divide_id"], nwtopo_param=nwtopo_param)
-        pydantic_models.append(model_instance)
-    return pydantic_models
+    pydantic_models = TRoute()
+    gpkg_string = f"hydrofabric_subset_{identifier}_site_no.gpkg"
+    pydantic_models.network_topology_parameters["supernetwork_parameters"]["geo_file_path"] = gpkg_string
+    pydantic_models.network_topology_parameters["waterbody_parameters"]["level_pool"]["level_pool_waterbody_parameter_file_path"] = gpkg_string
+    return [pydantic_models]
 
 
 def get_topmodel_parameters(
@@ -1035,9 +1024,9 @@ def get_cfe_parameters(
 
         model_instance = CFE(
             catchment=row_dict[attr_names.DIVIDE_ID.value],
-            surface_partitioning_scheme=surface_partitioning_scheme,
+            surface_water_partitioning_scheme=surface_partitioning_scheme,
             is_sft_coupled=str(is_sft_coupled),
-            ice_content_thresh=ice_content_thresh,
+            ice_content_threshold=ice_content_thresh,
             soil_params_b={"value": row_dict[attr_names.BEXP.value], "units": CFEUnits.SOIL_B.value},
             soil_params_satdk={
                 "value": row_dict[attr_names.DKSAT.value],
@@ -1061,7 +1050,7 @@ def get_cfe_parameters(
             },
             max_gw_storage={
                 "value": row_dict[attr_names.ZMAX.value],
-                "units": CFEUnits.MAX_GIUH_STORAGE.value,
+                "units": CFEUnits.MAX_GW_STORAGE.value,
             },
             Cgw={"value": row_dict[attr_names.COEFF.value], "units": CFEUnits.EXPON.value},
             expon={"value": row_dict[attr_names.EXPON.value], "units": CFEUnits.EXPON.value},

@@ -124,3 +124,4 @@ class DivideAttributesNHF(enum.Enum):
     OCT = "temp_delta_oct_mean"
     NOV = "temp_delta_nov_mean"
     DEC = "temp_delta_dec_mean"
+    QUARTZ = "quartz_mean"

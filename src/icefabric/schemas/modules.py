@@ -272,7 +272,7 @@ class SMP(BaseModel):
         ...,
         description="Soil moisture retention curve parameter (bexp)",
         alias="b",
-        serialization_alias="soil_params.bexp",
+        serialization_alias="soil_params.b",
     )
     soil_params_satpsi: FloatWithUnits = Field(
         ...,

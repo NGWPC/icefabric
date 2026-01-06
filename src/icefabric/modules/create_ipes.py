@@ -1054,7 +1054,7 @@ def get_cfe_parameters(
                 "value": row_dict[attr_names.ZMAX.value],
                 "units": CFEUnits.MAX_GW_STORAGE.value,
             },
-            Cgw={"value": row_dict[attr_names.COEFF.value], "units": CFEUnits.EXPON.value},
+            Cgw={"value": row_dict[attr_names.COEFF.value], "units": CFEUnits.CGW.value},
             expon={"value": row_dict[attr_names.EXPON.value], "units": CFEUnits.EXPON.value},
             a_Xinanjiang_inflection_point_parameter=a_Xinanjiang_inflection_point_parameter,
             b_Xinanjiang_shape_parameter=b_Xinanjiang_shape_parameter,

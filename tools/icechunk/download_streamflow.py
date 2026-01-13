@@ -97,7 +97,7 @@ def get_usgs_streamflow(begin_date: str, end_date: str, site_info: str) -> pd.Da
         },
     )
 
-    df = ds.to_dataframe().pivot_table(index="time", columns="id", values="q_cms", dropna=False)
+    df = ds.to_dataframe().reset_index().set_index(["time", "id"])
     return df
 
 
@@ -145,18 +145,18 @@ def get_cadwr_streamflow(begin_date: str, end_date: str, site_info: str) -> pd.D
     # Check for duplicate time series, keep first by default
     observations = observations.drop_duplicates(subset=["OBS DATE"], keep="first").reset_index(drop=True)
     observations["OBS DATE"] = pd.to_datetime(observations["OBS DATE"], format="%Y%m%d %H%M")
+    df = observations.rename(columns={"OBS DATE": "time", "VALUE": "q_cms"})
 
     # Resample to hourly, keep first measurement in each 1-hour bin
-    df = observations.set_index("OBS DATE").resample("h").first()
+    df = df.set_index("time").resample("h").first()
 
     # Expand data to full date range
     full_date_range = pd.date_range(begin_date, end_date, freq="h")
     df = df.reindex(full_date_range)
 
-    # Rename columns, add gage_id column, then pivot to wide format
+    # Rename columns, add gage_id column then set multi-index
     df["id"] = gage_id
-    df = df.rename_axis("time").reset_index().rename(columns={"VALUE": "q_cms"})
-    df = df.pivot_table(index="time", columns="id", values="q_cms", dropna=False).reset_index()
+    df = df.reset_index(names="time").set_index(["time", "id"])
 
     return df
 
@@ -192,14 +192,9 @@ def get_txdot_streamflow(begin_date: str, end_date: str, site_info: str) -> pd.D
 
     df["time"] = df["time"].dt.tz_localize(None)
     full_date_range = pd.date_range(begin_date, end_date, freq="h")
-    df = df.reset_index().drop("index", axis=1).set_index("time").reindex(full_date_range)
+    df = df.set_index("time").reindex(full_date_range)
     df["id"] = gauge_id
-    df = (
-        df.rename_axis("time")
-        .reset_index()
-        .pivot_table(index="time", columns="id", values="q_cms", dropna=False)
-        .reset_index()
-    )
+    df = df.reset_index(names="time").set_index(["time", "id"])
 
     return df
 

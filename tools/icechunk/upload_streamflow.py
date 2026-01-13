@@ -2,6 +2,7 @@ from pathlib import Path
 
 import click
 import icechunk
+import numpy as np
 import pandas as pd
 from icechunk.xarray import to_icechunk
 from tqdm import tqdm
@@ -60,7 +61,11 @@ def upload_usgs_streamflow(
         for batch in tqdm(file_batches, bar_format=bar_format):
             dataframes = []
             for file in batch:
-                dataframes.append(pd.read_parquet(file))
+                df = pd.read_parquet(file)
+                if "q_cms_denoted_3" not in df.columns:
+                    df["q_cms_denoted_3"] = np.nan
+                    df["q_cms_denoted_3"] = df["q_cms_denoted_3"].astype(float)
+                dataframes.append(df)
             batch_ds = pd.concat(dataframes, axis=0).to_xarray()
             batch_ds.coords["id"] = batch_ds.coords["id"].astype("<U15")
             if overwrite and i == 0:

@@ -125,3 +125,69 @@ class DivideAttributesNHF(enum.Enum):
     NOV = "temp_delta_nov_mean"
     DEC = "temp_delta_dec_mean"
     QUARTZ = "quartz_mean"
+
+
+class ParametersToDivideAttributesNHF:
+    """Mapping of parameter names to NHF divide attribute names"""
+
+    parametersNHF = {
+        "a_Xinanjiang_inflection_point_parameter": DivideAttributesNHF.AXAJ.value,
+        "b_Xinanjiang_shape_parameter": DivideAttributesNHF.BXAJ.value,
+        "x_Xinanjiang_shape_parameter": DivideAttributesNHF.XXAJ.value,
+        "lzfpm": DivideAttributesNHF.LZFPM.value,
+        "lzpk": DivideAttributesNHF.LZPK.value,
+        "lztwm": DivideAttributesNHF.LZTWM.value,
+        "rexp": DivideAttributesNHF.REXP.value,
+        "uzk": DivideAttributesNHF.UZK.value,
+        "zperc": DivideAttributesNHF.ZPERC.value,
+        "lzfsm": DivideAttributesNHF.LZFSM.value,
+        "lzsk": DivideAttributesNHF.LZSK.value,
+        "pfree": DivideAttributesNHF.PFREE.value,
+        "uzfwm": DivideAttributesNHF.UZFWM.value,
+        "uztwm": DivideAttributesNHF.UZTWM.value,
+        "mfmin": DivideAttributesNHF.MFMIN.value,
+        "mfmax": DivideAttributesNHF.MFMAX.value,
+        "uadj": DivideAttributesNHF.UADJ.value,
+        "soil_params.b": DivideAttributesNHF.BEXP.value,
+        "soil_params.satdk": DivideAttributesNHF.DKSAT.value,
+        "soil_params.satpsi": DivideAttributesNHF.PSISAT.value,
+        "soil_params.slop": DivideAttributesNHF.SLOPE_1KM.value,
+        "soil_params.smcmax": DivideAttributesNHF.SMCMAX.value,
+        "soil_params.wltsmc": DivideAttributesNHF.SMCWLT.value,
+        "max_gw_storage": DivideAttributesNHF.ZMAX.value,
+        "Cgw": DivideAttributesNHF.COEFF.value,
+        "expon": DivideAttributesNHF.EXPON.value,
+    }
+
+
+class ParametersToDivideAttributesHF:
+    """Mapping of parameter names to 2.2 divide attribute names"""
+
+    parametersHF = {
+        "a_Xinanjiang_inflection_point_parameter": DivideAttributesHF.AXAJ.value,
+        "b_Xinanjiang_shape_parameter": DivideAttributesHF.BXAJ.value,
+        "x_Xinanjiang_shape_parameter": DivideAttributesHF.XXAJ.value,
+        "lzfpm": DivideAttributesHF.LZFPM.value,
+        "lzpk": DivideAttributesHF.LZPK.value,
+        "lztwm": DivideAttributesHF.LZTWM.value,
+        "rexp": DivideAttributesHF.REXP.value,
+        "uzk": DivideAttributesHF.UZK.value,
+        "zperc": DivideAttributesHF.ZPERC.value,
+        "lzfsm": DivideAttributesHF.LZFSM.value,
+        "lzsk": DivideAttributesHF.LZSK.value,
+        "pfree": DivideAttributesHF.PFREE.value,
+        "uzfwm": DivideAttributesHF.UZFWM.value,
+        "uztwm": DivideAttributesHF.UZTWM.value,
+        "mfmin": DivideAttributesHF.MFMIN.value,
+        "mfmax": DivideAttributesHF.MFMAX.value,
+        "uadj": DivideAttributesHF.UADJ.value,
+        "soil_params.b": DivideAttributesHF.BEXP.value,
+        "soil_params.satdk": DivideAttributesHF.DKSAT.value,
+        "soil_params.satpsi": DivideAttributesHF.PSISAT.value,
+        "soil_params.slop": DivideAttributesHF.SLOPE_1KM.value,
+        "soil_params.smcmax": DivideAttributesHF.SMCMAX.value,
+        "soil_params.wltsmc": DivideAttributesHF.SMCWLT.value,
+        "max_gw_storage": DivideAttributesHF.ZMAX.value,
+        "Cgw": DivideAttributesHF.COEFF.value,
+        "expon": DivideAttributesHF.EXPON.value,
+    }

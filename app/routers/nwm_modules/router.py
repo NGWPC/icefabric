@@ -613,34 +613,99 @@ async def get_cfe_ipes(
 
 @parameter_metadata_router.get("/", tags=["NWM Modules"])
 async def get_calibratable_parameter_metadata(
-    module: str = Query(
+    modules: list[str] = Query(
         ...,
         description="module name",
         openapi_examples={
-            "CFE-S": {"summary": "CFE-S", "value": "cfe-s"},
-            "CFE-X": {"summary": "CFE-X", "value": "cfe-x"},
-            "LASAM": {"summary": "LASAM", "value": "lasam"},
-            "LSTM": {"summary": "LSTM", "value": "lstm"},
-            "NOAH-OWP": {"summary": "NOAH-OWP", "value": "noahowp"},
-            "SACSMA": {"summary": "SACSMA", "value": "sacsma"},
-            "SFT": {"summary": "SFT", "value": "sft"},
-            "SMP": {"summary": "SMP", "value": "smp"},
-            "SNOW-17": {"summary": "SNOW-17", "value": "snow17"},
-            "TROUTE": {"summary": "TROUTE", "value": "troute"},
-            "TOPMODEL": {"summary": "TOPMODEL", "value": "topmodel"},
-            "TOPOFLOW": {"summary": "TOPOFLOW", "value": "topoflow"},
-            "UEB": {"summary": "UEB", "value": "ueb"},
+            "CFE-S": {"summary": "CFE-S", "value": "CFE-S"},
+            "CFE-X": {"summary": "CFE-X", "value": "CFE-X"},
+            "LASAM": {"summary": "LASAM", "value": "lASAM"},
+            "LSTM": {"summary": "LSTM", "value": "LSTM"},
+            "Noah-OWP-Modular": {"summary": "Noah-OWP-Modular", "value": "Noah-OWP-Modular"},
+            "Sac-SMA": {"summary": "Sac-SMA", "value": "Sac-SMA"},
+            "SFT": {"summary": "SFT", "value": "SFT"},
+            "SMP": {"summary": "SMP", "value": "SMP"},
+            "Snow-17": {"summary": "Snow-17", "value": "Snow-17"},
+            "T-Route": {"summary": "T-Route", "value": "T-Route"},
+            "TopModel": {"summary": "TopModel", "value": "TopModel"},
+            "TopoFlow": {"summary": "TopoFlow", "value": "TopoFlow"},
+            "UEB": {"summary": "UEB", "value": "UEB"},
+        },
+    ),
+    gage_id: str = Query(
+        None,
+        description="Gage ID for averaging calibratable parameter values over all catchments in the subset.",
+        examples=["01010000"],
+        openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
+    ),
+    domain: str = Query(
+        None,
+        description="The iceberg namespace used to query the hydrofabric.",
+        openapi_examples={
+            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
+            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
         },
     ),
     catalog: Catalog = Depends(get_catalog),
+    network_graphs=Depends(get_graphs),
 ):
     """
     An endpoint to return calibratable parameter metadata for a module.
 
     **Parameters:**
-    - **module**: The Gage ID from which upstream catchments are traced.
+    - **modules**: a list of modules.
+    - **gage_id**: The Gage ID for averaging calibratable parameter values over all catchments in the subset.
+    - **domain**: The Iceberg namespace used corresponding to a HF version and domain.
 
     **Returns:**
     A JSON containing metadata for a module's calibratable parameters.
     """
-    return get_parameter_metadata(module, catalog)
+    # Map the NWM module names to the icefabric module names
+    nwm_icefabric_module_mapping = {
+        "CFE-S": "cfe-s",
+        "CFE-X": "cfe-x",
+        "LASAM": "lasam",
+        "LSTM": "lstm",
+        "Noah-OWP-Modular": "noahowp",
+        "Sac-SMA": "sacsma",
+        "SFT": "sft",
+        "SMP": "smp",
+        "Snow-17": "snow17",
+        "T-Route": "troute",
+        "TopModel": "topmodel",
+        "Topoflow": "topoflow",
+        "UEB": "ueb",
+    }
+
+    # Map the icefabric module names back to the NWM module names
+    icefabric_nwm_module_mapping = {
+        "cfe-s": "CFE-S",
+        "cfe-x": "CFE-X",
+        "lasam": "LASAM",
+        "lstm": "LSTM",
+        "noahowp": "Noah-OWP-Modular",
+        "sacsma": "Sac-SMA",
+        "sft": "SFT",
+        "smp": "SMP",
+        "snow17": "Snow-17",
+        "troute": "T-Route",
+        "topmodel": "TopModel",
+        "topoflow": "Topoflow",
+        "ueb": "UEB",
+    }
+    modules = [nwm_icefabric_module_mapping.get(mod, mod) for mod in modules]
+
+    parameter_metadata = get_parameter_metadata(
+        modules=modules,
+        catalog=catalog,
+        gage_id=f"gages-{gage_id}" if domain == HydrofabricDomains.CONUS else gage_id,
+        domain=domain,
+        graph=network_graphs[domain] if domain == HydrofabricDomains.CONUS else None,
+    )
+
+    for module in parameter_metadata:
+        module_name = module["module_name"]
+        NWM_module_name = icefabric_nwm_module_mapping.get(module_name, module_name)
+        module["module_name"] = NWM_module_name
+
+    return parameter_metadata

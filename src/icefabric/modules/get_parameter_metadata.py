@@ -35,9 +35,9 @@ def get_parameter_metadata(
         Defaults to true
     metadata : list
         a list of columns to return. If not included, name, description, units, data_type,
-        default_value, min, max are returned
+        initial_value, min, max are returned
     gage_id: str
-        if provided, the subsetter is run for the gage and basin averaged parameters are returned for default value
+        if provided, the subsetter is run for the gage and basin averaged parameters are returned for initial value
 
     Returns
     -------
@@ -46,7 +46,7 @@ def get_parameter_metadata(
     """
     # if metadata argument is empty, set default columns to return
     if metadata is None:
-        metadata = ["name", "description", "units", "data_type", "default_value", "min", "max"]
+        metadata = ["name", "description", "units", "data_type", "initial_value", "min", "max"]
 
     # make sure that the name gets returned when the user selects the columns to return
     if "name" not in metadata:
@@ -100,7 +100,7 @@ def get_parameter_metadata(
 
         # For each parameter, check if the name maps to an NHF or 2.2 divide attribute name,
         # then compute a basin area weighted average.  If the divide attributes do not exist for the gage,
-        # return the original default value.
+        # return the original initial value.
         if gage_id is not None:
             parameter_lookup = (
                 ParametersToDivideAttributesNHF.parametersNHF
@@ -118,7 +118,7 @@ def get_parameter_metadata(
                     numerator = (attr[attr_name] * attr["area_sqkm"]).sum()
                     denominator = attr["area_sqkm"].sum()
                     weighted_avg = numerator / denominator if denominator != 0 else None
-                    module_params.at[index, "default_value"] = weighted_avg
+                    module_params.at[index, "initial_value"] = weighted_avg
 
         # convert dataframe to a list of dictionaries
         module_params_dict = module_params.to_dict(orient="records")

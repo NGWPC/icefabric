@@ -239,9 +239,7 @@ async def get_lasam_ipes(
     soil_params_file: str = Query(
         "vG_default_params_HYDRUS.dat",
         description="Name of the Van Genuchton soil parameters file. Note: This is the filename that gets returned by HF API's utility script get_hydrus_data().",
-        openapi_examples={
-            "lasam_example": {"summary": "LASAM Example", "value": "vG_default_params_HYDRUS.dat"}
-        },
+        openapi_examples={"lasam_example": {"summary": "LASAM Example", "value": "vG_default_params_HYDRUS.dat"}},
     ),
     catalog: Catalog = Depends(get_catalog),
     network_graphs=Depends(get_graphs),
@@ -638,7 +636,7 @@ async def get_calibratable_parameter_metadata(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: str = Query(
+    domain: HydrofabricDomains | None = Query(
         None,
         description="The iceberg namespace used to query the hydrofabric.",
         openapi_examples={
@@ -699,7 +697,7 @@ async def get_calibratable_parameter_metadata(
         modules=modules,
         catalog=catalog,
         gage_id=f"gages-{gage_id}" if domain == HydrofabricDomains.CONUS else gage_id,
-        domain=domain,
+        domain=domain.value if domain else None,
         graph=network_graphs[domain] if domain == HydrofabricDomains.CONUS else None,
     )
 

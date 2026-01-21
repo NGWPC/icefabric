@@ -51,6 +51,18 @@ class HydrofabricDomains(str, Enum):
     PRVI = "prvi_hf"
     NHF = "nhf"
 
+    @classmethod
+    def _missing_(cls, value):
+        """Accept user-friendly domain names as aliases."""
+        aliases = {
+            "CONUS": cls.CONUS,
+            "Alaska": cls.AK,
+            "Hawaii": cls.HI,
+            "Puerto_Rico": cls.PRVI,
+            "Great_Lakes": cls.GL,
+        }
+        return aliases.get(value)
+
 
 class StreamflowDataSources(str, Enum):
     """The data sources used for hourly streamflow data"""

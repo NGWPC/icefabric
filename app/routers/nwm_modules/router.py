@@ -706,4 +706,4 @@ async def get_calibratable_parameter_metadata(
         NWM_module_name = icefabric_nwm_module_mapping.get(module_name, module_name)
         module["module_name"] = NWM_module_name
 
-    return parameter_metadata
+    return {"modules": parameter_metadata}

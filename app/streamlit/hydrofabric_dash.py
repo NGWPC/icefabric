@@ -1,5 +1,7 @@
 import folium
 import geopandas as gpd
+import numpy as np
+import pandas as pd
 import streamlit as st
 from botocore.exceptions import ClientError
 from streamlit_folium import st_folium
@@ -98,7 +100,7 @@ if subset_submit and submit_valid:
 
         # Display map
         if subset_type != "VPU ID":
-            with r_col.expander("Map View", icon=":material/map:"):
+            with r_col.expander("Map View", icon=":material/map:", expanded=True):
                 st.markdown(f"#### __Map Results ({subset_type}: {subset_user_sel})__")
 
                 # Create a folium map centered on the subset data
@@ -113,16 +115,32 @@ if subset_submit and submit_valid:
                             geometry=gpd.GeoSeries.from_wkt(df["geometry"]),
                             crs="EPSG:5070",
                         ).to_crs(epsg=4326)
-                        style = LAYER_FOLIUM_STYLING_MAP[layer_name]["style"]
-                        marker_styling = LAYER_FOLIUM_STYLING_MAP[layer_name]["marker_styling"]
+
+                        # Ensure ID fields are strings for proper display in popups
+                        id_field_names = [
+                            c for c in gdf.columns.tolist() if c.endswith("_id") and c != "vpu_id"
+                        ]
+                        for fn in id_field_names:
+                            if gdf[fn].dtype == "int64" or gdf[fn].dtype == "float64":
+                                # Convert floats/ints to string, handling NaNs
+                                gdf[fn] = df[fn].apply(lambda x: f"{int(x)}" if pd.notna(x) else np.nan)
+
+                        styling = LAYER_FOLIUM_STYLING_MAP[layer_name].get("styling", {})
+                        highlight_styling = LAYER_FOLIUM_STYLING_MAP[layer_name].get("highlight_styling", {})
+                        marker_styling = LAYER_FOLIUM_STYLING_MAP[layer_name].get("marker_styling", None)
                         popup_fields = list(gdf.columns)
                         popup_fields.remove("geometry")
                         gdf_poly = folium.GeoJson(
                             data=gdf,
                             popup=folium.GeoJsonPopup(fields=popup_fields[:15]),
-                            tooltip=folium.GeoJsonTooltip(fields=[popup_fields[0]]),
+                            tooltip=folium.GeoJsonTooltip(
+                                fields=[popup_fields[0]],
+                                aliases=[f"{layer_name.title().replace('_', ' ')} ID:"],
+                            ),
+                            style_function=lambda x, styling=styling: styling,
+                            highlight_function=lambda x,
+                            highlight_styling=highlight_styling: highlight_styling,
                             marker=marker_styling,
-                            style_function=lambda x, style=style: style,
                         )
                         if layer_name == "divides" or layer_name == "flowpaths":
                             gdf_fig = folium.FeatureGroup(name=layer_name)

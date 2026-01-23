@@ -17,43 +17,43 @@ domain_class_map = {"representative": RepresentativeRasXS, "conflated": Conflate
 
 LAYER_FOLIUM_STYLING_MAP = {
     "divides": {
-        "style": {
+        "styling": {
             "color": "grey",
             "weight": 1.5,
             "opacity": 0.5,
             "fillOpacity": 0.5,
             "dashArray": [5, 5],
         },
-        "marker_styling": None,
+        "highlight_styling": {
+            "weight": 3,
+            "opacity": 0.8,
+            "fillOpacity": 0.8,
+        },
     },
     "flowpaths": {
-        "style": {
+        "styling": {
             "color": "darkblue",
-            "weight": 3,
+            "weight": 4,
             "opacity": 1,
-            "fillOpacity": 1,
         },
-        "marker_styling": None,
+        "highlight_styling": {
+            "weight": 8,
+        },
     },
-    "nexus": {"style": {}, "marker_styling": folium.Marker(icon=folium.Icon(color="orange", icon="filter"))},
-    "waterbodies": {
-        "style": {},
-        "marker_styling": folium.Marker(icon=folium.Icon(color="blue", icon="tint")),
-    },
-    "gages": {"style": {}, "marker_styling": folium.Marker(icon=folium.Icon(color="darkred", icon="record"))},
+    "nexus": {"marker_styling": folium.Marker(icon=folium.Icon(color="orange", icon="filter"))},
+    "waterbodies": {"marker_styling": folium.Marker(icon=folium.Icon(color="blue", icon="tint"))},
+    "gages": {"marker_styling": folium.Marker(icon=folium.Icon(color="darkred", icon="record"))},
     "virtual_flowpaths": {
-        "style": {
-            "color": "blue",
+        "styling": {
+            "color": "white",
             "weight": 2,
-            "opacity": 0.67,
-            "fillOpacity": 0.67,
+            "opacity": 1,
         },
-        "marker_styling": None,
+        "highlight_styling": {
+            "weight": 4,
+        },
     },
-    "virtual_nexus": {
-        "style": {},
-        "marker_styling": folium.Marker(icon=folium.Icon(color="green", icon="filter")),
-    },
+    "virtual_nexus": {"marker_styling": folium.Marker(icon=folium.Icon(color="green", icon="filter"))},
 }
 
 

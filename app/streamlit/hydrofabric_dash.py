@@ -1,7 +1,11 @@
+import folium
+import geopandas as gpd
 import streamlit as st
 from botocore.exceptions import ClientError
+from streamlit_folium import st_folium
 
 from app.streamlit.helpers import (
+    LAYER_FOLIUM_STYLING_MAP,
     display_nhf_schemas,
     load_hf_gpkg,
     post_transient_success_msg,
@@ -82,8 +86,9 @@ if subset_submit and submit_valid:
         # Vertical spacing
         r_col.space()
 
-        # Load and display subset data
         subset_dfs = load_hf_gpkg(subset_gpkg_file)
+
+        # Display subset data
         df_group = r_col.container(border=True)
         with df_group:
             st.markdown(f"#### __Subset Data Results ({subset_type}: {subset_user_sel})__")
@@ -91,6 +96,51 @@ if subset_submit and submit_valid:
                 with st.expander(f"##### __{name}__", icon=":material/data_table:"):
                     st.dataframe(data=df, hide_index=False)
 
+        # Display map
+        if subset_type != "VPU ID":
+            with r_col.expander("Map View", icon=":material/map:"):
+                st.markdown(f"#### __Map Results ({subset_type}: {subset_user_sel})__")
+
+                # Create a folium map centered on the subset data
+                m = folium.Map(tiles="Cartodb Positron")
+                lat_lon_coll = [(row.lat, row.lon) for row in subset_dfs["divides"].to_pandas().itertuples()]
+                m.fit_bounds(lat_lon_coll)
+                for layer_name, df in subset_dfs.items():
+                    if "geometry" in df.columns and not df.is_empty():
+                        df = df.to_pandas()
+                        gdf = gpd.GeoDataFrame(
+                            df,
+                            geometry=gpd.GeoSeries.from_wkt(df["geometry"]),
+                            crs="EPSG:5070",
+                        ).to_crs(epsg=4326)
+                        style = LAYER_FOLIUM_STYLING_MAP[layer_name]["style"]
+                        marker_styling = LAYER_FOLIUM_STYLING_MAP[layer_name]["marker_styling"]
+                        popup_fields = list(gdf.columns)
+                        popup_fields.remove("geometry")
+                        gdf_poly = folium.GeoJson(
+                            data=gdf,
+                            popup=folium.GeoJsonPopup(fields=popup_fields[:15]),
+                            tooltip=folium.GeoJsonTooltip(fields=[popup_fields[0]]),
+                            marker=marker_styling,
+                            style_function=lambda x, style=style: style,
+                        )
+                        if layer_name == "divides" or layer_name == "flowpaths":
+                            gdf_fig = folium.FeatureGroup(name=layer_name)
+                        else:
+                            gdf_fig = folium.FeatureGroup(name=layer_name, show=False)
+                        gdf_fig.add_child(gdf_poly)
+                        m.add_child(gdf_fig)
+
+                folium.LayerControl(position="bottomright").add_to(m)
+                folium.plugins.Fullscreen(
+                    position="topright",
+                    title="Expand me",
+                    title_cancel="Exit me",
+                    force_separate_button=True,
+                ).add_to(m)
+                st_folium(fig=m, width=725, returned_objects=[])
+
+        # Download button
         with open(subset_gpkg_file, "rb") as file:
             r_col.download_button(
                 label=f"__Download as Geopackage__ (*{subset_gpkg_file.name}*)",

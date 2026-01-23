@@ -1,5 +1,6 @@
 import time
 
+import folium
 import geopandas as gpd
 import pandas as pd
 import polars as pl
@@ -13,6 +14,47 @@ from icefabric.schemas.iceberg_tables import nhf_layers
 from icefabric.schemas.iceberg_tables.ras_xs import ConflatedRasXS, RepresentativeRasXS
 
 domain_class_map = {"representative": RepresentativeRasXS, "conflated": ConflatedRasXS}
+
+LAYER_FOLIUM_STYLING_MAP = {
+    "divides": {
+        "style": {
+            "color": "grey",
+            "weight": 1.5,
+            "opacity": 0.5,
+            "fillOpacity": 0.5,
+            "dashArray": [5, 5],
+        },
+        "marker_styling": None,
+    },
+    "flowpaths": {
+        "style": {
+            "color": "darkblue",
+            "weight": 3,
+            "opacity": 1,
+            "fillOpacity": 1,
+        },
+        "marker_styling": None,
+    },
+    "nexus": {"style": {}, "marker_styling": folium.Marker(icon=folium.Icon(color="orange", icon="filter"))},
+    "waterbodies": {
+        "style": {},
+        "marker_styling": folium.Marker(icon=folium.Icon(color="blue", icon="tint")),
+    },
+    "gages": {"style": {}, "marker_styling": folium.Marker(icon=folium.Icon(color="darkred", icon="record"))},
+    "virtual_flowpaths": {
+        "style": {
+            "color": "blue",
+            "weight": 2,
+            "opacity": 0.67,
+            "fillOpacity": 0.67,
+        },
+        "marker_styling": None,
+    },
+    "virtual_nexus": {
+        "style": {},
+        "marker_styling": folium.Marker(icon=folium.Icon(color="green", icon="filter")),
+    },
+}
 
 
 @st.cache_data(show_spinner=False)

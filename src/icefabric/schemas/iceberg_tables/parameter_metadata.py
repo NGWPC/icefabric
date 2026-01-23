@@ -24,7 +24,7 @@ class ParameterMetadata:
             "description",
             "units",
             "data_type",
-            "default_value",
+            "initial_value",
             "min",
             "max",
         ]
@@ -45,7 +45,7 @@ class ParameterMetadata:
             NestedField(1, "description", StringType()),
             NestedField(1, "units", StringType()),
             NestedField(1, "data_type", StringType()),
-            NestedField(1, "default_value", StringType()),
+            NestedField(1, "initial_value", StringType()),
             NestedField(1, "min", DoubleType()),
             NestedField(1, "max", DoubleType()),
         )
@@ -66,7 +66,7 @@ class ParameterMetadata:
             pa.field("description", pa.string()),
             pa.field("units", pa.string()),
             pa.field("data_type", pa.string()),
-            pa.field("default_value", pa.string()),
+            pa.field("initial_value", pa.string()),
             pa.field("min", pa.float64()),
             pa.field("max", pa.float64()),
         ]

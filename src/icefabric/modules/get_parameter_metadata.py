@@ -90,7 +90,6 @@ def get_parameter_metadata(
         else:
             divide_attrs = pd.DataFrame(gauge["divides"])
 
-    print(len(divide_attrs))
     output_list = []
     for module in modules:
         # Separate query strings to support CFE-S and CFE-X

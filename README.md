@@ -135,3 +135,17 @@ The `tests` folder is for all testing data so the global confest can pick it up.
 To run tests, run `pytest -s` from project root.
 
 To run the subsetter tests, run `pytest --run-slow` as these tests take some time. Otherwise, they will be skipped
+
+### Smoke Tests
+
+Smoke tests validate the deployed test API. These tests are skipped when the `API_BASE_URL` environment variable is not set, so they won't run during normal CI.
+
+To run smoke tests against a deployed environment:
+```sh
+export API_BASE_URL="http://edfs.test.nextgenwaterprediction.com:8000/"
+uv run pytest tests/smoke/ -v
+```
+
+The smoke tests currently verify:
+- The API health endpoint is reachable
+- Numeric fields (`initial_value`, `min`, `max`) in the `parameter_metadata` endpoint are never null

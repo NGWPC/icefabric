@@ -62,12 +62,13 @@ def get_parameter_metadata(
     if gage_id is not None:
         gauge = get_subset(catalog=catalog, identifier=gage_id, namespace=domain, graph=graph)
 
-        # If 2.2, get snow17 and sac-sma attributes from iceberg tables and divide area from
+        # If 2.2, get snow17, sac-sma, and cfe-x attributes from iceberg tables and divide area from
         # the divides layer.  Merge into a single dataframe for area weighted averaging.
         if domain != HydrofabricDomains.NHF:
             parameter_namespace = "divide_parameters"
             snow17_table = "snow-17_conus"
             sacsma_table = "sac-sma_conus"
+            cfex_table = "cfe-x_conus"
 
             divide_attrs = pd.DataFrame(gauge["divide-attributes"])
             area = pd.DataFrame(gauge["divides"])[["divide_id", "areasqkm"]]
@@ -78,14 +79,18 @@ def get_parameter_metadata(
             table = catalog.load_table(f"{parameter_namespace}.{sacsma_table}")
             sacsma = table.scan().to_pandas()
 
+            table = catalog.load_table(f"{parameter_namespace}.{cfex_table}")
+            cfex = table.scan().to_pandas()
+
             divide_attrs = reduce(
-                lambda left, right: pd.merge(left, right, on="divide_id", how="outer"),
-                [divide_attrs, snow17, sacsma, area],
+                lambda left, right: pd.merge(left, right, on="divide_id", how="inner"),
+                [divide_attrs, snow17, sacsma, cfex, area],
             )
             divide_attrs = divide_attrs.rename(columns={"areasqkm": "area_sqkm"})
         else:
             divide_attrs = pd.DataFrame(gauge["divides"])
 
+    print(len(divide_attrs))
     output_list = []
     for module in modules:
         # Separate query strings to support CFE-S and CFE-X
@@ -111,14 +116,15 @@ def get_parameter_metadata(
                 param_name = row["name"]
                 if param_name in parameter_lookup.keys():
                     attr_name = parameter_lookup[param_name]
-                    attr = divide_attrs[[attr_name, "area_sqkm"]]
-                    attr = attr[attr[attr_name].notna()]
-                    if len(attr) == 0:
-                        continue
-                    numerator = (attr[attr_name] * attr["area_sqkm"]).sum()
-                    denominator = attr["area_sqkm"].sum()
-                    weighted_avg = numerator / denominator if denominator != 0 else None
-                    module_params.at[index, "initial_value"] = weighted_avg
+                    if attr_name in divide_attrs.columns:
+                        attr = divide_attrs[[attr_name, "area_sqkm"]]
+                        attr = attr[attr[attr_name].notna()]
+                        if len(attr) == 0:
+                            continue
+                        numerator = (attr[attr_name] * attr["area_sqkm"]).sum()
+                        denominator = attr["area_sqkm"].sum()
+                        weighted_avg = numerator / denominator if denominator != 0 else None
+                        module_params.at[index, "initial_value"] = weighted_avg
 
         # convert dataframe to a list of dictionaries
         module_params_dict = module_params.to_dict(orient="records")

@@ -32,7 +32,10 @@ RUN uv venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Install the package in development mode
-RUN uv sync
+RUN uv sync --all-extras
+
+# Set up mkdocs
+RUN mkdocs build --site-dir /app/static/docs
 
 # Run the API
 CMD ["python", "-m", "app.main"]

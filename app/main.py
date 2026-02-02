@@ -120,11 +120,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
+    root_path="/api",
     title="Icefabric API",
     description="API for accessing iceberg or icechunk data from EDFS services",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
     lifespan=lifespan,
     openapi_tags=tags_metadata,
 )

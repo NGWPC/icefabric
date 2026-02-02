@@ -254,8 +254,8 @@ python -m app.main
 
 The API provides interactive documentation at:
 
-- **Swagger UI**: `http://localhost:8000/docs`
-- **ReDoc**: `http://localhost:8000/redoc`
+- **Swagger UI**: `http://localhost:8000/api/docs`
+- **ReDoc**: `http://localhost:8000/api/redoc`
 
 ### OpenAPI Schema
 

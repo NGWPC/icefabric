@@ -156,7 +156,6 @@ if subset_submit and submit_valid:
                     title_cancel="Exit me",
                     force_separate_button=True,
                 ).add_to(m)
-                m.save("map.html")
                 st_folium(fig=m, width=725, returned_objects=[])
 
         # Download button

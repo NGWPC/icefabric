@@ -20,8 +20,12 @@ source .venv/bin/activate
 ```
 Note: Functionality is split into `optional-dependencies` in `pyproject.toml`. If you only require base functionality, install as `uv sync`. If you require some extras (e.g. `icechunk`, `io`), you can specify `uv sync --extra icechunk --extra io` as needed. For local develpoment, `--all-extras` is recommended for complete functionality.
 
-### Running the API locally
-To run the API locally, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production emv/catalog) in your project root has the right credentials, then run
+### Running/deploying the services
+
+The following sections detail how to run the Icefabric services locally (standalone) as well as how to build/deploy them through Docker (either standalone or together behind an nginx reverse-proxy)
+
+#### Running the API locally
+To run the API locally, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog) in your project root has the right credentials, then run
 
 ```sh
 python -m app.main
@@ -29,7 +33,7 @@ python -m app.main
 
 This should spin up the API services at `localhost:8000/`.
 
-To specify the deploy environment/iceberg catalog used (test or production), add a `deploy-env` flag to the command. The flag should be formatted as `--deploy-env <value>`:
+To specify the deploy environment/iceberg catalog used (test or production (OE)), add a `deploy-env` flag to the command. The flag should be formatted as `--deploy-env <value>`:
 
 ```sh
 # Test
@@ -44,38 +48,29 @@ If you are running the API locally, you can run
 python -m app.main --catalog sql
 ```
 
-### Building the API through Docker
-To run the API locally with Docker, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production emv/catalog) in your project root has the right credentials, then run the following to spin up services:
+#### Building/deploying the API through Docker
+To run the API locally with Docker, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog) in your project root has the right credentials, then run the `compose.sh` wrapper script to spin up the dashboard::
 ```sh
 # Build
 docker compose -f docker/compose.yaml build api --no-cache
 
-# Run using docker run
-docker run -p 8000:8000 --name icefabric-api icefabric/api:latest
-# Run using docker compose
-docker compose -f docker/compose.yaml up api
+# Run
+./compose.sh api
 ```
 
-To specify the deploy environment/iceberg catalog used (test or production), pass in the value as an environment variable (`ICEFABRIC_DEPLOY_ENV`) when running or composing up:
+To specify the deploy environment/iceberg catalog used (test or production (OE)), pass it in as an argument to the wrapper script:
 
 ```sh
-# Docker run - test deploy (default)
-docker run -e ICEFABRIC_DEPLOY_ENV=test -p 8000:8000 --name icefabric-api icefabric/api:latest
-# Docker run - prod deploy
-docker run -e ICEFABRIC_DEPLOY_ENV=prod -p 8000:8000 --name icefabric-api icefabric/api:latest
-
-# Docker compose up - test deploy (default)
-ICEFABRIC_DEPLOY_ENV=test docker compose -f docker/compose.yaml up api
-# Docker compose up - prod deploy
-ICEFABRIC_DEPLOY_ENV=prod docker compose -f docker/compose.yaml up api
+# Test deploy (default)
+./compose.sh api test
+# Prod (OE) deploy
+./compose.sh api prod
 ```
 
-### Streamlit Dashboard
-> [!IMPORTANT]
-> As of now, RAS XS is the only supported module in the dashboard. More will be added in the near future.
+#### Running the dashboard locally
 
 Besides the API, Icefabric also includes a frontend dashboard to interact with the Hydrofabric. The dashboard is implemented through `streamlit`.
-To run the dashboard locally, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production emv/catalog) in your project root has the right credentials (as with the API), then run:
+To run the dashboard locally, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog) in your project root has the right credentials (as with the API), then run:
 
 ```sh
 uv run streamlit run app/streamlit/streamlit.py
@@ -83,38 +78,58 @@ uv run streamlit run app/streamlit/streamlit.py
 
 The dashboard will spin up, and can be accessed in a browser at `http://localhost:8501`. Please note that the port number may change depending on availability. The command output will tell you the port number.
 
-To specify the deploy environment/iceberg catalog used (test or production), add a `deploy-env` flag to the run command. The flag should be formatted as `deploy-env=<value>`:
+To specify the deploy environment/iceberg catalog used (test or production (OE)), add a `deploy-env` flag to the run command. The flag should be formatted as `deploy-env=<value>`:
 
 ```sh
 # Test deploy (default)
 uv run streamlit run app/streamlit/streamlit.py deploy-env=test
-# Prod deploy
+# Prod (OE) deploy
 uv run streamlit run app/streamlit/streamlit.py deploy-env=prod
 ```
 
-### Building the Dashboard through Docker
-To run the Dashboard locally with Docker, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production emv/catalog) in your project root has the right credentials, then run the following to spin up the dashboard:
+#### Building/deploying the dashboard through Docker
+To run just the Dashboard locally with Docker, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog) in your project root has the right credentials, then run the `compose.sh` wrapper script to spin up the dashboard:
 ```sh
 # Build
 docker compose -f docker/compose.yaml build dashboard --no-cache
 
-# Run using docker run
-docker run -p 8501:8501 --name icefabric-dashboard icefabric/dashboard:latest
-# Run using docker compose
-docker compose -f docker/compose.yaml up dashboard
+# Run
+./compose.sh dashboard
 ```
-To specify the deploy environment/iceberg catalog used (test or production), pass in the value as an environment variable (`ICEFABRIC_DEPLOY_ENV`) when running or composing up:
+To specify the deploy environment/iceberg catalog used (test or production (OE)), pass it in as an argument to the wrapper script:
 
 ```sh
-# Docker run - test deploy (default)
-docker run -e ICEFABRIC_DEPLOY_ENV=test -p 8501:8501 --name icefabric-dashboard icefabric/dashboard:latest
-# Docker run - prod deploy
-docker run -e ICEFABRIC_DEPLOY_ENV=prod -p 8501:8501 --name icefabric-dashboard icefabric/dashboard:latest
+# Test deploy (default)
+./compose.sh dashboard test
+# Prod (OE) deploy
+./compose.sh dashboard prod
+```
 
-# Docker compose up - test deploy (default)
-ICEFABRIC_DEPLOY_ENV=test docker compose -f docker/compose.yaml up dashboard
-# Docker compose up - prod deploy
-ICEFABRIC_DEPLOY_ENV=prod docker compose -f docker/compose.yaml up dashboard
+#### Full deployment with reverse proxy
+
+To run the api and dashboard together, you can specify this to the docker compose wrapper script. The services will be routed behind an nginx reverse-proxy, with the underlying services only directly accessible from the localhost.
+
+The api will be accesible @ http://localhost:80/api
+
+The dashboard will be accesible @ http://localhost:80/dashboard
+
+ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog) in your project root has the right credentials, then run the `compose.sh` wrapper script to spin up everyting:
+
+```sh
+# Build
+docker compose -f docker/compose.yaml build --no-cache
+
+# Run
+./compose.sh full
+```
+
+To specify the deploy environment/iceberg catalog used (test or production (OE)), pass it in as an argument to the wrapper script:
+
+```sh
+# Test deploy (default)
+./compose.sh full test
+# Prod (OE) deploy
+./compose.sh full prod
 ```
 
 ### Development

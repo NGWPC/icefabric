@@ -37,5 +37,7 @@ RUN uv sync --all-extras
 # Set up mkdocs
 RUN mkdocs build --site-dir /app/static/docs
 
+EXPOSE 8000
+
 # Run the API
 CMD ["python", "-m", "app.main"]

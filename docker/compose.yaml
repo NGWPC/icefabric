@@ -16,11 +16,11 @@ services:
       context: ../
       dockerfile: docker/Dockerfile.api
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - ICEFABRIC_DEPLOY_ENV=${ICEFABRIC_DEPLOY_ENV:-test}
     env_file:
-      - ../.env
+      - ../${ICEFABRIC_CREDS_ENV_FILE}
   dashboard:
     image: icefabric/dashboard
     container_name: icefabric-dashboard
@@ -28,8 +28,8 @@ services:
       context: ../
       dockerfile: docker/Dockerfile.streamlit
     ports:
-      - "8501:8501"
+      - "127.0.0.1:8501:8501"
     environment:
       - ICEFABRIC_DEPLOY_ENV=${ICEFABRIC_DEPLOY_ENV:-test}
     env_file:
-      - ../.env
+      - ../${ICEFABRIC_CREDS_ENV_FILE}

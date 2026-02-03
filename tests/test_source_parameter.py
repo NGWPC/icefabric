@@ -120,9 +120,9 @@ class TestResolveNamespace:
 
     # New API tests - source + domain combinations
     def test_conus_nhf(self):
-        """Test CONUS + NHF returns nhf namespace."""
+        """Test CONUS + NHF returns conus_nhf namespace."""
         namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.CONUS, HydrofabricSource.NHF)
-        assert namespace == "nhf"
+        assert namespace == "conus_nhf"
         assert is_nhf is True
         assert warnings == []
 
@@ -198,9 +198,9 @@ class TestResolveNamespace:
         assert is_nhf is False
 
     def test_string_source_nhf(self):
-        """Test string source 'nhf' with domain."""
+        """Test string source 'nhf' with domain returns conus_nhf namespace."""
         namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.CONUS, "nhf")
-        assert namespace == "nhf"
+        assert namespace == "conus_nhf"
         assert is_nhf is True
 
     def test_invalid_string_domain(self):

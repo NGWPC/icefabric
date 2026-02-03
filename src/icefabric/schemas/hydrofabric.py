@@ -134,7 +134,7 @@ UPSTREAM_VPUS: dict[str, list[str]] = {"08": ["11", "10U", "10L", "08", "07", "0
 
 # Mapping from GeographicDomain + HydrofabricSource to namespace
 _DOMAIN_SOURCE_TO_NAMESPACE: dict[tuple[GeographicDomain, HydrofabricSource], str | None] = {
-    (GeographicDomain.CONUS, HydrofabricSource.NHF): "nhf",
+    (GeographicDomain.CONUS, HydrofabricSource.NHF): "conus_nhf",
     (GeographicDomain.CONUS, HydrofabricSource.HF): "conus_hf",
     (GeographicDomain.ALASKA, HydrofabricSource.NHF): None,  # Not currently available
     (GeographicDomain.ALASKA, HydrofabricSource.HF): "ak_hf",

@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pyiceberg.catalog import Catalog
 
 from app import get_catalog, get_graphs
 from icefabric.modules import SmpModules, config_mapper, get_parameter_metadata
-from icefabric.schemas import HydrofabricDomains
+from icefabric.schemas import GeographicDomain, HydrofabricDomains, HydrofabricSource, resolve_namespace
 from icefabric.schemas.modules import (
     CFE,
     LASAM,
@@ -18,6 +18,35 @@ from icefabric.schemas.modules import (
     Topoflow,
     TRoute,
 )
+
+
+def _resolve_module_namespace(
+    domain: HydrofabricDomains | GeographicDomain | None,
+    source: HydrofabricSource | None,
+) -> tuple[str, bool]:
+    """
+    Resolve namespace for module endpoints with error handling.
+
+    Returns: (namespace, is_nhf)
+    """
+    try:
+        namespace, is_nhf, _deprecation_warnings = resolve_namespace(domain, source)
+    except NotImplementedError as e:
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "error": "domain_not_available",
+                "message": str(e),
+                "available_domains": ["CONUS"],
+                "requested_domain": domain.value if hasattr(domain, "value") else str(domain),
+                "requested_source": source.value if source else None,
+            },
+        ) from None
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}") from None
+
+    return namespace, is_nhf
+
 
 sft_router = APIRouter(prefix="/modules/sft")
 snow17_router = APIRouter(prefix="/modules/snow17")
@@ -42,13 +71,15 @@ async def get_sft_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+    source: HydrofabricSource | None = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     use_schaake: bool = Query(
         False,
@@ -66,17 +97,29 @@ async def get_sft_ipes(
 
     **Parameters:**
     - **identifier**: The Gage ID to trace upstream from to get all catchments
+    - **source**: Hydrofabric source ('nhf' or 'hf')
     - **domain**: The geographic domain to search for catchments from
     - **use_schaake**: Determines if we're using Schaake or Xinanjiang to calculate ice fraction
 
     **Returns:**
     A list of SFT pydantic objects for each catchment
     """
+    namespace, is_nhf = _resolve_module_namespace(domain, source)
+
+    # For HF v2.2 domains, prefix identifier with "gages-" and get graph
+    if not is_nhf:
+        domain_enum = HydrofabricDomains(namespace)
+        formatted_identifier = f"gages-{identifier}"
+        graph = network_graphs[domain_enum]
+    else:
+        formatted_identifier = identifier
+        graph = None
+
     return config_mapper["sft"](
         catalog=catalog,
-        namespace=domain.value,
-        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
-        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
+        namespace=namespace,
+        identifier=formatted_identifier,
+        graph=graph,
         use_schaake=use_schaake,
     )
 
@@ -89,13 +132,15 @@ async def get_snow17_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+    source: HydrofabricSource | None = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     envca: bool = Query(
         False,
@@ -113,17 +158,28 @@ async def get_snow17_ipes(
 
     **Parameters:**
     - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **source**: Hydrofabric source ('nhf' or 'hf')
     - **domain**: The geographic domain used to filter catchments.
     - **envca**: Designates that the source is ENVCA.
 
     **Returns:**
     A list of SNOW-17 pydantic objects for each catchment.
     """
+    namespace, is_nhf = _resolve_module_namespace(domain, source)
+
+    if not is_nhf:
+        domain_enum = HydrofabricDomains(namespace)
+        formatted_identifier = f"gages-{identifier}"
+        graph = network_graphs[domain_enum]
+    else:
+        formatted_identifier = identifier
+        graph = None
+
     return config_mapper["snow17"](
         catalog=catalog,
-        namespace=domain.value,
-        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
-        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
+        namespace=namespace,
+        identifier=formatted_identifier,
+        graph=graph,
         envca=envca,
     )
 
@@ -136,13 +192,15 @@ async def get_smp_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+    source: HydrofabricSource | None = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     module: SmpModules = Query(
         None,
@@ -160,17 +218,28 @@ async def get_smp_ipes(
 
     **Parameters:**
     - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **source**: Hydrofabric source ('nhf' or 'hf')
     - **domain**: The geographic domain used to filter catchments.
     - **module**: Denotes if another module should be used to obtain additional SMP parameters. Confined to certain modules.
 
     **Returns:**
     A list of SMP pydantic objects for each catchment.
     """
+    namespace, is_nhf = _resolve_module_namespace(domain, source)
+
+    if not is_nhf:
+        domain_enum = HydrofabricDomains(namespace)
+        formatted_identifier = f"gages-{identifier}"
+        graph = network_graphs[domain_enum]
+    else:
+        formatted_identifier = identifier
+        graph = None
+
     return config_mapper["smp"](
         catalog=catalog,
-        namespace=domain.value,
-        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
-        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
+        namespace=namespace,
+        identifier=formatted_identifier,
+        graph=graph,
         extra_module=module,
     )
 
@@ -183,13 +252,15 @@ async def get_lstm_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+    source: HydrofabricSource | None = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     catalog: Catalog = Depends(get_catalog),
     network_graphs=Depends(get_graphs),
@@ -202,16 +273,27 @@ async def get_lstm_ipes(
 
     **Parameters:**
     - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **source**: Hydrofabric source ('nhf' or 'hf')
     - **domain**: The geographic domain used to filter catchments.
 
     **Returns:**
     A list of LSTM pydantic objects for each catchment.
     """
+    namespace, is_nhf = _resolve_module_namespace(domain, source)
+
+    if not is_nhf:
+        domain_enum = HydrofabricDomains(namespace)
+        formatted_identifier = f"gages-{identifier}"
+        graph = network_graphs[domain_enum]
+    else:
+        formatted_identifier = identifier
+        graph = None
+
     return config_mapper["lstm"](
         catalog=catalog,
-        namespace=domain.value,
-        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
-        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
+        namespace=namespace,
+        identifier=formatted_identifier,
+        graph=graph,
     )
 
 
@@ -223,13 +305,15 @@ async def get_lasam_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+    source: HydrofabricSource | None = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     sft_included: bool = Query(
         False,
@@ -252,6 +336,7 @@ async def get_lasam_ipes(
 
     **Parameters:**
     - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **source**: Hydrofabric source ('nhf' or 'hf')
     - **domain**: The geographic domain used to filter catchments.
     - **sft_included**: Denotes that SFT is in the \"dep_modules_included\" definition as declared in the HF API repo.
     - **soil_params_file**: Name of the Van Genuchton soil parameters file.
@@ -259,11 +344,21 @@ async def get_lasam_ipes(
     **Returns:**
     A list of LASAM pydantic objects for each catchment.
     """
+    namespace, is_nhf = _resolve_module_namespace(domain, source)
+
+    if not is_nhf:
+        domain_enum = HydrofabricDomains(namespace)
+        formatted_identifier = f"gages-{identifier}"
+        graph = network_graphs[domain_enum]
+    else:
+        formatted_identifier = identifier
+        graph = None
+
     return config_mapper["lasam"](
         catalog=catalog,
-        namespace=domain.value,
-        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
-        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
+        namespace=namespace,
+        identifier=formatted_identifier,
+        graph=graph,
         sft_included=sft_included,
         soil_params_file=soil_params_file,
     )
@@ -277,13 +372,15 @@ async def get_noahowp_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+    source: HydrofabricSource | None = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     catalog: Catalog = Depends(get_catalog),
     network_graphs=Depends(get_graphs),
@@ -296,16 +393,27 @@ async def get_noahowp_ipes(
 
     **Parameters:**
     - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **source**: Hydrofabric source ('nhf' or 'hf')
     - **domain**: The geographic domain used to filter catchments.
 
     **Returns:**
     A list of Noah-OWP-Modular pydantic objects for each catchment.
     """
+    namespace, is_nhf = _resolve_module_namespace(domain, source)
+
+    if not is_nhf:
+        domain_enum = HydrofabricDomains(namespace)
+        formatted_identifier = f"gages-{identifier}"
+        graph = network_graphs[domain_enum]
+    else:
+        formatted_identifier = identifier
+        graph = None
+
     return config_mapper["noah_owp"](
         catalog=catalog,
-        namespace=domain.value,
-        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
-        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
+        namespace=namespace,
+        identifier=formatted_identifier,
+        graph=graph,
     )
 
 
@@ -317,13 +425,15 @@ async def get_sacsma_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+    source: HydrofabricSource | None = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     envca: bool = Query(
         False,
@@ -341,17 +451,28 @@ async def get_sacsma_ipes(
 
     **Parameters:**
     - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **source**: Hydrofabric source ('nhf' or 'hf')
     - **domain**: The geographic domain used to filter catchments.
     - **envca**: Designates that the source is ENVCA.
 
     **Returns:**
     A list of SAC-SMA pydantic objects for each catchment.
     """
+    namespace, is_nhf = _resolve_module_namespace(domain, source)
+
+    if not is_nhf:
+        domain_enum = HydrofabricDomains(namespace)
+        formatted_identifier = f"gages-{identifier}"
+        graph = network_graphs[domain_enum]
+    else:
+        formatted_identifier = identifier
+        graph = None
+
     return config_mapper["sacsma"](
         catalog=catalog,
-        namespace=domain.value,
-        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
-        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
+        namespace=namespace,
+        identifier=formatted_identifier,
+        graph=graph,
         envca=envca,
     )
 
@@ -364,13 +485,15 @@ async def get_troute_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+    source: HydrofabricSource | None = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     catalog: Catalog = Depends(get_catalog),
     network_graphs=Depends(get_graphs),
@@ -383,16 +506,27 @@ async def get_troute_ipes(
 
     **Parameters:**
     - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **source**: Hydrofabric source ('nhf' or 'hf')
     - **domain**: The geographic domain used to filter catchments.
 
     **Returns:**
     A list of T-Route pydantic objects for each catchment.
     """
+    namespace, is_nhf = _resolve_module_namespace(domain, source)
+
+    if not is_nhf:
+        domain_enum = HydrofabricDomains(namespace)
+        formatted_identifier = f"gages-{identifier}"
+        graph = network_graphs[domain_enum]
+    else:
+        formatted_identifier = identifier
+        graph = None
+
     return config_mapper["troute"](
         catalog=catalog,
-        namespace=domain.value,
-        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
-        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
+        namespace=namespace,
+        identifier=formatted_identifier,
+        graph=graph,
     )
 
 
@@ -404,13 +538,15 @@ async def get_topmodel_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+    source: HydrofabricSource | None = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     catalog: Catalog = Depends(get_catalog),
     network_graphs=Depends(get_graphs),
@@ -423,16 +559,27 @@ async def get_topmodel_ipes(
 
     **Parameters:**
     - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **source**: Hydrofabric source ('nhf' or 'hf')
     - **domain**: The geographic domain used to filter catchments.
 
     **Returns:**
     A list of TOPMODEL pydantic objects for each catchment.
     """
+    namespace, is_nhf = _resolve_module_namespace(domain, source)
+
+    if not is_nhf:
+        domain_enum = HydrofabricDomains(namespace)
+        formatted_identifier = f"gages-{identifier}"
+        graph = network_graphs[domain_enum]
+    else:
+        formatted_identifier = identifier
+        graph = None
+
     return config_mapper["topmodel"](
         catalog=catalog,
-        namespace=domain.value,
-        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
-        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
+        namespace=namespace,
+        identifier=formatted_identifier,
+        graph=graph,
     )
 
 
@@ -444,13 +591,15 @@ async def get_topoflow_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+    source: HydrofabricSource | None = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     catalog: Catalog = Depends(get_catalog),
     network_graphs=Depends(get_graphs),
@@ -463,16 +612,27 @@ async def get_topoflow_ipes(
 
     **Parameters:**
     - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **source**: Hydrofabric source ('nhf' or 'hf')
     - **domain**: The geographic domain used to filter catchments.
 
     **Returns:**
     A list of TopoFlow pydantic objects for each catchment.
     """
+    namespace, is_nhf = _resolve_module_namespace(domain, source)
+
+    if not is_nhf:
+        domain_enum = HydrofabricDomains(namespace)
+        formatted_identifier = f"gages-{identifier}"
+        graph = network_graphs[domain_enum]
+    else:
+        formatted_identifier = identifier
+        graph = None
+
     return config_mapper["topoflow"](
         catalog=catalog,
-        namespace=domain.value,
-        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
-        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
+        namespace=namespace,
+        identifier=formatted_identifier,
+        graph=graph,
     )
 
 
@@ -509,13 +669,15 @@ async def get_ueb_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+    source: HydrofabricSource | None = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     envca: bool = Query(
         False,
@@ -533,17 +695,28 @@ async def get_ueb_ipes(
 
     **Parameters:**
     - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **source**: Hydrofabric source ('nhf' or 'hf')
     - **domain**: The geographic domain used to filter catchments.
     - **envca**:  Designates that the source is ENVCA.
 
     **Returns:**
     A list of UEB pydantic objects for each catchment.
     """
+    namespace, is_nhf = _resolve_module_namespace(domain, source)
+
+    if not is_nhf:
+        domain_enum = HydrofabricDomains(namespace)
+        formatted_identifier = f"gages-{identifier}"
+        graph = network_graphs[domain_enum]
+    else:
+        formatted_identifier = identifier
+        graph = None
+
     return config_mapper["ueb"](
         catalog=catalog,
-        namespace=domain.value,
-        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
-        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
+        namespace=namespace,
+        identifier=formatted_identifier,
+        graph=graph,
         envca=envca,
     )
 
@@ -556,13 +729,15 @@ async def get_cfe_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+    source: HydrofabricSource | None = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     cfe_version: str = Query(
         ...,
@@ -590,6 +765,7 @@ async def get_cfe_ipes(
 
     **Parameters:**
     - **identifier**: The Gage ID from which upstream catchments are traced.
+    - **source**: Hydrofabric source ('nhf' or 'hf')
     - **domain**: The geographic domain used to filter catchments.
     - **cfe_version**:  Select which version of CFE to use: CFE-S or CFE-X.
     - **sft_included**: True if SFT is in the 'dep_modules_included' definition as declared in HF API repo.
@@ -598,11 +774,21 @@ async def get_cfe_ipes(
     **Returns:**
     A list of CFE pydantic objects for each catchment.
     """
+    namespace, is_nhf = _resolve_module_namespace(domain, source)
+
+    if not is_nhf:
+        domain_enum = HydrofabricDomains(namespace)
+        formatted_identifier = f"gages-{identifier}"
+        graph = network_graphs[domain_enum]
+    else:
+        formatted_identifier = identifier
+        graph = None
+
     return config_mapper["cfe"](
         catalog=catalog,
-        namespace=domain.value,
-        identifier=f"gages-{identifier}" if domain.value == HydrofabricDomains.CONUS else identifier,
-        graph=network_graphs[domain] if domain.value == HydrofabricDomains.CONUS else None,
+        namespace=namespace,
+        identifier=formatted_identifier,
+        graph=graph,
         cfe_version=cfe_version,
         sft_included=sft_included,
         rootzone_aet=rootzone_aet,
@@ -636,13 +822,15 @@ async def get_calibratable_parameter_metadata(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    domain: HydrofabricDomains | None = Query(
+    source: HydrofabricSource | None = Query(
         None,
-        description="The iceberg namespace used to query the hydrofabric.",
-        openapi_examples={
-            "NHF Example": {"summary": "NHF example", "value": HydrofabricDomains.NHF},
-            "HF v2.2 Example": {"summary": "CONUS HF v2.2 example", "value": HydrofabricDomains.CONUS},
-        },
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names.",
+    ),
+    domain: HydrofabricDomains | GeographicDomain | None = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     catalog: Catalog = Depends(get_catalog),
     network_graphs=Depends(get_graphs),
@@ -653,7 +841,8 @@ async def get_calibratable_parameter_metadata(
     **Parameters:**
     - **modules**: a list of modules.
     - **gage_id**: The Gage ID for averaging calibratable parameter values over all catchments in the subset.
-    - **domain**: The Iceberg namespace used corresponding to a HF version and domain.
+    - **source**: Hydrofabric source ('nhf' or 'hf')
+    - **domain**: The geographic domain to search for catchments from.
 
     **Returns:**
     A JSON containing metadata for a module's calibratable parameters.
@@ -693,12 +882,32 @@ async def get_calibratable_parameter_metadata(
     }
     modules = [nwm_icefabric_module_mapping.get(mod, mod) for mod in modules]
 
+    # Resolve namespace - for parameter_metadata, gage_id is optional
+    # If gage_id is provided along with domain/source, resolve the namespace
+    namespace = None
+    graph = None
+    formatted_gage_id = gage_id
+
+    if gage_id and (domain is not None or source is not None):
+        namespace, is_nhf = _resolve_module_namespace(domain, source)
+        if not is_nhf:
+            domain_enum = HydrofabricDomains(namespace)
+            formatted_gage_id = f"gages-{gage_id}"
+            graph = network_graphs[domain_enum]
+    elif domain is not None:
+        # Legacy mode - domain only without source
+        namespace, is_nhf = _resolve_module_namespace(domain, source)
+        if not is_nhf and gage_id:
+            domain_enum = HydrofabricDomains(namespace)
+            formatted_gage_id = f"gages-{gage_id}"
+            graph = network_graphs[domain_enum]
+
     parameter_metadata = get_parameter_metadata(
         modules=modules,
         catalog=catalog,
-        gage_id=f"gages-{gage_id}" if domain == HydrofabricDomains.CONUS else gage_id,
-        domain=domain.value if domain else None,
-        graph=network_graphs[domain] if domain == HydrofabricDomains.CONUS else None,
+        gage_id=formatted_gage_id,
+        domain=namespace,
+        graph=graph,
     )
 
     for module in parameter_metadata:

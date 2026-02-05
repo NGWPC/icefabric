@@ -1,9 +1,12 @@
 """Contains helper functions to support NWM modules"""
 
 from .hydrofabric import (
+    _LEGACY_DOMAIN_TO_NAMESPACE,
+    ALL_HF_NAMESPACES,
+    NHF_NAMESPACES,
+    OCONUS_HF_NAMESPACES,
     UPSTREAM_VPUS,
     GeographicDomain,
-    HydrofabricDomains,
     HydrofabricSource,
     IdType,
     resolve_namespace,
@@ -71,9 +74,12 @@ __all__ = [
     "NHFSnapshot",
     "UPSTREAM_VPUS",
     "IdType",
-    "HydrofabricDomains",
     "HydrofabricSource",
     "GeographicDomain",
+    "NHF_NAMESPACES",
+    "OCONUS_HF_NAMESPACES",
+    "ALL_HF_NAMESPACES",
+    "_LEGACY_DOMAIN_TO_NAMESPACE",
     "resolve_namespace",
     "SFT",
     "IceFractionScheme",

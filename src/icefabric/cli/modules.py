@@ -11,7 +11,7 @@ from icefabric.builds.graph_connectivity import load_upstream_json
 from icefabric.cli import get_catalog
 from icefabric.helpers.io import _create_config_zip
 from icefabric.modules import NWMModules, SmpModules, config_mapper, modules_with_extra_args
-from icefabric.schemas.hydrofabric import HydrofabricDomains
+from icefabric.schemas.hydrofabric import _LEGACY_DOMAIN_TO_NAMESPACE, GeographicDomain
 from icefabric.schemas.modules import IceFractionScheme
 
 load_dotenv()
@@ -23,9 +23,7 @@ def validate_options(ctx, param, value):
         module_choice = ctx.params.get("nwm_module")
         try:
             if param.name not in modules_with_extra_args[module_choice]:
-                raise click.BadParameter(
-                    f"'{param.opts[0]}' is inappropriate for the '{module_choice}' module."
-                )
+                raise click.BadParameter(f"'{param.opts[0]}' is inappropriate for the '{module_choice}' module.")
         except KeyError as err:
             raise KeyError(
                 f"The '{module_choice}' module can't be used with non-standard (gage id, domain, etc.) arguments."
@@ -47,7 +45,10 @@ def validate_options(ctx, param, value):
 )
 @click.option(
     "--domain",
-    type=click.Choice([e.value for e in HydrofabricDomains], case_sensitive=False),
+    type=click.Choice(
+        [d.value for d in GeographicDomain] + list(_LEGACY_DOMAIN_TO_NAMESPACE.keys()),
+        case_sensitive=False,
+    ),
     required=True,
     help="The domain you are querying",
 )

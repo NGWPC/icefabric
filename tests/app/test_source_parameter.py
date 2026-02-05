@@ -4,7 +4,6 @@ import pytest
 
 from icefabric.schemas.hydrofabric import (
     GeographicDomain,
-    HydrofabricDomains,
     HydrofabricSource,
     resolve_namespace,
 )
@@ -75,45 +74,45 @@ class TestResolveNamespace:
         assert is_nhf is False
         assert warnings == []
 
-    # Legacy domain tests - backwards compatibility
+    # Legacy domain tests - backwards compatibility (using string values)
     def test_legacy_domain_nhf(self):
         """Test legacy 'nhf' domain returns NHF namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(HydrofabricDomains.NHF, None)
+        namespace, is_nhf, warnings = resolve_namespace("nhf", None)
         assert namespace == "nhf"
         assert is_nhf is True
         assert warnings == []
 
     def test_legacy_domain_conus_hf(self):
         """Test legacy 'conus_hf' domain returns conus_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(HydrofabricDomains.CONUS, None)
+        namespace, is_nhf, warnings = resolve_namespace("conus_hf", None)
         assert namespace == "conus_hf"
         assert is_nhf is False
         assert warnings == []
 
     def test_legacy_domain_ak_hf(self):
         """Test legacy 'ak_hf' domain returns ak_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(HydrofabricDomains.AK, None)
+        namespace, is_nhf, warnings = resolve_namespace("ak_hf", None)
         assert namespace == "ak_hf"
         assert is_nhf is False
         assert warnings == []
 
     def test_legacy_domain_hi_hf(self):
         """Test legacy 'hi_hf' domain returns hi_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(HydrofabricDomains.HI, None)
+        namespace, is_nhf, warnings = resolve_namespace("hi_hf", None)
         assert namespace == "hi_hf"
         assert is_nhf is False
         assert warnings == []
 
     def test_legacy_domain_prvi_hf(self):
         """Test legacy 'prvi_hf' domain returns prvi_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(HydrofabricDomains.PRVI, None)
+        namespace, is_nhf, warnings = resolve_namespace("prvi_hf", None)
         assert namespace == "prvi_hf"
         assert is_nhf is False
         assert warnings == []
 
     def test_legacy_domain_gl_hf(self):
         """Test legacy 'gl_hf' domain returns gl_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(HydrofabricDomains.GL, None)
+        namespace, is_nhf, warnings = resolve_namespace("gl_hf", None)
         assert namespace == "gl_hf"
         assert is_nhf is False
         assert warnings == []

@@ -43,6 +43,22 @@ class GeographicDomain(str, Enum):
     PUERTO_RICO = "Puerto_Rico"
     GREAT_LAKES = "Great_Lakes"
 
+    @classmethod
+    def _missing_(cls, value):
+        """Accept legacy HF domain names as aliases.
+
+        Note: 'nhf' is intentionally not mapped here because it implies
+        the NHF source, not just a geographic domain.
+        """
+        aliases = {
+            "conus_hf": cls.CONUS,
+            "ak_hf": cls.ALASKA,
+            "hi_hf": cls.HAWAII,
+            "prvi_hf": cls.PUERTO_RICO,
+            "gl_hf": cls.GREAT_LAKES,
+        }
+        return aliases.get(value)
+
 
 class IdType(str, Enum):
     """All queriable HF fields.
@@ -66,43 +82,6 @@ class IdType(str, Enum):
     VPU_ID = "vpu_id"
     FP_ID = ("fp_id",)
     SITE_NO = "site_no"
-
-
-class HydrofabricDomains(str, Enum):
-    """The domains used when querying the hydrofabric
-
-    Attributes
-    ----------
-    AK : str
-        Alaska
-    CONUS : str
-        Conterminous United States
-    GL : str
-        The US Great Lakes
-    HI : str
-        Hawai'i
-    PRVI : str
-        Puerto Rico, US Virgin Islands
-    """
-
-    AK = "ak_hf"
-    CONUS = "conus_hf"
-    GL = "gl_hf"
-    HI = "hi_hf"
-    PRVI = "prvi_hf"
-    NHF = "nhf"
-
-    @classmethod
-    def _missing_(cls, value):
-        """Accept user-friendly domain names as aliases."""
-        aliases = {
-            "CONUS": cls.CONUS,
-            "Alaska": cls.AK,
-            "Hawaii": cls.HI,
-            "Puerto_Rico": cls.PRVI,
-            "Great_Lakes": cls.GL,
-        }
-        return aliases.get(value)
 
 
 class StreamflowDataSources(str, Enum):
@@ -131,6 +110,11 @@ class StreamflowOutputFormats(str, Enum):
 # For catchments that may extend in many VPUs
 UPSTREAM_VPUS: dict[str, list[str]] = {"08": ["11", "10U", "10L", "08", "07", "05"]}
 
+# Namespace constants for internal use
+NHF_NAMESPACES: set[str] = {"nhf", "conus_nhf"}
+OCONUS_HF_NAMESPACES: set[str] = {"gl_hf", "ak_hf", "prvi_hf"}
+ALL_HF_NAMESPACES: set[str] = {"conus_hf", "ak_hf", "hi_hf", "prvi_hf", "gl_hf"}
+
 
 # Mapping from GeographicDomain + HydrofabricSource to namespace
 _DOMAIN_SOURCE_TO_NAMESPACE: dict[tuple[GeographicDomain, HydrofabricSource], str | None] = {
@@ -158,7 +142,7 @@ _LEGACY_DOMAIN_TO_NAMESPACE: dict[str, str] = {
 
 
 def resolve_namespace(
-    domain: HydrofabricDomains | GeographicDomain | str | None,
+    domain: GeographicDomain | str | None,
     source: HydrofabricSource | None,
 ) -> tuple[str, bool, list[str]]:
     """
@@ -166,9 +150,9 @@ def resolve_namespace(
 
     Parameters
     ----------
-    domain : HydrofabricDomains | GeographicDomain | str | None
-        The domain to resolve. Can be a legacy HydrofabricDomains value,
-        a new GeographicDomain value, or a string.
+    domain : GeographicDomain | str | None
+        The domain to resolve. Can be a GeographicDomain value, a legacy string
+        value (nhf, conus_hf, etc.), or a geographic domain string (CONUS, Alaska, etc.).
     source : HydrofabricSource | None
         The hydrofabric source (nhf or hf). Required when using GeographicDomain.
 
@@ -203,12 +187,12 @@ def resolve_namespace(
             # Fall through to the "both provided" case below
         else:
             # Get the string value of the domain
-            domain_str = domain.value if isinstance(domain, HydrofabricDomains) else str(domain)
+            domain_str = str(domain)
 
             # Check if it's a legacy domain value
             if domain_str in _LEGACY_DOMAIN_TO_NAMESPACE:
                 namespace = _LEGACY_DOMAIN_TO_NAMESPACE[domain_str]
-                is_nhf = namespace == "nhf"
+                is_nhf = namespace in NHF_NAMESPACES
                 return namespace, is_nhf, []
 
             # Check if it's a geographic domain string without source - default to HF
@@ -220,28 +204,29 @@ def resolve_namespace(
                 raise ValueError(f"Unknown domain value: '{domain_str}'")
 
     # Both source and domain provided - new API
-    # Convert domain to GeographicDomain
-    # enum types checked first since HydrofabricDomains extends (str, Enum)
-    if isinstance(domain, HydrofabricDomains):
-        # User provided a legacy domain with source - convert to GeographicDomain
-        legacy_to_geo = {
-            HydrofabricDomains.CONUS: GeographicDomain.CONUS,
-            HydrofabricDomains.AK: GeographicDomain.ALASKA,
-            HydrofabricDomains.HI: GeographicDomain.HAWAII,
-            HydrofabricDomains.PRVI: GeographicDomain.PUERTO_RICO,
-            HydrofabricDomains.GL: GeographicDomain.GREAT_LAKES,
-            HydrofabricDomains.NHF: GeographicDomain.CONUS,  # nhf maps to CONUS
+    # Convert domain to GeographicDomain if it's a string
+    if isinstance(domain, str) and not isinstance(domain, GeographicDomain):
+        # Check if it's a legacy domain string with source provided
+        # Map legacy domain strings to GeographicDomain
+        legacy_str_to_geo = {
+            "conus_hf": GeographicDomain.CONUS,
+            "ak_hf": GeographicDomain.ALASKA,
+            "hi_hf": GeographicDomain.HAWAII,
+            "prvi_hf": GeographicDomain.PUERTO_RICO,
+            "gl_hf": GeographicDomain.GREAT_LAKES,
+            "nhf": GeographicDomain.CONUS,  # nhf maps to CONUS
         }
-        domain = legacy_to_geo.get(domain, GeographicDomain.CONUS)
-    elif isinstance(domain, str) and not isinstance(domain, GeographicDomain):
-        # Plain string domain - convert to GeographicDomain
-        try:
-            domain = GeographicDomain(domain)
-        except ValueError:
-            raise ValueError(
-                f"Invalid geographic domain '{domain}'. "
-                f"Valid values are: {', '.join(d.value for d in GeographicDomain)}"
-            )
+        if domain in legacy_str_to_geo:
+            domain = legacy_str_to_geo[domain]
+        else:
+            # Try as a GeographicDomain value
+            try:
+                domain = GeographicDomain(domain)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid geographic domain '{domain}'. "
+                    f"Valid values are: {', '.join(d.value for d in GeographicDomain)}"
+                )
 
     # Convert source to HydrofabricSource if it's a string
     if isinstance(source, str):

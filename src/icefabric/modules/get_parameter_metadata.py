@@ -10,7 +10,7 @@ from icefabric.modules.divide_attributes import (
     ParametersToDivideAttributesHF,
     ParametersToDivideAttributesNHF,
 )
-from icefabric.schemas.hydrofabric import HydrofabricDomains
+from icefabric.schemas.hydrofabric import NHF_NAMESPACES
 
 
 def get_parameter_metadata(
@@ -64,7 +64,7 @@ def get_parameter_metadata(
 
         # If 2.2, get snow17, sac-sma, and cfe-x attributes from iceberg tables and divide area from
         # the divides layer.  Merge into a single dataframe for area weighted averaging.
-        if domain != HydrofabricDomains.NHF:
+        if domain not in NHF_NAMESPACES:
             parameter_namespace = "divide_parameters"
             snow17_table = "snow-17_conus"
             sacsma_table = "sac-sma_conus"
@@ -108,7 +108,7 @@ def get_parameter_metadata(
         if gage_id is not None:
             parameter_lookup = (
                 ParametersToDivideAttributesNHF.parametersNHF
-                if domain == HydrofabricDomains.NHF
+                if domain in NHF_NAMESPACES
                 else ParametersToDivideAttributesHF.parametersHF
             )
             for index, row in module_params.iterrows():

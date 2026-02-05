@@ -27,7 +27,6 @@ from icefabric.schemas import (
 )
 from icefabric.schemas.hydrofabric import (
     GeographicDomain,
-    HydrofabricDomains,
     HydrofabricSource,
     IdType,
     resolve_namespace,
@@ -65,7 +64,7 @@ async def get_hydrofabric_subset_gpkg(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes).",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, ak_hf, hi_hf, prvi_hf, gl_hf) for backwards compatibility.",
@@ -137,15 +136,13 @@ async def get_hydrofabric_subset_gpkg(
                 IdType.HL_URI,
                 IdType.ID,
             ]:
-                # Look up the domain enum for graph access
-                domain_enum = HydrofabricDomains(namespace)
                 output_layers = subset_hydrofabric(
                     catalog=catalog,
                     identifier=identifier,
                     id_type=id_type,
                     layers=layers or ["divides", "flowpaths", "network", "nexus"],
                     namespace=namespace,
-                    graph=network_graphs[domain_enum],
+                    graph=network_graphs[namespace],
                 )
             else:
                 raise ValueError(f"Incorrect ID type: {id_type} for the HFv2.2")
@@ -248,9 +245,7 @@ async def get_hydrofabric_subset_gpkg(
 
 @api_router.get("/history", tags=["Hydrofabric Services"])
 async def get_hydrofabric_history(
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.CONUS, description="The iceberg namespace used to query the hydrofabric"
-    ),
+    domain: str = Query("conus_hf", description="The iceberg namespace used to query the hydrofabric"),
     catalog=Depends(get_catalog),
 ):
     """
@@ -283,13 +278,13 @@ async def get_hydrofabric_history(
     if domain_table.is_empty():
         raise HTTPException(
             status_code=404,
-            detail=f"No snapshot history found for domain '{domain.value}'",
+            detail=f"No snapshot history found for domain '{domain}'",
         )
     for e_in, entry in enumerate(domain_table.iter_rows()):
         return_dict["history"].append({"domain": entry[0], "layer_updates": []})
         for l_in, layer_id in enumerate(entry[1:]):
             layer_name = layers[l_in][0]
-            tab = catalog.load_table(f"{domain.value}.{layer_name}")
+            tab = catalog.load_table(f"{domain}.{layer_name}")
             snap_obj = tab.snapshot_by_id(layer_id)
             layer_update = {"layer_name": layer_name, "snapshot_id": layer_id, "snapshot_summary": snap_obj}
             return_dict["history"][e_in]["layer_updates"].append(layer_update)

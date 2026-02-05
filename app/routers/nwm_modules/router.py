@@ -3,7 +3,7 @@ from pyiceberg.catalog import Catalog
 
 from app import get_catalog, get_graphs
 from icefabric.modules import SmpModules, config_mapper, get_parameter_metadata
-from icefabric.schemas import GeographicDomain, HydrofabricDomains, HydrofabricSource, resolve_namespace
+from icefabric.schemas import GeographicDomain, HydrofabricSource, resolve_namespace
 from icefabric.schemas.modules import (
     CFE,
     LASAM,
@@ -21,7 +21,7 @@ from icefabric.schemas.modules import (
 
 
 def _resolve_module_namespace(
-    domain: HydrofabricDomains | GeographicDomain | None,
+    domain: GeographicDomain | str | None,
     source: HydrofabricSource | None,
 ) -> tuple[str, bool]:
     """
@@ -76,7 +76,7 @@ async def get_sft_ipes(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -108,9 +108,8 @@ async def get_sft_ipes(
 
     # For HF v2.2 domains, prefix identifier with "gages-" and get graph
     if not is_nhf:
-        domain_enum = HydrofabricDomains(namespace)
         formatted_identifier = f"gages-{identifier}"
-        graph = network_graphs[domain_enum]
+        graph = network_graphs[namespace]
     else:
         formatted_identifier = identifier
         graph = None
@@ -137,7 +136,7 @@ async def get_snow17_ipes(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -168,9 +167,8 @@ async def get_snow17_ipes(
     namespace, is_nhf = _resolve_module_namespace(domain, source)
 
     if not is_nhf:
-        domain_enum = HydrofabricDomains(namespace)
         formatted_identifier = f"gages-{identifier}"
-        graph = network_graphs[domain_enum]
+        graph = network_graphs[namespace]
     else:
         formatted_identifier = identifier
         graph = None
@@ -197,7 +195,7 @@ async def get_smp_ipes(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -228,9 +226,8 @@ async def get_smp_ipes(
     namespace, is_nhf = _resolve_module_namespace(domain, source)
 
     if not is_nhf:
-        domain_enum = HydrofabricDomains(namespace)
         formatted_identifier = f"gages-{identifier}"
-        graph = network_graphs[domain_enum]
+        graph = network_graphs[namespace]
     else:
         formatted_identifier = identifier
         graph = None
@@ -257,7 +254,7 @@ async def get_lstm_ipes(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -282,9 +279,8 @@ async def get_lstm_ipes(
     namespace, is_nhf = _resolve_module_namespace(domain, source)
 
     if not is_nhf:
-        domain_enum = HydrofabricDomains(namespace)
         formatted_identifier = f"gages-{identifier}"
-        graph = network_graphs[domain_enum]
+        graph = network_graphs[namespace]
     else:
         formatted_identifier = identifier
         graph = None
@@ -310,7 +306,7 @@ async def get_lasam_ipes(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -347,9 +343,8 @@ async def get_lasam_ipes(
     namespace, is_nhf = _resolve_module_namespace(domain, source)
 
     if not is_nhf:
-        domain_enum = HydrofabricDomains(namespace)
         formatted_identifier = f"gages-{identifier}"
-        graph = network_graphs[domain_enum]
+        graph = network_graphs[namespace]
     else:
         formatted_identifier = identifier
         graph = None
@@ -377,7 +372,7 @@ async def get_noahowp_ipes(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -402,9 +397,8 @@ async def get_noahowp_ipes(
     namespace, is_nhf = _resolve_module_namespace(domain, source)
 
     if not is_nhf:
-        domain_enum = HydrofabricDomains(namespace)
         formatted_identifier = f"gages-{identifier}"
-        graph = network_graphs[domain_enum]
+        graph = network_graphs[namespace]
     else:
         formatted_identifier = identifier
         graph = None
@@ -430,7 +424,7 @@ async def get_sacsma_ipes(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -461,9 +455,8 @@ async def get_sacsma_ipes(
     namespace, is_nhf = _resolve_module_namespace(domain, source)
 
     if not is_nhf:
-        domain_enum = HydrofabricDomains(namespace)
         formatted_identifier = f"gages-{identifier}"
-        graph = network_graphs[domain_enum]
+        graph = network_graphs[namespace]
     else:
         formatted_identifier = identifier
         graph = None
@@ -490,7 +483,7 @@ async def get_troute_ipes(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -515,9 +508,8 @@ async def get_troute_ipes(
     namespace, is_nhf = _resolve_module_namespace(domain, source)
 
     if not is_nhf:
-        domain_enum = HydrofabricDomains(namespace)
         formatted_identifier = f"gages-{identifier}"
-        graph = network_graphs[domain_enum]
+        graph = network_graphs[namespace]
     else:
         formatted_identifier = identifier
         graph = None
@@ -543,7 +535,7 @@ async def get_topmodel_ipes(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -568,9 +560,8 @@ async def get_topmodel_ipes(
     namespace, is_nhf = _resolve_module_namespace(domain, source)
 
     if not is_nhf:
-        domain_enum = HydrofabricDomains(namespace)
         formatted_identifier = f"gages-{identifier}"
-        graph = network_graphs[domain_enum]
+        graph = network_graphs[namespace]
     else:
         formatted_identifier = identifier
         graph = None
@@ -596,7 +587,7 @@ async def get_topoflow_ipes(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -621,9 +612,8 @@ async def get_topoflow_ipes(
     namespace, is_nhf = _resolve_module_namespace(domain, source)
 
     if not is_nhf:
-        domain_enum = HydrofabricDomains(namespace)
         formatted_identifier = f"gages-{identifier}"
-        graph = network_graphs[domain_enum]
+        graph = network_graphs[namespace]
     else:
         formatted_identifier = identifier
         graph = None
@@ -674,7 +664,7 @@ async def get_ueb_ipes(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -705,9 +695,8 @@ async def get_ueb_ipes(
     namespace, is_nhf = _resolve_module_namespace(domain, source)
 
     if not is_nhf:
-        domain_enum = HydrofabricDomains(namespace)
         formatted_identifier = f"gages-{identifier}"
-        graph = network_graphs[domain_enum]
+        graph = network_graphs[namespace]
     else:
         formatted_identifier = identifier
         graph = None
@@ -734,7 +723,7 @@ async def get_cfe_ipes(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -777,9 +766,8 @@ async def get_cfe_ipes(
     namespace, is_nhf = _resolve_module_namespace(domain, source)
 
     if not is_nhf:
-        domain_enum = HydrofabricDomains(namespace)
         formatted_identifier = f"gages-{identifier}"
-        graph = network_graphs[domain_enum]
+        graph = network_graphs[namespace]
     else:
         formatted_identifier = identifier
         graph = None
@@ -827,7 +815,7 @@ async def get_calibratable_parameter_metadata(
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: HydrofabricDomains | GeographicDomain | None = Query(
+    domain: GeographicDomain | str | None = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -891,16 +879,14 @@ async def get_calibratable_parameter_metadata(
     if gage_id and (domain is not None or source is not None):
         namespace, is_nhf = _resolve_module_namespace(domain, source)
         if not is_nhf:
-            domain_enum = HydrofabricDomains(namespace)
             formatted_gage_id = f"gages-{gage_id}"
-            graph = network_graphs[domain_enum]
+            graph = network_graphs[namespace]
     elif domain is not None:
         # Legacy mode - domain only without source
         namespace, is_nhf = _resolve_module_namespace(domain, source)
         if not is_nhf and gage_id:
-            domain_enum = HydrofabricDomains(namespace)
             formatted_gage_id = f"gages-{gage_id}"
-            graph = network_graphs[domain_enum]
+            graph = network_graphs[namespace]
 
     parameter_metadata = get_parameter_metadata(
         modules=modules,

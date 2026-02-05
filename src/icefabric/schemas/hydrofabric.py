@@ -139,6 +139,8 @@ class HydrofabricNamespace(str, Enum):
     HAWAII_HF = "hi_hf"
     PUERTO_RICO_HF = "prvi_hf"
     GREAT_LAKES_HF = "gl_hf"
+    # Test-only namespace for unit tests with mock data
+    MOCK_HF = "mock_hf"
 
     def __str__(self) -> str:
         """Return the string value for use in f-strings and str().
@@ -176,6 +178,7 @@ class HydrofabricNamespace(str, Enum):
             "hi_hf": cls.HAWAII_HF,
             "prvi_hf": cls.PUERTO_RICO_HF,
             "gl_hf": cls.GREAT_LAKES_HF,
+            "mock_hf": cls.MOCK_HF,
         }
         return aliases.get(value)
 

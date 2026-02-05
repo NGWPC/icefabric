@@ -14,13 +14,14 @@ from icefabric.modules import (
     get_troute_parameters,
     get_ueb_parameters,
 )
+from icefabric.schemas.hydrofabric import HydrofabricNamespace
 
 
 @pytest.fixture
 def test_identifiers(mock_catalog):
     """Fixture that provides test identifiers for parameterization"""
     catalog = mock_catalog("glue")
-    domain = "mock_hf"
+    domain = HydrofabricNamespace.MOCK_HF
 
     # Get identifiers once for all tests
     network_table = catalog.load_table(f"{domain}.network").to_polars()
@@ -37,7 +38,7 @@ def test_identifiers(mock_catalog):
 def test_topmodel_parameters(mock_catalog, sample_graph, test_identifiers):
     """Test Topmodel parameter generation and attribute count for all identifiers"""
     catalog = mock_catalog("glue")
-    namespace = "mock_hf"
+    namespace = HydrofabricNamespace.MOCK_HF
     for identifier in test_identifiers:
         topmodel_models = get_topmodel_parameters(
             catalog,
@@ -52,7 +53,7 @@ def test_topmodel_parameters(mock_catalog, sample_graph, test_identifiers):
 def test_noahowp_parameters(mock_catalog, sample_graph, test_identifiers):
     """Test Noah OWP Modular parameter generation and attribute count for all identifiers"""
     catalog = mock_catalog("glue")
-    namespace = "mock_hf"
+    namespace = HydrofabricNamespace.MOCK_HF
     for identifier in test_identifiers:
         noahowp_models = get_noahowp_parameters(
             catalog,
@@ -67,7 +68,7 @@ def test_noahowp_parameters(mock_catalog, sample_graph, test_identifiers):
 def test_troute_parameters(mock_catalog, sample_graph, test_identifiers):
     """Test T-Route parameter generation and attribute count for all identifiers"""
     mock_catalog = mock_catalog("glue")
-    namespace = "mock_hf"
+    namespace = HydrofabricNamespace.MOCK_HF
     for identifier in test_identifiers:
         troute_models = get_troute_parameters(
             mock_catalog,
@@ -83,7 +84,7 @@ def test_troute_parameters(mock_catalog, sample_graph, test_identifiers):
 def test_lasam_parameters(mock_catalog, sample_graph, test_identifiers, sft_included):
     """Test LASAM parameter generation with different sft_included values"""
     catalog = mock_catalog("glue")
-    namespace = "mock_hf"
+    namespace = HydrofabricNamespace.MOCK_HF
     for identifier in test_identifiers:
         lasam_models = get_lasam_parameters(
             catalog,
@@ -101,7 +102,7 @@ def test_lasam_parameters(mock_catalog, sample_graph, test_identifiers, sft_incl
 def test_snow17_parameters(mock_catalog, sample_graph, test_identifiers, envca):
     """Test Snow17 parameter generation with different envca values"""
     catalog = mock_catalog("glue")
-    namespace = "mock_hf"
+    namespace = HydrofabricNamespace.MOCK_HF
     for identifier in test_identifiers:
         snow17_models = get_snow17_parameters(
             catalog,
@@ -118,7 +119,7 @@ def test_snow17_parameters(mock_catalog, sample_graph, test_identifiers, envca):
 def test_sacsma_parameters(mock_catalog, sample_graph, test_identifiers, envca):
     """Test SAC-SMA parameter generation with different envca values"""
     catalog = mock_catalog("glue")
-    namespace = "mock_hf"
+    namespace = HydrofabricNamespace.MOCK_HF
     for identifier in test_identifiers:
         sacsma_models = get_sacsma_parameters(catalog, namespace, identifier, envca=envca, graph=sample_graph)
 
@@ -129,7 +130,7 @@ def test_sacsma_parameters(mock_catalog, sample_graph, test_identifiers, envca):
 def test_smp_parameters(mock_catalog, sample_graph, test_identifiers, module_type):
     """Test SMP parameter generation for different modules"""
     catalog = mock_catalog("glue")
-    namespace = "mock_hf"
+    namespace = HydrofabricNamespace.MOCK_HF
     for identifier in test_identifiers:
         smp_models = get_smp_parameters(
             catalog,
@@ -145,7 +146,7 @@ def test_smp_parameters(mock_catalog, sample_graph, test_identifiers, module_typ
 def test_lstm_parameters(mock_catalog, sample_graph, test_identifiers):
     """Test LSTM parameter generation and attribute count for all identifiers"""
     catalog = mock_catalog("glue")
-    namespace = "mock_hf"
+    namespace = HydrofabricNamespace.MOCK_HF
     for identifier in test_identifiers:
         lstm_models = get_lstm_parameters(
             catalog,
@@ -160,7 +161,7 @@ def test_lstm_parameters(mock_catalog, sample_graph, test_identifiers):
 def test_topoflow_parameters(mock_catalog, sample_graph, test_identifiers):
     """Test Topoflow parameter generation and attribute count for all identifiers"""
     catalog = mock_catalog("glue")
-    namespace = "mock_hf"
+    namespace = HydrofabricNamespace.MOCK_HF
     for identifier in test_identifiers:
         topoflow_models = get_topoflow_parameters(
             catalog,
@@ -178,7 +179,7 @@ def test_topoflow_parameters(mock_catalog, sample_graph, test_identifiers):
 def test_cfe_parameters(mock_catalog, sample_graph, test_identifiers, version, sft, rootzone):
     """Test CFE parameter generation for different modules"""
     catalog = mock_catalog("glue")
-    namespace = "mock_hf"
+    namespace = HydrofabricNamespace.MOCK_HF
     for identifier in test_identifiers:
         cfe_models = get_cfe_parameters(
             catalog,
@@ -199,7 +200,7 @@ def test_cfe_parameters(mock_catalog, sample_graph, test_identifiers, version, s
 def test_ueb_parameters(mock_catalog, sample_graph, test_identifiers, envca):
     """Test UEB parameter generation for different modules"""
     catalog = mock_catalog("glue")
-    namespace = "mock_hf"
+    namespace = HydrofabricNamespace.MOCK_HF
     for identifier in test_identifiers:
         ueb_models = get_ueb_parameters(
             catalog,

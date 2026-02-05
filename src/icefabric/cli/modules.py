@@ -23,7 +23,9 @@ def validate_options(ctx, param, value):
         module_choice = ctx.params.get("nwm_module")
         try:
             if param.name not in modules_with_extra_args[module_choice]:
-                raise click.BadParameter(f"'{param.opts[0]}' is inappropriate for the '{module_choice}' module.")
+                raise click.BadParameter(
+                    f"'{param.opts[0]}' is inappropriate for the '{module_choice}' module."
+                )
         except KeyError as err:
             raise KeyError(
                 f"The '{module_choice}' module can't be used with non-standard (gage id, domain, etc.) arguments."

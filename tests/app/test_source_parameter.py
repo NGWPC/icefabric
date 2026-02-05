@@ -249,7 +249,9 @@ class TestHydrofabricRouterSourceParameter:
 
     def test_hydrofabric_non_conus_nhf_returns_501(self, client):
         """Test hydrofabric endpoint returns 501 for non-CONUS domains with NHF."""
-        response = client.get("/v1/hydrofabric/test-id/gpkg?id_type=id&source=nhf&domain=Hawaii&layers=divides")
+        response = client.get(
+            "/v1/hydrofabric/test-id/gpkg?id_type=id&source=nhf&domain=Hawaii&layers=divides"
+        )
         assert response.status_code == 501
         data = response.json()
         assert data["detail"]["error"] == "domain_not_available"
@@ -261,7 +263,9 @@ class TestHydrofabricRouterSourceParameter:
         assert response.status_code == 400
 
     @pytest.mark.slow
-    def test_hydrofabric_geographic_domain_without_source_succeeds(self, client, watershed_bound_id_good: str):
+    def test_hydrofabric_geographic_domain_without_source_succeeds(
+        self, client, watershed_bound_id_good: str
+    ):
         """Test hydrofabric endpoint works with just domain=Hawaii (no source).
 
         Should default to HF source and return hi_hf data.
@@ -290,7 +294,9 @@ class TestModuleRouterSourceParameter:
 
     def test_module_parameter_metadata_non_conus_nhf_returns_501(self, client):
         """Test parameter_metadata endpoint returns 501 for non-CONUS domains with NHF."""
-        response = client.get("/v1/modules/parameter_metadata/?modules=SFT&source=nhf&domain=Alaska&gage_id=01010000")
+        response = client.get(
+            "/v1/modules/parameter_metadata/?modules=SFT&source=nhf&domain=Alaska&gage_id=01010000"
+        )
         assert response.status_code == 501
         data = response.json()
         assert data["detail"]["error"] == "domain_not_available"

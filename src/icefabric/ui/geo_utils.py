@@ -157,7 +157,9 @@ def get_geopackage_uri(
     return data["uri"]
 
 
-def create_time_series_widget(df: pd.DataFrame, flow_col: str, point_size: float = 30, time_col: str = "time"):
+def create_time_series_widget(
+    df: pd.DataFrame, flow_col: str, point_size: float = 30, time_col: str = "time"
+):
     """
     Creates an interactive time series plot using matplotlib and ipywidgets.
 

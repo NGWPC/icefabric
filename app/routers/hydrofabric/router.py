@@ -186,7 +186,9 @@ async def get_hydrofabric_subset_gpkg(
             conn.close()
 
             if layers_written == 0:
-                raise HTTPException(status_code=404, detail=f"No non-empty layers found for identifier '{identifier}'")
+                raise HTTPException(
+                    status_code=404, detail=f"No non-empty layers found for identifier '{identifier}'"
+                )
 
         # Verify the file was created successfully
         if not tmp_path.exists():

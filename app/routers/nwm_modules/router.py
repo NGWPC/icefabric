@@ -313,7 +313,9 @@ async def get_lasam_ipes(
     soil_params_file: str = Query(
         "vG_default_params_HYDRUS.dat",
         description="Name of the Van Genuchton soil parameters file. Note: This is the filename that gets returned by HF API's utility script get_hydrus_data().",
-        openapi_examples={"lasam_example": {"summary": "LASAM Example", "value": "vG_default_params_HYDRUS.dat"}},
+        openapi_examples={
+            "lasam_example": {"summary": "LASAM Example", "value": "vG_default_params_HYDRUS.dat"}
+        },
     ),
     catalog: Catalog = Depends(get_catalog),
     network_graphs=Depends(get_graphs),

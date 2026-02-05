@@ -159,7 +159,9 @@ def get_sft_parameters(
             b={"value": row_dict[attr_names.BEXP.value], "units": None},
             satpsi={"value": row_dict[attr_names.PSISAT.value], "units": "m"},
             quartz={"value": quartz_value, "units": "m"},
-            ice_fraction_scheme=IceFractionScheme.XINANJIANG if use_schaake is False else IceFractionScheme.SCHAAKE,
+            ice_fraction_scheme=IceFractionScheme.XINANJIANG
+            if use_schaake is False
+            else IceFractionScheme.SCHAAKE,
             soil_temperature={"value": [280.372, 280.372, 280.372, 280.372], "units": "K"},
             # Assuming 45 degrees in all layers. TODO: Fix this as this doesn't make sense
         )
@@ -212,7 +214,9 @@ def get_snow17_parameters(
         # Convert CRS to WGS84 (EPSG4326)
         crs = gauge["divides"].crs
         transformer = Transformer.from_crs(crs, 4326)
-        wgs84_latlon = transformer.transform(divide_attr_df[attr_names.X.value], divide_attr_df[attr_names.Y.value])
+        wgs84_latlon = transformer.transform(
+            divide_attr_df[attr_names.X.value], divide_attr_df[attr_names.Y.value]
+        )
         divide_attr_df[attr_names.Y.value] = wgs84_latlon[0]
         divide_attr_df[attr_names.X.value] = wgs84_latlon[1]
 
@@ -225,7 +229,9 @@ def get_snow17_parameters(
             conus_param_df = (
                 params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
             )
-            divide_attr_df = pd.merge(divide_attr_df, conus_param_df, on=attr_names.DIVIDE_ID.value, how="left")
+            divide_attr_df = pd.merge(
+                divide_attr_df, conus_param_df, on=attr_names.DIVIDE_ID.value, how="left"
+            )
         else:
             # Attributes don't exist in the dataset for Canada
             divide_attr_df["mfmax"] = CalibratableScheme.MFMAX.value
@@ -374,7 +380,9 @@ def get_lstm_parameters(
         # Convert CRS to WGS84 (EPSG4326)
         crs = gauge["divides"].crs
         transformer = Transformer.from_crs(crs, 4326)
-        wgs84_latlon = transformer.transform(divide_attr_df[attr_names.X.value], divide_attr_df[attr_names.Y.value])
+        wgs84_latlon = transformer.transform(
+            divide_attr_df[attr_names.X.value], divide_attr_df[attr_names.Y.value]
+        )
         divide_attr_df[attr_names.Y.value] = wgs84_latlon[0]
         divide_attr_df[attr_names.X.value] = wgs84_latlon[1]
 
@@ -483,7 +491,9 @@ def get_noahowp_parameters(
     if not namespace.is_nhf:
         crs = gauge["divides"].crs
         transformer = Transformer.from_crs(crs, 4326)
-        wgs84_latlon = transformer.transform(divide_attr_df[attr_names.X.value], divide_attr_df[attr_names.Y.value])
+        wgs84_latlon = transformer.transform(
+            divide_attr_df[attr_names.X.value], divide_attr_df[attr_names.Y.value]
+        )
         divide_attr_df[attr_names.Y.value] = wgs84_latlon[0]
         divide_attr_df[attr_names.X.value] = wgs84_latlon[1]
 
@@ -665,9 +675,13 @@ def get_topmodel_parameters(
 
     # Get flowpath length from divides layer for HF2.2 or from flowpaths layer in NHF
     if namespace.is_nhf:
-        flowpaths_df = pd.DataFrame(gauge["flowpaths"])[[attr_names.DIVIDE_ID.value, attr_names.FLOWPATH_LENGTH.value]]
+        flowpaths_df = pd.DataFrame(gauge["flowpaths"])[
+            [attr_names.DIVIDE_ID.value, attr_names.FLOWPATH_LENGTH.value]
+        ]
     else:
-        flowpaths_df = pd.DataFrame(gauge["divides"])[[attr_names.DIVIDE_ID.value, attr_names.FLOWPATH_LENGTH.value]]
+        flowpaths_df = pd.DataFrame(gauge["divides"])[
+            [attr_names.DIVIDE_ID.value, attr_names.FLOWPATH_LENGTH.value]
+        ]
 
     divide_attr_df = pd.merge(divide_attr_df, flowpaths_df, on=attr_names.DIVIDE_ID.value, how="left")
 
@@ -734,7 +748,9 @@ def get_topoflow_parameters(
         # Convert CRS to WGS84 (EPSG4326)
         crs = gauge["divides"].crs
         transformer = Transformer.from_crs(crs, 4326)
-        wgs84_latlon = transformer.transform(divide_attr_df[attr_names.X.value], divide_attr_df[attr_names.Y.value])
+        wgs84_latlon = transformer.transform(
+            divide_attr_df[attr_names.X.value], divide_attr_df[attr_names.Y.value]
+        )
         divide_attr_df[attr_names.Y.value] = wgs84_latlon[0]
         divide_attr_df[attr_names.X.value] = wgs84_latlon[1]
 
@@ -801,7 +817,9 @@ def get_ueb_parameters(
         # Convert CRS to WGS84 (EPSG4326)
         crs = gauge["divides"].crs
         transformer = Transformer.from_crs(crs, 4326)
-        wgs84_latlon = transformer.transform(divide_attr_df[attr_names.X.value], divide_attr_df[attr_names.Y.value])
+        wgs84_latlon = transformer.transform(
+            divide_attr_df[attr_names.X.value], divide_attr_df[attr_names.Y.value]
+        )
         divide_attr_df[attr_names.Y.value] = wgs84_latlon[0]
         divide_attr_df[attr_names.X.value] = wgs84_latlon[1]
 
@@ -816,7 +834,9 @@ def get_ueb_parameters(
             )
             col2drop = [col for col in divide_attr_df.columns if col.endswith("_temp_range")]
             divide_attr_df.drop(columns=col2drop, inplace=True)
-            divide_attr_df = pd.merge(conus_param_df, divide_attr_df, on=attr_names.DIVIDE_ID.value, how="left")
+            divide_attr_df = pd.merge(
+                conus_param_df, divide_attr_df, on=attr_names.DIVIDE_ID.value, how="left"
+            )
             divide_attr_df.rename(
                 columns={
                     "b01": "jan_temp_range",
@@ -922,7 +942,9 @@ def get_cfe_parameters(
         domain = namespace.split("_")[0]
         table_name = f"divide_parameters.cfe-x_{domain}"
         params_df = catalog.load_table(table_name).to_polars()
-        conus_param_df = params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
+        conus_param_df = (
+            params_df.filter(pl.col(attr_names.DIVIDE_ID.value).is_in(divides_list)).collect().to_pandas()
+        )
         divide_attr_df = pd.merge(conus_param_df, divide_attr_df, on=attr_names.DIVIDE_ID.value, how="left")
 
     if rootzone_aet:

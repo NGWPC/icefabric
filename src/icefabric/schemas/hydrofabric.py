@@ -223,7 +223,7 @@ class HydrofabricNamespace(str, Enum):
             try:
                 source = HydrofabricSource(source)
             except ValueError:
-                raise ValueError(f"Invalid source '{source}'. Valid values are: 'nhf', 'hf'")
+                raise ValueError(f"Invalid source '{source}'. Valid values are: 'nhf', 'hf'") from None
 
         # Domain provided without source - legacy mode or default to HF
         if source is None and domain is not None:
@@ -245,7 +245,7 @@ class HydrofabricNamespace(str, Enum):
                     source = HydrofabricSource.HF
                     # Fall through to the "both provided" case below
                 except ValueError:
-                    raise ValueError(f"Unknown domain value: '{domain_str}'")
+                    raise ValueError(f"Unknown domain value: '{domain_str}'") from None
 
         # Both source and domain provided - resolve to namespace
         # Convert domain to GeographicDomain if it's a string
@@ -268,10 +268,12 @@ class HydrofabricNamespace(str, Enum):
                     raise ValueError(
                         f"Invalid geographic domain '{domain}'. "
                         f"Valid values are: {', '.join(d.value for d in GeographicDomain)}"
-                    )
+                    ) from None
 
         # Mapping from (GeographicDomain, HydrofabricSource) to namespace
-        domain_source_mapping: dict[tuple[GeographicDomain, HydrofabricSource], HydrofabricNamespace | None] = {
+        domain_source_mapping: dict[
+            tuple[GeographicDomain, HydrofabricSource], HydrofabricNamespace | None
+        ] = {
             (GeographicDomain.CONUS, HydrofabricSource.NHF): cls.CONUS_NHF,
             (GeographicDomain.CONUS, HydrofabricSource.HF): cls.CONUS_HF,
             (GeographicDomain.ALASKA, HydrofabricSource.NHF): None,

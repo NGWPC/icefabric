@@ -92,7 +92,7 @@ def create_conus_nhf(catalog_type: str, dry_run: bool = False):
             print(f"  Registered {dest_table} -> {metadata_location}")
         except TableAlreadyExistsError:
             print(f"  Table {dest_table} already exists, skipping")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"  ERROR registering {dest_table}: {e}")
 
     print("\nDone!")
@@ -137,7 +137,7 @@ def tear_down_conus_nhf(catalog_type: str, dry_run: bool = False):
         try:
             catalog.drop_namespace(namespace)
             print(f"  Dropped namespace: {namespace}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"  Could not drop namespace {namespace}: {e}")
 
     print("\nTeardown complete!")
@@ -146,7 +146,9 @@ def tear_down_conus_nhf(catalog_type: str, dry_run: bool = False):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Create conus_nhf namespace by registering tables from nhf namespace")
+    parser = argparse.ArgumentParser(
+        description="Create conus_nhf namespace by registering tables from nhf namespace"
+    )
 
     parser.add_argument(
         "--catalog",

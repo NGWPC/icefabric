@@ -27,9 +27,9 @@ from icefabric.schemas import (
 )
 from icefabric.schemas.hydrofabric import (
     GeographicDomain,
+    HydrofabricNamespace,
     HydrofabricSource,
     IdType,
-    resolve_namespace,
 )
 
 api_router = APIRouter(prefix="/hydrofabric")
@@ -97,7 +97,7 @@ async def get_hydrofabric_subset_gpkg(
 
     # Resolve namespace from domain/source combination (outside try block for error handling access)
     try:
-        namespace, is_nhf, deprecation_warnings = resolve_namespace(domain, source)
+        namespace = HydrofabricNamespace.resolve(domain, source)
     except NotImplementedError as e:
         raise HTTPException(
             status_code=501,
@@ -113,7 +113,7 @@ async def get_hydrofabric_subset_gpkg(
         raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}") from None
 
     try:
-        if is_nhf:
+        if namespace.is_nhf:
             if id_type == IdType.VPU_ID:
                 output_layers = subset_nhf(
                     vpu_id=identifier,

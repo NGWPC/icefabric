@@ -4,215 +4,223 @@ import pytest
 
 from icefabric.schemas.hydrofabric import (
     GeographicDomain,
+    HydrofabricNamespace,
     HydrofabricSource,
-    resolve_namespace,
 )
 
 
-class TestResolveNamespace:
-    """Unit tests for the resolve_namespace function."""
+class TestHydrofabricNamespaceResolve:
+    """Unit tests for the HydrofabricNamespace.resolve method."""
 
     def test_default_no_params(self):
         """Test that no params returns NHF with is_nhf=True."""
-        namespace, is_nhf, warnings = resolve_namespace(None, None)
+        namespace = HydrofabricNamespace.resolve(None, None)
         assert namespace == "nhf"
-        assert is_nhf is True
-        assert warnings == []
+        assert namespace.is_nhf is True
 
     def test_source_without_domain_raises(self):
         """Test that providing source without domain raises ValueError."""
         with pytest.raises(ValueError) as exc_info:
-            resolve_namespace(None, HydrofabricSource.NHF)
+            HydrofabricNamespace.resolve(None, HydrofabricSource.NHF)
         assert "domain" in str(exc_info.value).lower()
 
     def test_geographic_domain_without_source_defaults_to_hf(self):
         """Test that providing GeographicDomain without source defaults to HF."""
-        namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.CONUS, None)
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.CONUS, None)
         assert namespace == "conus_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_geographic_domain_alaska_without_source_defaults_to_hf(self):
         """Test that Alaska without source defaults to HF (ak_hf)."""
-        namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.ALASKA, None)
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.ALASKA, None)
         assert namespace == "ak_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_geographic_domain_hawaii_without_source_defaults_to_hf(self):
         """Test that Hawaii without source defaults to HF (hi_hf)."""
-        namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.HAWAII, None)
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.HAWAII, None)
         assert namespace == "hi_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_geographic_domain_puerto_rico_without_source_defaults_to_hf(self):
         """Test that Puerto_Rico without source defaults to HF (prvi_hf)."""
-        namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.PUERTO_RICO, None)
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.PUERTO_RICO, None)
         assert namespace == "prvi_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_geographic_domain_great_lakes_without_source_defaults_to_hf(self):
         """Test that Great_Lakes without source defaults to HF (gl_hf)."""
-        namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.GREAT_LAKES, None)
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.GREAT_LAKES, None)
         assert namespace == "gl_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_string_geographic_domain_without_source_defaults_to_hf(self):
         """Test that string geographic domain without source defaults to HF."""
-        namespace, is_nhf, warnings = resolve_namespace("CONUS", None)
+        namespace = HydrofabricNamespace.resolve("CONUS", None)
         assert namespace == "conus_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_string_geographic_domain_hawaii_without_source_defaults_to_hf(self):
         """Test that string 'Hawaii' without source defaults to HF."""
-        namespace, is_nhf, warnings = resolve_namespace("Hawaii", None)
+        namespace = HydrofabricNamespace.resolve("Hawaii", None)
         assert namespace == "hi_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     # Legacy domain tests - backwards compatibility (using string values)
     def test_legacy_domain_nhf(self):
         """Test legacy 'nhf' domain returns NHF namespace."""
-        namespace, is_nhf, warnings = resolve_namespace("nhf", None)
+        namespace = HydrofabricNamespace.resolve("nhf", None)
         assert namespace == "nhf"
-        assert is_nhf is True
-        assert warnings == []
+        assert namespace.is_nhf is True
 
     def test_legacy_domain_conus_hf(self):
         """Test legacy 'conus_hf' domain returns conus_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace("conus_hf", None)
+        namespace = HydrofabricNamespace.resolve("conus_hf", None)
         assert namespace == "conus_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_legacy_domain_ak_hf(self):
         """Test legacy 'ak_hf' domain returns ak_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace("ak_hf", None)
+        namespace = HydrofabricNamespace.resolve("ak_hf", None)
         assert namespace == "ak_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_legacy_domain_hi_hf(self):
         """Test legacy 'hi_hf' domain returns hi_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace("hi_hf", None)
+        namespace = HydrofabricNamespace.resolve("hi_hf", None)
         assert namespace == "hi_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_legacy_domain_prvi_hf(self):
         """Test legacy 'prvi_hf' domain returns prvi_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace("prvi_hf", None)
+        namespace = HydrofabricNamespace.resolve("prvi_hf", None)
         assert namespace == "prvi_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_legacy_domain_gl_hf(self):
         """Test legacy 'gl_hf' domain returns gl_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace("gl_hf", None)
+        namespace = HydrofabricNamespace.resolve("gl_hf", None)
         assert namespace == "gl_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     # New API tests - source + domain combinations
     def test_conus_nhf(self):
         """Test CONUS + NHF returns conus_nhf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.CONUS, HydrofabricSource.NHF)
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.CONUS, HydrofabricSource.NHF)
         assert namespace == "conus_nhf"
-        assert is_nhf is True
-        assert warnings == []
+        assert namespace.is_nhf is True
 
     def test_conus_hf(self):
         """Test CONUS + HF returns conus_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.CONUS, HydrofabricSource.HF)
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.CONUS, HydrofabricSource.HF)
         assert namespace == "conus_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_alaska_hf(self):
         """Test Alaska + HF returns ak_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.ALASKA, HydrofabricSource.HF)
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.ALASKA, HydrofabricSource.HF)
         assert namespace == "ak_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_hawaii_hf(self):
         """Test Hawaii + HF returns hi_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.HAWAII, HydrofabricSource.HF)
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.HAWAII, HydrofabricSource.HF)
         assert namespace == "hi_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_puerto_rico_hf(self):
         """Test Puerto_Rico + HF returns prvi_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.PUERTO_RICO, HydrofabricSource.HF)
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.PUERTO_RICO, HydrofabricSource.HF)
         assert namespace == "prvi_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     def test_great_lakes_hf(self):
         """Test Great_Lakes + HF returns gl_hf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.GREAT_LAKES, HydrofabricSource.HF)
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.GREAT_LAKES, HydrofabricSource.HF)
         assert namespace == "gl_hf"
-        assert is_nhf is False
-        assert warnings == []
+        assert namespace.is_nhf is False
 
     # 501 Not Implemented tests - non-CONUS with NHF
     def test_alaska_nhf_not_implemented(self):
         """Test Alaska + NHF raises NotImplementedError."""
         with pytest.raises(NotImplementedError) as exc_info:
-            resolve_namespace(GeographicDomain.ALASKA, HydrofabricSource.NHF)
+            HydrofabricNamespace.resolve(GeographicDomain.ALASKA, HydrofabricSource.NHF)
         assert "Alaska" in str(exc_info.value)
         assert "CONUS" in str(exc_info.value)
 
     def test_hawaii_nhf_not_implemented(self):
         """Test Hawaii + NHF raises NotImplementedError."""
         with pytest.raises(NotImplementedError) as exc_info:
-            resolve_namespace(GeographicDomain.HAWAII, HydrofabricSource.NHF)
+            HydrofabricNamespace.resolve(GeographicDomain.HAWAII, HydrofabricSource.NHF)
         assert "Hawaii" in str(exc_info.value)
         assert "CONUS" in str(exc_info.value)
 
     def test_puerto_rico_nhf_not_implemented(self):
         """Test Puerto_Rico + NHF raises NotImplementedError."""
         with pytest.raises(NotImplementedError) as exc_info:
-            resolve_namespace(GeographicDomain.PUERTO_RICO, HydrofabricSource.NHF)
+            HydrofabricNamespace.resolve(GeographicDomain.PUERTO_RICO, HydrofabricSource.NHF)
         assert "Puerto_Rico" in str(exc_info.value)
         assert "CONUS" in str(exc_info.value)
 
     def test_great_lakes_nhf_not_implemented(self):
         """Test Great_Lakes + NHF raises NotImplementedError."""
         with pytest.raises(NotImplementedError) as exc_info:
-            resolve_namespace(GeographicDomain.GREAT_LAKES, HydrofabricSource.NHF)
+            HydrofabricNamespace.resolve(GeographicDomain.GREAT_LAKES, HydrofabricSource.NHF)
         assert "Great_Lakes" in str(exc_info.value)
         assert "CONUS" in str(exc_info.value)
 
     # String input tests
     def test_string_domain_conus(self):
         """Test string domain 'CONUS' with source."""
-        namespace, is_nhf, warnings = resolve_namespace("CONUS", HydrofabricSource.HF)
+        namespace = HydrofabricNamespace.resolve("CONUS", HydrofabricSource.HF)
         assert namespace == "conus_hf"
-        assert is_nhf is False
+        assert namespace.is_nhf is False
 
     def test_string_source_nhf(self):
         """Test string source 'nhf' with domain returns conus_nhf namespace."""
-        namespace, is_nhf, warnings = resolve_namespace(GeographicDomain.CONUS, "nhf")
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.CONUS, "nhf")
         assert namespace == "conus_nhf"
-        assert is_nhf is True
+        assert namespace.is_nhf is True
 
     def test_invalid_string_domain(self):
         """Test invalid string domain raises ValueError."""
         with pytest.raises(ValueError) as exc_info:
-            resolve_namespace("InvalidDomain", HydrofabricSource.HF)
+            HydrofabricNamespace.resolve("InvalidDomain", HydrofabricSource.HF)
         assert "Invalid" in str(exc_info.value)
 
     def test_invalid_string_source(self):
         """Test invalid string source raises ValueError."""
         with pytest.raises(ValueError) as exc_info:
-            resolve_namespace(GeographicDomain.CONUS, "invalid")
+            HydrofabricNamespace.resolve(GeographicDomain.CONUS, "invalid")
         assert "Invalid" in str(exc_info.value)
+
+
+class TestHydrofabricNamespaceProperties:
+    """Test HydrofabricNamespace enum properties."""
+
+    def test_is_nhf_for_nhf(self):
+        """Test is_nhf returns True for NHF namespace."""
+        assert HydrofabricNamespace.NHF.is_nhf is True
+
+    def test_is_nhf_for_conus_nhf(self):
+        """Test is_nhf returns True for CONUS_NHF namespace."""
+        assert HydrofabricNamespace.CONUS_NHF.is_nhf is True
+
+    def test_is_nhf_for_conus_hf(self):
+        """Test is_nhf returns False for CONUS_HF namespace."""
+        assert HydrofabricNamespace.CONUS_HF.is_nhf is False
+
+    def test_is_oconus_hf_for_alaska(self):
+        """Test is_oconus_hf returns True for ALASKA_HF namespace."""
+        assert HydrofabricNamespace.ALASKA_HF.is_oconus_hf is True
+
+    def test_is_oconus_hf_for_conus(self):
+        """Test is_oconus_hf returns False for CONUS_HF namespace."""
+        assert HydrofabricNamespace.CONUS_HF.is_oconus_hf is False
+
+    def test_is_oconus_hf_for_hawaii(self):
+        """Test is_oconus_hf returns False for HAWAII_HF namespace (it's OCONUS but not in the set)."""
+        assert HydrofabricNamespace.HAWAII_HF.is_oconus_hf is False
 
 
 class TestHydrofabricRouterSourceParameter:

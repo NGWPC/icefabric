@@ -10,7 +10,7 @@ from icefabric.builds.graph_connectivity import load_upstream_json
 from icefabric.cli import get_catalog
 from icefabric.helpers import load_creds
 from icefabric.hydrofabric.subset import subset_hydrofabric, subset_hydrofabric_vpu
-from icefabric.schemas.hydrofabric import _LEGACY_DOMAIN_TO_NAMESPACE, GeographicDomain, IdType
+from icefabric.schemas.hydrofabric import GeographicDomain, HydrofabricNamespace, IdType
 
 load_creds()
 
@@ -37,7 +37,7 @@ load_creds()
 @click.option(
     "--domain",
     type=click.Choice(
-        [d.value for d in GeographicDomain] + list(_LEGACY_DOMAIN_TO_NAMESPACE.keys()),
+        [d.value for d in GeographicDomain] + [ns.value for ns in HydrofabricNamespace],
         case_sensitive=False,
     ),
     required=True,

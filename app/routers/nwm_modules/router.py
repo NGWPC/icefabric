@@ -3,7 +3,7 @@ from pyiceberg.catalog import Catalog
 
 from app import get_catalog, get_graphs
 from icefabric.modules import SmpModules, config_mapper, get_parameter_metadata
-from icefabric.schemas import GeographicDomain, HydrofabricSource, resolve_namespace
+from icefabric.schemas import GeographicDomain, HydrofabricNamespace, HydrofabricSource
 from icefabric.schemas.modules import (
     CFE,
     LASAM,
@@ -23,14 +23,10 @@ from icefabric.schemas.modules import (
 def _resolve_module_namespace(
     domain: GeographicDomain | str | None,
     source: HydrofabricSource | None,
-) -> tuple[str, bool]:
-    """
-    Resolve namespace for module endpoints with error handling.
-
-    Returns: (namespace, is_nhf)
-    """
+) -> HydrofabricNamespace:
+    """Resolve namespace for module endpoints with error handling."""
     try:
-        namespace, is_nhf, _deprecation_warnings = resolve_namespace(domain, source)
+        return HydrofabricNamespace.resolve(domain, source)
     except NotImplementedError as e:
         raise HTTPException(
             status_code=501,
@@ -44,8 +40,6 @@ def _resolve_module_namespace(
         ) from None
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}") from None
-
-    return namespace, is_nhf
 
 
 sft_router = APIRouter(prefix="/modules/sft")
@@ -104,10 +98,10 @@ async def get_sft_ipes(
     **Returns:**
     A list of SFT pydantic objects for each catchment
     """
-    namespace, is_nhf = _resolve_module_namespace(domain, source)
+    namespace = _resolve_module_namespace(domain, source)
 
     # For HF v2.2 domains, prefix identifier with "gages-" and get graph
-    if not is_nhf:
+    if not namespace.is_nhf:
         formatted_identifier = f"gages-{identifier}"
         graph = network_graphs[namespace]
     else:
@@ -164,9 +158,9 @@ async def get_snow17_ipes(
     **Returns:**
     A list of SNOW-17 pydantic objects for each catchment.
     """
-    namespace, is_nhf = _resolve_module_namespace(domain, source)
+    namespace = _resolve_module_namespace(domain, source)
 
-    if not is_nhf:
+    if not namespace.is_nhf:
         formatted_identifier = f"gages-{identifier}"
         graph = network_graphs[namespace]
     else:
@@ -223,9 +217,9 @@ async def get_smp_ipes(
     **Returns:**
     A list of SMP pydantic objects for each catchment.
     """
-    namespace, is_nhf = _resolve_module_namespace(domain, source)
+    namespace = _resolve_module_namespace(domain, source)
 
-    if not is_nhf:
+    if not namespace.is_nhf:
         formatted_identifier = f"gages-{identifier}"
         graph = network_graphs[namespace]
     else:
@@ -276,9 +270,9 @@ async def get_lstm_ipes(
     **Returns:**
     A list of LSTM pydantic objects for each catchment.
     """
-    namespace, is_nhf = _resolve_module_namespace(domain, source)
+    namespace = _resolve_module_namespace(domain, source)
 
-    if not is_nhf:
+    if not namespace.is_nhf:
         formatted_identifier = f"gages-{identifier}"
         graph = network_graphs[namespace]
     else:
@@ -340,9 +334,9 @@ async def get_lasam_ipes(
     **Returns:**
     A list of LASAM pydantic objects for each catchment.
     """
-    namespace, is_nhf = _resolve_module_namespace(domain, source)
+    namespace = _resolve_module_namespace(domain, source)
 
-    if not is_nhf:
+    if not namespace.is_nhf:
         formatted_identifier = f"gages-{identifier}"
         graph = network_graphs[namespace]
     else:
@@ -394,9 +388,9 @@ async def get_noahowp_ipes(
     **Returns:**
     A list of Noah-OWP-Modular pydantic objects for each catchment.
     """
-    namespace, is_nhf = _resolve_module_namespace(domain, source)
+    namespace = _resolve_module_namespace(domain, source)
 
-    if not is_nhf:
+    if not namespace.is_nhf:
         formatted_identifier = f"gages-{identifier}"
         graph = network_graphs[namespace]
     else:
@@ -452,9 +446,9 @@ async def get_sacsma_ipes(
     **Returns:**
     A list of SAC-SMA pydantic objects for each catchment.
     """
-    namespace, is_nhf = _resolve_module_namespace(domain, source)
+    namespace = _resolve_module_namespace(domain, source)
 
-    if not is_nhf:
+    if not namespace.is_nhf:
         formatted_identifier = f"gages-{identifier}"
         graph = network_graphs[namespace]
     else:
@@ -505,9 +499,9 @@ async def get_troute_ipes(
     **Returns:**
     A list of T-Route pydantic objects for each catchment.
     """
-    namespace, is_nhf = _resolve_module_namespace(domain, source)
+    namespace = _resolve_module_namespace(domain, source)
 
-    if not is_nhf:
+    if not namespace.is_nhf:
         formatted_identifier = f"gages-{identifier}"
         graph = network_graphs[namespace]
     else:
@@ -557,9 +551,9 @@ async def get_topmodel_ipes(
     **Returns:**
     A list of TOPMODEL pydantic objects for each catchment.
     """
-    namespace, is_nhf = _resolve_module_namespace(domain, source)
+    namespace = _resolve_module_namespace(domain, source)
 
-    if not is_nhf:
+    if not namespace.is_nhf:
         formatted_identifier = f"gages-{identifier}"
         graph = network_graphs[namespace]
     else:
@@ -609,9 +603,9 @@ async def get_topoflow_ipes(
     **Returns:**
     A list of TopoFlow pydantic objects for each catchment.
     """
-    namespace, is_nhf = _resolve_module_namespace(domain, source)
+    namespace = _resolve_module_namespace(domain, source)
 
-    if not is_nhf:
+    if not namespace.is_nhf:
         formatted_identifier = f"gages-{identifier}"
         graph = network_graphs[namespace]
     else:
@@ -692,9 +686,9 @@ async def get_ueb_ipes(
     **Returns:**
     A list of UEB pydantic objects for each catchment.
     """
-    namespace, is_nhf = _resolve_module_namespace(domain, source)
+    namespace = _resolve_module_namespace(domain, source)
 
-    if not is_nhf:
+    if not namespace.is_nhf:
         formatted_identifier = f"gages-{identifier}"
         graph = network_graphs[namespace]
     else:
@@ -763,9 +757,9 @@ async def get_cfe_ipes(
     **Returns:**
     A list of CFE pydantic objects for each catchment.
     """
-    namespace, is_nhf = _resolve_module_namespace(domain, source)
+    namespace = _resolve_module_namespace(domain, source)
 
-    if not is_nhf:
+    if not namespace.is_nhf:
         formatted_identifier = f"gages-{identifier}"
         graph = network_graphs[namespace]
     else:
@@ -877,14 +871,14 @@ async def get_calibratable_parameter_metadata(
     formatted_gage_id = gage_id
 
     if gage_id and (domain is not None or source is not None):
-        namespace, is_nhf = _resolve_module_namespace(domain, source)
-        if not is_nhf:
+        namespace = _resolve_module_namespace(domain, source)
+        if not namespace.is_nhf:
             formatted_gage_id = f"gages-{gage_id}"
             graph = network_graphs[namespace]
     elif domain is not None:
         # Legacy mode - domain only without source
-        namespace, is_nhf = _resolve_module_namespace(domain, source)
-        if not is_nhf and gage_id:
+        namespace = _resolve_module_namespace(domain, source)
+        if not namespace.is_nhf and gage_id:
             formatted_gage_id = f"gages-{gage_id}"
             graph = network_graphs[namespace]
 

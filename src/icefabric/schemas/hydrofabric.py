@@ -110,146 +110,183 @@ class StreamflowOutputFormats(str, Enum):
 # For catchments that may extend in many VPUs
 UPSTREAM_VPUS: dict[str, list[str]] = {"08": ["11", "10U", "10L", "08", "07", "05"]}
 
-# Namespace constants for internal use
-NHF_NAMESPACES: set[str] = {"nhf", "conus_nhf"}
-OCONUS_HF_NAMESPACES: set[str] = {"gl_hf", "ak_hf", "prvi_hf"}
-ALL_HF_NAMESPACES: set[str] = {"conus_hf", "ak_hf", "hi_hf", "prvi_hf", "gl_hf"}
 
+class HydrofabricNamespace(str, Enum):
+    """All valid hydrofabric namespace values.
 
-# Mapping from GeographicDomain + HydrofabricSource to namespace
-_DOMAIN_SOURCE_TO_NAMESPACE: dict[tuple[GeographicDomain, HydrofabricSource], str | None] = {
-    (GeographicDomain.CONUS, HydrofabricSource.NHF): "conus_nhf",
-    (GeographicDomain.CONUS, HydrofabricSource.HF): "conus_hf",
-    (GeographicDomain.ALASKA, HydrofabricSource.NHF): None,  # Not currently available
-    (GeographicDomain.ALASKA, HydrofabricSource.HF): "ak_hf",
-    (GeographicDomain.HAWAII, HydrofabricSource.NHF): None,  # Not currently available
-    (GeographicDomain.HAWAII, HydrofabricSource.HF): "hi_hf",
-    (GeographicDomain.PUERTO_RICO, HydrofabricSource.NHF): None,  # Not currently available
-    (GeographicDomain.PUERTO_RICO, HydrofabricSource.HF): "prvi_hf",
-    (GeographicDomain.GREAT_LAKES, HydrofabricSource.NHF): None,  # Not currently available
-    (GeographicDomain.GREAT_LAKES, HydrofabricSource.HF): "gl_hf",
-}
-
-# Mapping from legacy HydrofabricDomains string values to namespace
-_LEGACY_DOMAIN_TO_NAMESPACE: dict[str, str] = {
-    "nhf": "nhf",
-    "conus_hf": "conus_hf",
-    "ak_hf": "ak_hf",
-    "hi_hf": "hi_hf",
-    "prvi_hf": "prvi_hf",
-    "gl_hf": "gl_hf",
-}
-
-
-def resolve_namespace(
-    domain: GeographicDomain | str | None,
-    source: HydrofabricSource | None,
-) -> tuple[str, bool, list[str]]:
-    """
-    Resolve domain/source to namespace
-
-    Parameters
+    Attributes
     ----------
-    domain : GeographicDomain | str | None
-        The domain to resolve. Can be a GeographicDomain value, a legacy string
-        value (nhf, conus_hf, etc.), or a geographic domain string (CONUS, Alaska, etc.).
-    source : HydrofabricSource | None
-        The hydrofabric source (nhf or hf). Required when using GeographicDomain.
-
-    Returns
-    -------
-    tuple[str, bool, list[str]]
-        A tuple of (namespace, is_nhf, deprecated_warnings).
-        - namespace: The resolved database namespace string
-        - is_nhf: True if this is NHF data (for routing to correct service)
-        - deprecated_warnings: Always empty list (kept for API compatibility)
-
-    Raises
-    ------
-    ValueError
-        If source is provided without domain, or if invalid combination is given.
-    NotImplementedError
-        If the domain is not available for the requested source (e.g., Alaska with NHF).
+    NHF : str
+        Legacy NHF namespace (CONUS only)
+    CONUS_NHF : str
+        CONUS National Hydrofabric
+    CONUS_HF : str
+        CONUS Hydrofabric v2.2
+    ALASKA_HF : str
+        Alaska Hydrofabric v2.2
+    HAWAII_HF : str
+        Hawaii Hydrofabric v2.2
+    PUERTO_RICO_HF : str
+        Puerto Rico Hydrofabric v2.2
+    GREAT_LAKES_HF : str
+        Great Lakes Hydrofabric v2.2
     """
-    # Neither domain nor source provided - use default
-    if domain is None and source is None:
-        return "nhf", True, []
 
-    # Source provided without domain - error
-    if source is not None and domain is None:
-        raise ValueError("When 'source' is provided, 'domain' must also be specified.")
+    NHF = "nhf"
+    CONUS_NHF = "conus_nhf"
+    CONUS_HF = "conus_hf"
+    ALASKA_HF = "ak_hf"
+    HAWAII_HF = "hi_hf"
+    PUERTO_RICO_HF = "prvi_hf"
+    GREAT_LAKES_HF = "gl_hf"
 
-    # Domain provided without source - legacy mode or default to HF
-    if source is None and domain is not None:
-        # Check if it's a GeographicDomain instance directly - default to HF
-        if isinstance(domain, GeographicDomain):
-            source = HydrofabricSource.HF
-            # Fall through to the "both provided" case below
-        else:
-            # Get the string value of the domain
-            domain_str = str(domain)
+    def __str__(self) -> str:
+        """Return the string value for use in f-strings and str().
 
-            # Check if it's a legacy domain value
-            if domain_str in _LEGACY_DOMAIN_TO_NAMESPACE:
-                namespace = _LEGACY_DOMAIN_TO_NAMESPACE[domain_str]
-                is_nhf = namespace in NHF_NAMESPACES
-                return namespace, is_nhf, []
+        In Python 3.11+, str(Enum) returns the member name (e.g., "HydrofabricNamespace.NHF")
+        instead of the value, even for str-based enums. This override ensures f-strings like
+        f"{namespace}.network" produce "nhf.network" rather than "HydrofabricNamespace.NHF.network".
+        """
+        return self.value
 
-            # Check if it's a geographic domain string without source - default to HF
-            try:
-                domain = GeographicDomain(domain_str)
-                source = HydrofabricSource.HF
-                # Fall through to the "both provided" case below
-            except ValueError:
-                raise ValueError(f"Unknown domain value: '{domain_str}'")
+    @property
+    def is_nhf(self) -> bool:
+        """Return True if this namespace is NHF data."""
+        return self in (HydrofabricNamespace.NHF, HydrofabricNamespace.CONUS_NHF)
 
-    # Both source and domain provided - new API
-    # Convert domain to GeographicDomain if it's a string
-    if isinstance(domain, str) and not isinstance(domain, GeographicDomain):
-        # Check if it's a legacy domain string with source provided
-        # Map legacy domain strings to GeographicDomain
-        legacy_str_to_geo = {
-            "conus_hf": GeographicDomain.CONUS,
-            "ak_hf": GeographicDomain.ALASKA,
-            "hi_hf": GeographicDomain.HAWAII,
-            "prvi_hf": GeographicDomain.PUERTO_RICO,
-            "gl_hf": GeographicDomain.GREAT_LAKES,
-            "nhf": GeographicDomain.CONUS,  # nhf maps to CONUS
-        }
-        if domain in legacy_str_to_geo:
-            domain = legacy_str_to_geo[domain]
-        else:
-            # Try as a GeographicDomain value
-            try:
-                domain = GeographicDomain(domain)
-            except ValueError:
-                raise ValueError(
-                    f"Invalid geographic domain '{domain}'. "
-                    f"Valid values are: {', '.join(d.value for d in GeographicDomain)}"
-                )
-
-    # Convert source to HydrofabricSource if it's a string
-    if isinstance(source, str):
-        try:
-            source = HydrofabricSource(source)
-        except ValueError:
-            raise ValueError(f"Invalid source '{source}'. Valid values are: 'nhf', 'hf'")
-
-    # At this point, domain must be a GeographicDomain and source must be HydrofabricSource
-    if not isinstance(domain, GeographicDomain) or not isinstance(source, HydrofabricSource):
-        raise ValueError("Internal error: domain and source must be resolved at this point")
-
-    geo_domain: GeographicDomain = domain
-    hf_source: HydrofabricSource = source
-
-    # Look up the namespace
-    namespace = _DOMAIN_SOURCE_TO_NAMESPACE.get((geo_domain, hf_source))
-
-    if namespace is None:
-        raise NotImplementedError(
-            f"Domain '{geo_domain.value}' is not currently available for source '{hf_source.value}'. "
-            f"Only 'CONUS' is available for the National Hydrofabric (nhf) at this time."
+    @property
+    def is_oconus_hf(self) -> bool:
+        """Return True if this namespace is OCONUS HF v2.2 data."""
+        return self in (
+            HydrofabricNamespace.ALASKA_HF,
+            HydrofabricNamespace.PUERTO_RICO_HF,
+            HydrofabricNamespace.GREAT_LAKES_HF,
         )
 
-    is_nhf = hf_source == HydrofabricSource.NHF
-    return namespace, is_nhf, []
+    @classmethod
+    def _missing_(cls, value: object) -> HydrofabricNamespace | None:
+        """Handle legacy string values."""
+        if not isinstance(value, str):
+            return None
+        aliases = {
+            "nhf": cls.NHF,
+            "conus_nhf": cls.CONUS_NHF,
+            "conus_hf": cls.CONUS_HF,
+            "ak_hf": cls.ALASKA_HF,
+            "hi_hf": cls.HAWAII_HF,
+            "prvi_hf": cls.PUERTO_RICO_HF,
+            "gl_hf": cls.GREAT_LAKES_HF,
+        }
+        return aliases.get(value)
+
+    @classmethod
+    def resolve(
+        cls,
+        domain: GeographicDomain | str | None,
+        source: HydrofabricSource | str | None,
+    ) -> HydrofabricNamespace:
+        """Resolve domain/source to namespace.
+
+        Parameters
+        ----------
+        domain : GeographicDomain | str | None
+            The domain to resolve. Can be a GeographicDomain value, a legacy string
+            value (nhf, conus_hf, etc.), or a geographic domain string (CONUS, Alaska, etc.).
+        source : HydrofabricSource | None
+            The hydrofabric source (nhf or hf). Required when using GeographicDomain.
+
+        Returns
+        -------
+        HydrofabricNamespace
+            The resolved namespace.
+
+        Raises
+        ------
+        ValueError
+            If source is provided without domain, or if invalid combination is given.
+        NotImplementedError
+            If the domain is not available for the requested source (e.g., Alaska with NHF).
+        """
+        # Neither domain nor source provided - use default
+        if domain is None and source is None:
+            return cls.NHF
+
+        # Source provided without domain - error
+        if source is not None and domain is None:
+            raise ValueError("When 'source' is provided, 'domain' must also be specified.")
+
+        # Convert source to HydrofabricSource if it's a string
+        if isinstance(source, str):
+            try:
+                source = HydrofabricSource(source)
+            except ValueError:
+                raise ValueError(f"Invalid source '{source}'. Valid values are: 'nhf', 'hf'")
+
+        # Domain provided without source - legacy mode or default to HF
+        if source is None and domain is not None:
+            # Check if it's a GeographicDomain instance directly - default to HF
+            if isinstance(domain, GeographicDomain):
+                source = HydrofabricSource.HF
+                # Fall through to the "both provided" case below
+            else:
+                # Try as a legacy domain value first
+                domain_str = str(domain)
+                try:
+                    return cls(domain_str)
+                except ValueError:
+                    pass
+
+                # Try as a GeographicDomain string - default to HF
+                try:
+                    domain = GeographicDomain(domain_str)
+                    source = HydrofabricSource.HF
+                    # Fall through to the "both provided" case below
+                except ValueError:
+                    raise ValueError(f"Unknown domain value: '{domain_str}'")
+
+        # Both source and domain provided - resolve to namespace
+        # Convert domain to GeographicDomain if it's a string
+        if isinstance(domain, str):
+            # Check if it's a legacy domain string with source provided
+            legacy_str_to_geo = {
+                "conus_hf": GeographicDomain.CONUS,
+                "ak_hf": GeographicDomain.ALASKA,
+                "hi_hf": GeographicDomain.HAWAII,
+                "prvi_hf": GeographicDomain.PUERTO_RICO,
+                "gl_hf": GeographicDomain.GREAT_LAKES,
+                "nhf": GeographicDomain.CONUS,
+            }
+            if domain in legacy_str_to_geo:
+                domain = legacy_str_to_geo[domain]
+            else:
+                try:
+                    domain = GeographicDomain(domain)
+                except ValueError:
+                    raise ValueError(
+                        f"Invalid geographic domain '{domain}'. "
+                        f"Valid values are: {', '.join(d.value for d in GeographicDomain)}"
+                    )
+
+        # Mapping from (GeographicDomain, HydrofabricSource) to namespace
+        domain_source_mapping: dict[tuple[GeographicDomain, HydrofabricSource], HydrofabricNamespace | None] = {
+            (GeographicDomain.CONUS, HydrofabricSource.NHF): cls.CONUS_NHF,
+            (GeographicDomain.CONUS, HydrofabricSource.HF): cls.CONUS_HF,
+            (GeographicDomain.ALASKA, HydrofabricSource.NHF): None,
+            (GeographicDomain.ALASKA, HydrofabricSource.HF): cls.ALASKA_HF,
+            (GeographicDomain.HAWAII, HydrofabricSource.NHF): None,
+            (GeographicDomain.HAWAII, HydrofabricSource.HF): cls.HAWAII_HF,
+            (GeographicDomain.PUERTO_RICO, HydrofabricSource.NHF): None,
+            (GeographicDomain.PUERTO_RICO, HydrofabricSource.HF): cls.PUERTO_RICO_HF,
+            (GeographicDomain.GREAT_LAKES, HydrofabricSource.NHF): None,
+            (GeographicDomain.GREAT_LAKES, HydrofabricSource.HF): cls.GREAT_LAKES_HF,
+        }
+
+        namespace = domain_source_mapping.get((domain, source))  # type: ignore[arg-type]
+
+        if namespace is None:
+            raise NotImplementedError(
+                f"Domain '{domain.value}' is not currently available for source '{source.value}'. "  # type: ignore[union-attr]
+                f"Only 'CONUS' is available for the National Hydrofabric (nhf) at this time."
+            )
+
+        return namespace

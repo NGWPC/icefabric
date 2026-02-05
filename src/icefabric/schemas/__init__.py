@@ -1,15 +1,11 @@
 """Contains helper functions to support NWM modules"""
 
 from .hydrofabric import (
-    _LEGACY_DOMAIN_TO_NAMESPACE,
-    ALL_HF_NAMESPACES,
-    NHF_NAMESPACES,
-    OCONUS_HF_NAMESPACES,
     UPSTREAM_VPUS,
     GeographicDomain,
+    HydrofabricNamespace,
     HydrofabricSource,
     IdType,
-    resolve_namespace,
 )
 from .iceberg_tables.conus_reference import ReferenceDivides, ReferenceFlowpaths
 from .iceberg_tables.hydrofabric import (
@@ -74,13 +70,9 @@ __all__ = [
     "NHFSnapshot",
     "UPSTREAM_VPUS",
     "IdType",
+    "HydrofabricNamespace",
     "HydrofabricSource",
     "GeographicDomain",
-    "NHF_NAMESPACES",
-    "OCONUS_HF_NAMESPACES",
-    "ALL_HF_NAMESPACES",
-    "_LEGACY_DOMAIN_TO_NAMESPACE",
-    "resolve_namespace",
     "SFT",
     "IceFractionScheme",
     "Albedo",

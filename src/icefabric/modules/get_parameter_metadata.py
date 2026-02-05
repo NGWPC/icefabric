@@ -91,44 +91,52 @@ def get_parameter_metadata(
             divide_attrs = pd.DataFrame(gauge["divides"])
 
     output_list = []
+
     for module in modules:
         # Separate query strings to support CFE-S and CFE-X
         if module == "cfe-x":
             query_string = "(module == 'cfe-x' or module == 'cfe') and calibratable == @calibratable"
+            check_module_name = "cfe"
         elif module == "cfe-s":
             query_string = "module == 'cfe' and calibratable == @calibratable"
+            check_module_name = "cfe"
         else:
             query_string = "module == @module and calibratable == @calibratable"
+            check_module_name = module
 
-        module_params = df.query(query_string)[metadata]
+        if df["module"].isin([check_module_name]).any():
+            module_params = df.query(query_string)[metadata]
 
-        # For each parameter, check if the name maps to an NHF or 2.2 divide attribute name,
-        # then compute a basin area weighted average.  If the divide attributes do not exist for the gage,
-        # return the original initial value.
-        if gage_id is not None:
-            parameter_lookup = (
-                ParametersToDivideAttributesNHF.parametersNHF
-                if domain == HydrofabricDomains.NHF
-                else ParametersToDivideAttributesHF.parametersHF
-            )
-            for index, row in module_params.iterrows():
-                param_name = row["name"]
-                if param_name in parameter_lookup.keys():
-                    attr_name = parameter_lookup[param_name]
-                    if attr_name in divide_attrs.columns:
-                        attr = divide_attrs[[attr_name, "area_sqkm"]]
-                        attr = attr[attr[attr_name].notna()]
-                        if len(attr) == 0:
-                            continue
-                        numerator = (attr[attr_name] * attr["area_sqkm"]).sum()
-                        denominator = attr["area_sqkm"].sum()
-                        weighted_avg = numerator / denominator if denominator != 0 else None
-                        module_params.at[index, "initial_value"] = weighted_avg
+            # For each parameter, check if the name maps to an NHF or 2.2 divide attribute name,
+            # then compute a basin area weighted average.  If the divide attributes do not exist for the gage,
+            # return the original initial value.
+            if gage_id is not None:
+                parameter_lookup = (
+                    ParametersToDivideAttributesNHF.parametersNHF
+                    if domain == HydrofabricDomains.NHF
+                    else ParametersToDivideAttributesHF.parametersHF
+                )
+                for index, row in module_params.iterrows():
+                    param_name = row["name"]
+                    if param_name in parameter_lookup.keys():
+                        attr_name = parameter_lookup[param_name]
+                        if attr_name in divide_attrs.columns:
+                            attr = divide_attrs[[attr_name, "area_sqkm"]]
+                            attr = attr[attr[attr_name].notna()]
+                            if len(attr) == 0:
+                                continue
+                            numerator = (attr[attr_name] * attr["area_sqkm"]).sum()
+                            denominator = attr["area_sqkm"].sum()
+                            weighted_avg = numerator / denominator if denominator != 0 else None
+                            module_params.at[index, "initial_value"] = weighted_avg
 
-        # convert dataframe to a list of dictionaries
-        module_params_dict = module_params.to_dict(orient="records")
-        # create dictionary with module name and list of calibratable parameters
-        output = {"module_name": module, "calibratable_parameters": module_params_dict}
+            # convert dataframe to a list of dictionaries
+            module_params_dict = module_params.to_dict(orient="records")
+            # create dictionary with module name and list of calibratablie parameters
+            output = {"module_name": module, "calibratable_parameters": module_params_dict}
+        else:
+            output = {"module_name": module, "error": "Not a valid module name"}
+
         output_list.append(output)
 
     return output_list

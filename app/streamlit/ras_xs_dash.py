@@ -82,7 +82,7 @@ if l_col.button("Submit"):
         else:
             # Format and display map
             with st.spinner(text="Generating map..."):
-                xs_map = format_xs_map(catalog, xs_gdf)
+                xs_map = format_xs_map(catalog, xs_gdf, xs_dom)
                 r_col.markdown("#### Map")
                 with r_col:
                     st_folium(fig=xs_map, width=725, returned_objects=[])

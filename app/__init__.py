@@ -24,9 +24,18 @@ def get_catalog(request: Request) -> Catalog:
         If the catalog is not loaded or not available in the application state.
         Returns HTTP 500 status code with "Catalog not loaded" detail message.
     """
+    # enforce that app state has catalog
     if not hasattr(request.app.state, "catalog") or request.app.state.catalog is None:
         raise HTTPException(status_code=500, detail="Catalog not loaded")
-    return request.app.state.catalog
+
+    # route request to appropriate catalog (cache/aws)
+    if (
+        "domain" in request.query_params
+        and request.query_params["domain"] in request.app.state.cached_namespaces
+    ):
+        return request.app.state.cache_catalog
+    else:
+        return request.app.state.catalog
 
 
 def get_graphs(request: Request) -> PyDiGraph:

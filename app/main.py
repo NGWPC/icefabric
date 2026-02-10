@@ -78,6 +78,19 @@ parser.add_argument(
     default="glue",
 )  # Setting the default to read from S3
 parser.add_argument(
+    "--cache-catalog",
+    choices=["glue", "sql"],
+    help="Optional local catalog to use for most common requests",
+    default="glue",
+)  # Setting the default to read from S3
+parser.add_argument(
+    "--cached-namespaces",
+    # choices=["glue", "sql"],
+    nargs="+",
+    help="Optional local catalog to use for most common requests",
+    default=["nhf", "conus_hf", "prvi_hf", "hi_hf", "ak_hf"],
+)  # Setting the default to read from S3
+parser.add_argument(
     "--deploy-env",
     choices=["t", "test", "p", "prod", "production"],
     help="The glue deploy environment",
@@ -95,6 +108,7 @@ async def lifespan(app: FastAPI):
     app: FastAPI
         The FastAPI app instance
     """
+    # print(set(args.cached_namespaces))
     app.state.main_logger = main_logger
     app.state.main_logger.info("Application starting up.")
     if str(os.environ.get("ICEFABRIC_DEPLOY_ENV")).lower() in ["t", "test", "p", "prod", "production"]:
@@ -103,8 +117,11 @@ async def lifespan(app: FastAPI):
     else:
         load_creds(args.deploy_env)
     catalog = load_catalog(args.catalog)
+    cache_catalog = load_catalog(args.cache_catalog)
     hydrofabric_namespaces = ["conus_hf", "ak_hf", "hi_hf", "prvi_hf"]
     app.state.catalog = catalog
+    app.state.cache_catalog = cache_catalog
+    app.state.cached_namespaces = set(args.cached_namespaces)
     try:
         app.state.network_graphs = load_upstream_json(
             catalog=catalog,

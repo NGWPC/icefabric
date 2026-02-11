@@ -104,7 +104,7 @@ if subset_submit and submit_valid:
                 st.markdown(f"#### __Map Results ({subset_type}: {subset_user_sel})__")
 
                 # Create a folium map centered on the subset data
-                m = folium.Map(tiles="Cartodb Positron")
+                m = folium.Map(tiles=folium.TileLayer(tiles="Cartodb Positron", control=False))
                 lat_lon_coll = [(row.lat, row.lon) for row in subset_dfs["divides"].to_pandas().itertuples()]
                 m.fit_bounds(lat_lon_coll)
                 for layer_name, df in subset_dfs.items():

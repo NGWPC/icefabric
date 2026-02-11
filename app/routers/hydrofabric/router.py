@@ -8,6 +8,7 @@ import pyogrio
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import Path as FastAPIPath
 from fastapi.responses import FileResponse
+from pydantic.json_schema import SkipJsonSchema
 from pyiceberg.expressions import EqualTo
 from starlette.background import BackgroundTask
 
@@ -59,15 +60,15 @@ async def get_hydrofabric_subset_gpkg(
             "wb-id": {"summary": "Watershed ID (HFv2.2)", "value": IdType.ID},
         },
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes).",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
-        "or legacy values (nhf, conus_hf, ak_hf, hi_hf, prvi_hf, gl_hf) for backwards compatibility.",
+        "or legacy values (conus_hf, ak_hf, hi_hf, prvi_hf, gl_hf) for backwards compatibility.",
     ),
     layers: list[str] | None = Query(
         None,

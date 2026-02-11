@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic.json_schema import SkipJsonSchema
 from pyiceberg.catalog import Catalog
 
 from app import get_catalog, get_graphs
@@ -21,8 +22,8 @@ from icefabric.schemas.modules import (
 
 
 def _resolve_module_namespace(
-    domain: GeographicDomain | str | None,
-    source: HydrofabricSource | None,
+    domain: GeographicDomain | SkipJsonSchema[None],
+    source: HydrofabricSource | SkipJsonSchema[None],
 ) -> HydrofabricNamespace:
     """Resolve namespace for module endpoints with error handling."""
     try:
@@ -65,12 +66,12 @@ async def get_sft_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -125,12 +126,12 @@ async def get_snow17_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -184,12 +185,12 @@ async def get_smp_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -243,12 +244,12 @@ async def get_lstm_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -295,12 +296,12 @@ async def get_lasam_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -363,12 +364,12 @@ async def get_noahowp_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -415,12 +416,12 @@ async def get_sacsma_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -474,12 +475,12 @@ async def get_troute_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -526,12 +527,12 @@ async def get_topmodel_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -578,12 +579,12 @@ async def get_topoflow_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -655,12 +656,12 @@ async def get_ueb_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -714,12 +715,12 @@ async def get_cfe_ipes(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
@@ -806,12 +807,12 @@ async def get_calibratable_parameter_metadata(
         examples=["01010000"],
         openapi_examples={"Sample Gage": {"summary": "Sample Gage", "value": "01010000"}},
     ),
-    source: HydrofabricSource | None = Query(
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
         None,
         description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
         "Required when using geographic domain names.",
     ),
-    domain: GeographicDomain | str | None = Query(
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
         None,
         description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",

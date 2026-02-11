@@ -6,8 +6,6 @@ from pyiceberg import expressions
 from pyiceberg.catalog import Catalog, load_catalog
 from pyiceberg.exceptions import NoSuchTableError
 
-from icefabric.schemas.hydrofabric import HydrofabricDomains
-
 
 def get_streamflow_data(
     catalog_name: str,
@@ -63,17 +61,15 @@ def get_streamflow_data(
         raise NoSuchTableError from e
 
 
-def get_hydrofabric_gages(
-    catalog: Catalog, domain: HydrofabricDomains = HydrofabricDomains.CONUS
-) -> list[str]:
+def get_hydrofabric_gages(catalog: Catalog, domain: str = "conus_hf") -> list[str]:
     """Returns the hydrofabric gages within the network table
 
     Parameters
     ----------
     catalog : Catalog
         the pyiceberg warehouse reference
-    domain : HydrofabricDomains, optional
-        the hydrofabric domain, by default HydrofabricDomains.CONUS
+    domain : str, optional
+        the hydrofabric domain, by default "conus_hf"
 
     Returns
     -------
@@ -81,7 +77,7 @@ def get_hydrofabric_gages(
         The list of all gages in the conus-hf
     """
     return (
-        catalog.load_table(f"{domain.value}.network")
+        catalog.load_table(f"{domain}.network")
         .scan(row_filter=expressions.StartsWith("hl_uri", "gages-"))
         .to_pandas()
         .drop_duplicates(subset="hl_uri", keep="first")[("hl_uri")]

@@ -8,6 +8,7 @@ import pyogrio
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import Path as FastAPIPath
 from fastapi.responses import FileResponse
+from pydantic.json_schema import SkipJsonSchema
 from pyiceberg.expressions import EqualTo
 from starlette.background import BackgroundTask
 
@@ -25,7 +26,12 @@ from icefabric.schemas import (
     Nexus,
     POIs,
 )
-from icefabric.schemas.hydrofabric import HydrofabricDomains, IdType
+from icefabric.schemas.hydrofabric import (
+    GeographicDomain,
+    HydrofabricNamespace,
+    HydrofabricSource,
+    IdType,
+)
 
 api_router = APIRouter(prefix="/hydrofabric")
 
@@ -54,8 +60,15 @@ async def get_hydrofabric_subset_gpkg(
             "wb-id": {"summary": "Watershed ID (HFv2.2)", "value": IdType.ID},
         },
     ),
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.NHF, description="The iceberg namespace used to query the hydrofabric"
+    source: HydrofabricSource | SkipJsonSchema[None] = Query(
+        None,
+        description="Hydrofabric source: 'nhf' (National Hydrofabric) or 'hf' (Hydrofabric v2.2). "
+        "Required when using geographic domain names (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes).",
+    ),
+    domain: GeographicDomain | SkipJsonSchema[None] = Query(
+        None,
+        description="Geographic domain (CONUS, Alaska, Hawaii, Puerto_Rico, Great_Lakes) with source param, "
+        "or legacy values (conus_hf, ak_hf, hi_hf, prvi_hf, gl_hf) for backwards compatibility.",
     ),
     layers: list[str] | None = Query(
         None,
@@ -83,8 +96,25 @@ async def get_hydrofabric_subset_gpkg(
     temp_dir = pathlib.Path(tempfile.gettempdir())
     tmp_path = temp_dir / f"subset_{identifier}_{unique_id}.gpkg"
 
+    # Resolve namespace from domain/source combination (outside try block for error handling access)
     try:
-        if domain is HydrofabricDomains.NHF:
+        namespace = HydrofabricNamespace.resolve(domain, source)
+    except NotImplementedError as e:
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "error": "domain_not_available",
+                "message": str(e),
+                "available_domains": ["CONUS"],
+                "requested_domain": domain.value if hasattr(domain, "value") else str(domain),
+                "requested_source": source.value if source else None,
+            },
+        ) from None
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}") from None
+
+    try:
+        if namespace.is_nhf:
             if id_type == IdType.VPU_ID:
                 output_layers = subset_nhf(
                     vpu_id=identifier,
@@ -112,8 +142,8 @@ async def get_hydrofabric_subset_gpkg(
                     identifier=identifier,
                     id_type=id_type,
                     layers=layers or ["divides", "flowpaths", "network", "nexus"],
-                    namespace=domain.value,
-                    graph=network_graphs[domain],
+                    namespace=namespace,
+                    graph=network_graphs[namespace],
                 )
             else:
                 raise ValueError(f"Incorrect ID type: {id_type} for the HFv2.2")
@@ -187,7 +217,7 @@ async def get_hydrofabric_subset_gpkg(
                 "Content-Description": "Hydrofabric Subset Geopackage",
                 "X-Identifier": identifier,
                 "X-ID-Type": id_type.value,
-                "X-Domain": domain.value,
+                "X-Domain": namespace,
                 "X-Layers-Count": str(layers_written),
             },
             background=BackgroundTask(lambda: tmp_path.unlink(missing_ok=True)),
@@ -210,7 +240,7 @@ async def get_hydrofabric_subset_gpkg(
         if "No origin found" in str(e):
             raise HTTPException(
                 status_code=404,
-                detail=f"No origin found for {id_type.value}='{identifier}' in domain '{domain.value}'",
+                detail=f"No origin found for {id_type.value}='{identifier}' in namespace '{namespace}'",
             ) from None
         else:
             raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}") from None
@@ -218,9 +248,7 @@ async def get_hydrofabric_subset_gpkg(
 
 @api_router.get("/history", tags=["Hydrofabric Services"])
 async def get_hydrofabric_history(
-    domain: HydrofabricDomains = Query(
-        HydrofabricDomains.CONUS, description="The iceberg namespace used to query the hydrofabric"
-    ),
+    domain: str = Query("conus_hf", description="The iceberg namespace used to query the hydrofabric"),
     catalog=Depends(get_catalog),
 ):
     """
@@ -253,13 +281,13 @@ async def get_hydrofabric_history(
     if domain_table.is_empty():
         raise HTTPException(
             status_code=404,
-            detail=f"No snapshot history found for domain '{domain.value}'",
+            detail=f"No snapshot history found for domain '{domain}'",
         )
     for e_in, entry in enumerate(domain_table.iter_rows()):
         return_dict["history"].append({"domain": entry[0], "layer_updates": []})
         for l_in, layer_id in enumerate(entry[1:]):
             layer_name = layers[l_in][0]
-            tab = catalog.load_table(f"{domain.value}.{layer_name}")
+            tab = catalog.load_table(f"{domain}.{layer_name}")
             snap_obj = tab.snapshot_by_id(layer_id)
             layer_update = {"layer_name": layer_name, "snapshot_id": layer_id, "snapshot_summary": snap_obj}
             return_dict["history"][e_in]["layer_updates"].append(layer_update)

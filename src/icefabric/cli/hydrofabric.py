@@ -10,7 +10,7 @@ from icefabric.builds.graph_connectivity import load_upstream_json
 from icefabric.cli import get_catalog
 from icefabric.helpers import load_creds
 from icefabric.hydrofabric.subset import subset_hydrofabric, subset_hydrofabric_vpu
-from icefabric.schemas.hydrofabric import HydrofabricDomains, IdType
+from icefabric.schemas.hydrofabric import GeographicDomain, HydrofabricNamespace, IdType
 
 load_creds()
 
@@ -36,7 +36,10 @@ load_creds()
 )
 @click.option(
     "--domain",
-    type=click.Choice([e.value for e in HydrofabricDomains], case_sensitive=False),
+    type=click.Choice(
+        [d.value for d in GeographicDomain] + [ns.value for ns in HydrofabricNamespace],
+        case_sensitive=False,
+    ),
     required=True,
     help="The domain you are querying",
 )

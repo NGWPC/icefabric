@@ -11,7 +11,7 @@ from pyproj import Transformer
 
 from icefabric.hydrofabric import subset_hydrofabric, subset_nhf
 from icefabric.modules.divide_attributes import DivideAttributesHF, DivideAttributesNHF
-from icefabric.schemas.hydrofabric import HydrofabricDomains, IdType
+from icefabric.schemas.hydrofabric import HydrofabricNamespace, IdType
 from icefabric.schemas.modules import (
     CFE,
     LASAM,
@@ -35,7 +35,7 @@ from icefabric.schemas.modules import (
 )
 
 
-def select_attr_names(namespace: str) -> object:
+def select_attr_names(namespace: HydrofabricNamespace) -> object:
     """Selects the NHF or HF divide attribute name enum based on the namespace
 
     Parameters
@@ -48,9 +48,9 @@ def select_attr_names(namespace: str) -> object:
     object
         The enum for the selected hydrofabric
     """
-    if namespace in [HydrofabricDomains.GL, HydrofabricDomains.AK, HydrofabricDomains.PRVI]:
+    if namespace.is_oconus_hf:
         raise ValueError("subsets currently are not working for the HFv2.2 in OCONUS domains")
-    if namespace == HydrofabricDomains.NHF:
+    if namespace.is_nhf:
         return DivideAttributesNHF
     else:
         return DivideAttributesHF
@@ -59,7 +59,7 @@ def select_attr_names(namespace: str) -> object:
 def get_subset(
     catalog: Catalog,
     identifier: str | float,
-    namespace: str,
+    namespace: HydrofabricNamespace,
     graph: rx.PyDiGraph | None = None,
 ) -> dict[str, pd.DataFrame | gpd.GeoDataFrame]:
     """
@@ -81,9 +81,9 @@ def get_subset(
     Dict[str, pd.DataFrame | gpd.GeoDataFrame]
         Dictionary of layer names to their subsetted dataframes
     """
-    if namespace in [HydrofabricDomains.GL, HydrofabricDomains.AK, HydrofabricDomains.PRVI]:
+    if namespace.is_oconus_hf:
         raise ValueError("subsets currently are not working for the HFv2.2 in OCONUS domains")
-    if namespace == HydrofabricDomains.NHF:
+    if namespace.is_nhf:
         gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_nhf(
             gage_id=identifier,
             catalog=catalog,
@@ -113,7 +113,7 @@ def _get_mean_soil_temp() -> float:
 
 def get_sft_parameters(
     catalog: Catalog,
-    namespace: str,
+    namespace: HydrofabricNamespace,
     identifier: str,
     graph: rx.PyDiGraph,
     use_schaake: bool = False,
@@ -139,9 +139,7 @@ def get_sft_parameters(
     gauge = get_subset(catalog=catalog, identifier=identifier, namespace=namespace, graph=graph)
 
     divide_attr_df = (
-        pd.DataFrame(gauge["divide-attributes"])
-        if namespace != HydrofabricDomains.NHF
-        else pd.DataFrame(gauge["divides"])
+        pd.DataFrame(gauge["divide-attributes"]) if not namespace.is_nhf else pd.DataFrame(gauge["divides"])
     )
     # Replace any NaNs in dataframe with None so it can be converted to JSON by FastAPI
     divide_attr_df = divide_attr_df.replace({np.nan: None})
@@ -150,7 +148,7 @@ def get_sft_parameters(
     pydantic_models = []
     for _, row_dict in divide_attr_df.iterrows():
         # Quartz doesn't exist in the HF2.2 divide attributes, use default value.
-        if namespace == HydrofabricDomains.NHF:
+        if namespace.is_nhf:
             quartz_value = row_dict[attr_names.QUARTZ.value]
         else:
             quartz_value = 1.0
@@ -172,7 +170,7 @@ def get_sft_parameters(
 
 
 def get_snow17_parameters(
-    catalog: Catalog, namespace: str, identifier: str, envca: bool, graph: rx.PyDiGraph
+    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, envca: bool, graph: rx.PyDiGraph
 ) -> list[Snow17]:
     """Creates the initial parameter estimates for the Snow17 module
 
@@ -197,9 +195,7 @@ def get_snow17_parameters(
     # Extraction of relevant features from divide attributes layer
     # & convert to polar
     divide_attr_df = (
-        pd.DataFrame(gauge["divide-attributes"])
-        if namespace != HydrofabricDomains.NHF
-        else pd.DataFrame(gauge["divides"])
+        pd.DataFrame(gauge["divide-attributes"]) if not namespace.is_nhf else pd.DataFrame(gauge["divides"])
     )
     # Replace any NaNs in dataframe with None so it can be converted to JSON by FastAPI
     divide_attr_df = divide_attr_df.replace({np.nan: None})
@@ -207,7 +203,7 @@ def get_snow17_parameters(
     attr_names = select_attr_names(namespace)
 
     # Run HF2.2 specific items:
-    if namespace != HydrofabricDomains.NHF:
+    if not namespace.is_nhf:
         # Get divide area from divides layer
         divides_df = gauge["divides"][[attr_names.DIVIDE_ID.value, attr_names.AREA.value]]
         divide_attr_df = pd.merge(divide_attr_df, divides_df, on="divide_id", how="left")
@@ -260,7 +256,7 @@ def get_snow17_parameters(
 
 def get_smp_parameters(
     catalog: Catalog,
-    namespace: str,
+    namespace: HydrofabricNamespace,
     identifier: str,
     graph: rx.PyDiGraph,
     extra_module: str | None = None,
@@ -287,9 +283,7 @@ def get_smp_parameters(
     gauge = get_subset(catalog=catalog, identifier=identifier, namespace=namespace, graph=graph)
 
     divide_attr_df = (
-        pd.DataFrame(gauge["divide-attributes"])
-        if namespace != HydrofabricDomains.NHF
-        else pd.DataFrame(gauge["divides"])
+        pd.DataFrame(gauge["divide-attributes"]) if not namespace.is_nhf else pd.DataFrame(gauge["divides"])
     )
     # Replace any NaNs in dataframe with None so it can be converted to JSON by FastAPI
     divide_attr_df = divide_attr_df.replace({np.nan: None})
@@ -340,7 +334,9 @@ def get_smp_parameters(
     return pydantic_models
 
 
-def get_lstm_parameters(catalog: Catalog, namespace: str, identifier: str, graph: rx.PyDiGraph) -> list[LSTM]:
+def get_lstm_parameters(
+    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, graph: rx.PyDiGraph
+) -> list[LSTM]:
     """Creates the initial parameter estimates for the LSTM module
 
     Parameters
@@ -365,9 +361,7 @@ def get_lstm_parameters(catalog: Catalog, namespace: str, identifier: str, graph
     # Extraction of relevant features from divide attributes layer
     # & convert to polar
     divide_attr_df = (
-        pd.DataFrame(gauge["divide-attributes"])
-        if namespace != HydrofabricDomains.NHF
-        else pd.DataFrame(gauge["divides"])
+        pd.DataFrame(gauge["divide-attributes"]) if not namespace.is_nhf else pd.DataFrame(gauge["divides"])
     )
     # Replace any NaNs in dataframe with None so it can be converted to JSON by FastAPI
     divide_attr_df = divide_attr_df.replace({np.nan: None})
@@ -375,7 +369,7 @@ def get_lstm_parameters(catalog: Catalog, namespace: str, identifier: str, graph
     attr_names = select_attr_names(namespace)
 
     # Run HF2.2 specific items
-    if namespace != HydrofabricDomains.NHF:
+    if not namespace.is_nhf:
         # Get divide area from divides layer
         divides_df = gauge["divides"][[attr_names.DIVIDE_ID.value, attr_names.AREA.value]]
         divide_attr_df = pd.merge(divide_attr_df, divides_df, on=attr_names.DIVIDE_ID.value, how="left")
@@ -410,7 +404,7 @@ def get_lstm_parameters(catalog: Catalog, namespace: str, identifier: str, graph
 
 def get_lasam_parameters(
     catalog: Catalog,
-    namespace: str,
+    namespace: HydrofabricNamespace,
     identifier: str,
     sft_included: bool,
     graph: rx.PyDiGraph,
@@ -442,9 +436,7 @@ def get_lasam_parameters(
     # Extraction of relevant features from divide attributes layer
     # & convert to polar
     divide_attr_df = (
-        pd.DataFrame(gauge["divide-attributes"])
-        if namespace != HydrofabricDomains.NHF
-        else pd.DataFrame(gauge["divides"])
+        pd.DataFrame(gauge["divide-attributes"]) if not namespace.is_nhf else pd.DataFrame(gauge["divides"])
     )
     # Replace any NaNs in dataframe with None so it can be converted to JSON by FastAPI
     divide_attr_df = divide_attr_df.replace({np.nan: None})
@@ -465,7 +457,7 @@ def get_lasam_parameters(
 
 
 def get_noahowp_parameters(
-    catalog: Catalog, namespace: str, identifier: str, graph: rx.PyDiGraph
+    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, graph: rx.PyDiGraph
 ) -> list[NoahOwpModular]:
     """Creates the initial parameter estimates for the Noah OWP Modular module
 
@@ -488,9 +480,7 @@ def get_noahowp_parameters(
     # Extraction of relevant features from divide attributes layer
     # & convert to polar
     divide_attr_df = (
-        pd.DataFrame(gauge["divide-attributes"])
-        if namespace != HydrofabricDomains.NHF
-        else pd.DataFrame(gauge["divides"])
+        pd.DataFrame(gauge["divide-attributes"]) if not namespace.is_nhf else pd.DataFrame(gauge["divides"])
     )
     # Replace any NaNs in dataframe with None so it can be converted to JSON by FastAPI
     divide_attr_df = divide_attr_df.replace({np.nan: None})
@@ -498,7 +488,7 @@ def get_noahowp_parameters(
     attr_names = select_attr_names(namespace)
 
     # Convert CRS to WGS84 (EPSG4326) for HF2.2
-    if namespace != HydrofabricDomains.NHF:
+    if not namespace.is_nhf:
         crs = gauge["divides"].crs
         transformer = Transformer.from_crs(crs, 4326)
         wgs84_latlon = transformer.transform(
@@ -525,7 +515,7 @@ def get_noahowp_parameters(
 
 
 def get_sacsma_parameters(
-    catalog: Catalog, namespace: str, identifier: str, envca: bool, graph: rx.PyDiGraph
+    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, envca: bool, graph: rx.PyDiGraph
 ) -> list[SacSma]:
     """Creates the initial parameter estimates for the SAC SMA module
 
@@ -553,7 +543,7 @@ def get_sacsma_parameters(
     # Extraction of relevant features from divides layer
     pd.options.mode.chained_assignment = None
 
-    if namespace == HydrofabricDomains.NHF:
+    if namespace.is_nhf:
         result_df = pd.DataFrame(gauge["divides"])
     else:
         result_df = gauge["divides"][[attr_names.DIVIDE_ID.value, attr_names.AREA.value]]
@@ -613,7 +603,7 @@ def get_sacsma_parameters(
 
 
 def get_troute_parameters(
-    catalog: Catalog, namespace: str, identifier: str, graph: rx.PyDiGraph
+    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, graph: rx.PyDiGraph
 ) -> list[TRoute]:
     """Creates the initial parameter estimates for the T-Route
 
@@ -644,7 +634,7 @@ def get_troute_parameters(
 
 
 def get_topmodel_parameters(
-    catalog: Catalog, namespace: str, identifier: str, graph: rx.PyDiGraph
+    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, graph: rx.PyDiGraph
 ) -> list[Topmodel]:
     """Creates the initial parameter estimates for the Topmodel
 
@@ -676,9 +666,7 @@ def get_topmodel_parameters(
     # Extraction of relevant features from divide attributes layer
     # & convert to polar
     divide_attr_df = (
-        pd.DataFrame(gauge["divide-attributes"])
-        if namespace != HydrofabricDomains.NHF
-        else pd.DataFrame(gauge["divides"])
+        pd.DataFrame(gauge["divide-attributes"]) if not namespace.is_nhf else pd.DataFrame(gauge["divides"])
     )
     # Replace any NaNs in dataframe with None so it can be converted to JSON by FastAPI
     divide_attr_df = divide_attr_df.replace({np.nan: None})
@@ -686,7 +674,7 @@ def get_topmodel_parameters(
     attr_names = select_attr_names(namespace)
 
     # Get flowpath length from divides layer for HF2.2 or from flowpaths layer in NHF
-    if namespace == HydrofabricDomains.NHF:
+    if namespace.is_nhf:
         flowpaths_df = pd.DataFrame(gauge["flowpaths"])[
             [attr_names.DIVIDE_ID.value, attr_names.FLOWPATH_LENGTH.value]
         ]
@@ -699,7 +687,7 @@ def get_topmodel_parameters(
 
     pydantic_models = []
     for _idx, row_dict in divide_attr_df.iterrows():
-        if namespace == HydrofabricDomains.NHF:
+        if namespace.is_nhf:
             twi_json = [
                 {"v": row_dict[attr_names.TWI_Q25.value], "Frequency": "0.25"},
                 {"v": row_dict[attr_names.TWI_Q50.value], "Frequency": "0.25"},
@@ -721,7 +709,7 @@ def get_topmodel_parameters(
 
 
 def get_topoflow_parameters(
-    catalog: Catalog, namespace: str, identifier: str, graph: rx.PyDiGraph
+    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, graph: rx.PyDiGraph
 ) -> list[Topoflow]:
     """Creates the initial parameter estimates for the Topoflow module
 
@@ -742,9 +730,7 @@ def get_topoflow_parameters(
     gauge = get_subset(catalog=catalog, identifier=identifier, namespace=namespace, graph=graph)
 
     divide_attr_df = (
-        pd.DataFrame(gauge["divide-attributes"])
-        if namespace != HydrofabricDomains.NHF
-        else pd.DataFrame(gauge["divides"])
+        pd.DataFrame(gauge["divide-attributes"]) if not namespace.is_nhf else pd.DataFrame(gauge["divides"])
     )
     # Replace any NaNs in dataframe with None so it can be converted to JSON by FastAPI
     divide_attr_df = divide_attr_df.replace({np.nan: None})
@@ -752,7 +738,7 @@ def get_topoflow_parameters(
     attr_names = select_attr_names(namespace)
 
     # Run items specifically for HF2.2
-    if namespace != HydrofabricDomains.NHF:
+    if not namespace.is_nhf:
         divides_df = gauge["divides"][[attr_names.DIVIDE_ID.value, attr_names.AREA.value]]
         divide_attr_df = divide_attr_df.merge(divides_df, on=attr_names.DIVIDE_ID.value, how="left")
 
@@ -788,7 +774,7 @@ def get_topoflow_parameters(
 
 def get_ueb_parameters(
     catalog: Catalog,
-    namespace: str,
+    namespace: HydrofabricNamespace,
     identifier: str,
     envca: bool,
     graph: rx.PyDiGraph,
@@ -799,7 +785,7 @@ def get_ueb_parameters(
     ----------
     catalog : Catalog
         the pyiceberg lakehouse catalog
-    namespace : HydrofabricDomains
+    namespace : str
         the hydrofabric namespace
     identifier : str
         the gauge identifier
@@ -816,9 +802,7 @@ def get_ueb_parameters(
     # Extraction of relevant features from divide attributes layer
     # & convert to polar
     divide_attr_df = (
-        pd.DataFrame(gauge["divide-attributes"])
-        if namespace != HydrofabricDomains.NHF
-        else pd.DataFrame(gauge["divides"])
+        pd.DataFrame(gauge["divide-attributes"]) if not namespace.is_nhf else pd.DataFrame(gauge["divides"])
     )
     # Replace any NaNs in dataframe with None so it can be converted to JSON by FastAPI
     divide_attr_df = divide_attr_df.replace({np.nan: None})
@@ -826,7 +810,7 @@ def get_ueb_parameters(
     attr_names = select_attr_names(namespace)
 
     # Run items specifically for HF2.2
-    if namespace != HydrofabricDomains.NHF:
+    if not namespace.is_nhf:
         # Convert elevation from cm to m
         divide_attr_df[attr_names.ELEVATION.value] = divide_attr_df[attr_names.ELEVATION.value] * 0.01
 
@@ -914,7 +898,7 @@ def get_ueb_parameters(
 
 def get_cfe_parameters(
     catalog: Catalog,
-    namespace: str,
+    namespace: HydrofabricNamespace,
     identifier: str,
     cfe_version: str,
     graph: rx.PyDiGraph | None = None,
@@ -927,7 +911,7 @@ def get_cfe_parameters(
     ----------
     catalog : Catalog
         the pyiceberg lakehouse catalog
-    namespace : HydrofabricDomains
+    namespace : str
         the hydrofabric namespace
     identifier : str
         the gauge identifier
@@ -947,16 +931,14 @@ def get_cfe_parameters(
     gauge = get_subset(catalog=catalog, identifier=identifier, namespace=namespace, graph=graph)
 
     divide_attr_df = (
-        pd.DataFrame(gauge["divide-attributes"])
-        if namespace != HydrofabricDomains.NHF
-        else pd.DataFrame(gauge["divides"])
+        pd.DataFrame(gauge["divide-attributes"]) if not namespace.is_nhf else pd.DataFrame(gauge["divides"])
     )
     # Replace any NaNs in dataframe with None so it can be converted to JSON by FastAPI
     divide_attr_df = divide_attr_df.replace({np.nan: None})
     attr_names = select_attr_names(namespace)
     divides_list = divide_attr_df[attr_names.DIVIDE_ID.value]
 
-    if namespace != HydrofabricDomains.NHF:
+    if not namespace.is_nhf:
         domain = namespace.split("_")[0]
         table_name = f"divide_parameters.cfe-x_{domain}"
         params_df = catalog.load_table(table_name).to_polars()

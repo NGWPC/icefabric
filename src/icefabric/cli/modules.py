@@ -11,7 +11,7 @@ from icefabric.builds.graph_connectivity import load_upstream_json
 from icefabric.cli import get_catalog
 from icefabric.helpers.io import _create_config_zip
 from icefabric.modules import NWMModules, SmpModules, config_mapper, modules_with_extra_args
-from icefabric.schemas.hydrofabric import HydrofabricDomains
+from icefabric.schemas.hydrofabric import GeographicDomain, HydrofabricNamespace
 from icefabric.schemas.modules import IceFractionScheme
 
 load_dotenv()
@@ -47,7 +47,10 @@ def validate_options(ctx, param, value):
 )
 @click.option(
     "--domain",
-    type=click.Choice([e.value for e in HydrofabricDomains], case_sensitive=False),
+    type=click.Choice(
+        [d.value for d in GeographicDomain] + [ns.value for ns in HydrofabricNamespace],
+        case_sensitive=False,
+    ),
     required=True,
     help="The domain you are querying",
 )

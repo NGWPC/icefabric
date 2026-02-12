@@ -12,7 +12,7 @@ from pydantic.json_schema import SkipJsonSchema
 from pyiceberg.expressions import EqualTo
 from starlette.background import BackgroundTask
 
-from app import get_catalog, get_graphs
+from app import get_cache_catalog, get_cached_namespaces, get_catalog, get_graphs
 from icefabric.hydrofabric import subset_hydrofabric, subset_nhf
 from icefabric.schemas import (
     DivideAttributes,
@@ -75,6 +75,8 @@ async def get_hydrofabric_subset_gpkg(
         description="Layers to include in the geopackage. Core layers (divides, flowpaths, network, nexus) are always included.",
     ),
     catalog=Depends(get_catalog),
+    cache_catalog=Depends(get_cache_catalog),
+    cached_namespaces=Depends(get_cached_namespaces),
     network_graphs=Depends(get_graphs),
 ):
     """
@@ -112,6 +114,9 @@ async def get_hydrofabric_subset_gpkg(
         ) from None
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}") from None
+
+    # swap catalog for cached catalog if appropriate
+    catalog = cache_catalog if namespace in cached_namespaces else catalog
 
     try:
         if namespace.is_nhf:

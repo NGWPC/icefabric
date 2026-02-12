@@ -109,7 +109,6 @@ async def lifespan(app: FastAPI):
     app: FastAPI
         The FastAPI app instance
     """
-    # print(set(args.cached_namespaces))
     app.state.main_logger = main_logger
     app.state.main_logger.info("Application starting up.")
     if str(os.environ.get("ICEFABRIC_DEPLOY_ENV")).lower() in ["t", "test", "p", "prod", "production"]:

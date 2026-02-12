@@ -86,7 +86,7 @@ parser.add_argument(
 )  # Setting the default to read from S3
 parser.add_argument(
     "--cached-namespaces",
-    # choices=["glue", "sql"],
+    
     nargs="+",
     help="Optional local catalog to use for most common requests",
     default=["nhf", "conus_hf", "prvi_hf", "hi_hf", "ak_hf"],

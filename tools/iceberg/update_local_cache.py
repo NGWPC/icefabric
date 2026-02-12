@@ -16,7 +16,7 @@ from icefabric.schemas import HydrofabricSnapshot
 load_creds()
 
 
-def export(namespaces: set):
+def export(namespaces: set) -> None:
     """Exports the catalog to a local SQL file based on the .pyiceberg.yaml in the project root
 
     Parameters

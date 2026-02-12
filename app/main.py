@@ -86,11 +86,10 @@ parser.add_argument(
 )  # Setting the default to read from S3
 parser.add_argument(
     "--cached-namespaces",
-    
     nargs="+",
-    help="Optional local catalog to use for most common requests",
+    help="List of namespaces to include in local cache. Optionally specified as <namespace>:<snapshot>",
     default=["nhf", "conus_hf", "prvi_hf", "hi_hf", "ak_hf"],
-)  # Setting the default to read from S3
+)
 parser.add_argument(
     "--deploy-env",
     choices=["t", "test", "p", "prod", "production"],
@@ -121,7 +120,7 @@ async def lifespan(app: FastAPI):
     hydrofabric_namespaces = ["conus_hf", "ak_hf", "hi_hf", "prvi_hf"]
     app.state.catalog = catalog
     app.state.cache_catalog = cache_catalog
-    app.state.cached_namespaces = set(args.cached_namespaces)
+    app.state.cached_namespaces = {e.split(":")[0] for e in args.cached_namespaces}
     try:
         app.state.network_graphs = load_upstream_json(
             catalog=catalog,

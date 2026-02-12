@@ -32,6 +32,7 @@ from app.routers.ras_xs.router import api_router as ras_api_router
 from app.routers.rise_wrappers.router import api_router as rise_api_wrap_router
 from app.routers.streamflow_observations.router import api_router as streamflow_api_router
 from icefabric.builds import load_upstream_json
+from icefabric.cache import build_cache
 from icefabric.helpers import load_creds
 
 # Configure basic logging
@@ -78,6 +79,19 @@ parser.add_argument(
     default="glue",
 )  # Setting the default to read from S3
 parser.add_argument(
+    "--cache-catalog",
+    choices=["glue", "sql"],
+    help="Optional local catalog to use for most common requests",
+    default="glue",
+)  # Setting the default to read from S3
+parser.add_argument(
+    "--cached-namespaces",
+    # choices=["glue", "sql"],
+    nargs="+",
+    help="Optional local catalog to use for most common requests",
+    default=["nhf", "conus_hf", "prvi_hf", "hi_hf", "ak_hf"],
+)  # Setting the default to read from S3
+parser.add_argument(
     "--deploy-env",
     choices=["t", "test", "p", "prod", "production"],
     help="The glue deploy environment",
@@ -95,6 +109,7 @@ async def lifespan(app: FastAPI):
     app: FastAPI
         The FastAPI app instance
     """
+    # print(set(args.cached_namespaces))
     app.state.main_logger = main_logger
     app.state.main_logger.info("Application starting up.")
     if str(os.environ.get("ICEFABRIC_DEPLOY_ENV")).lower() in ["t", "test", "p", "prod", "production"]:
@@ -103,8 +118,11 @@ async def lifespan(app: FastAPI):
     else:
         load_creds(args.deploy_env)
     catalog = load_catalog(args.catalog)
+    cache_catalog = load_catalog(args.cache_catalog)
     hydrofabric_namespaces = ["conus_hf", "ak_hf", "hi_hf", "prvi_hf"]
     app.state.catalog = catalog
+    app.state.cache_catalog = cache_catalog
+    app.state.cached_namespaces = set(args.cached_namespaces)
     try:
         app.state.network_graphs = load_upstream_json(
             catalog=catalog,
@@ -186,4 +204,8 @@ else:
     print("INFO: Documentation directory 'static/docs' not found. Docs will not be served.")
 
 if __name__ == "__main__":
+    # update local cache if specified
+    if args.cache_catalog == "sql":
+        print("Updating local cache")
+        build_cache(set(args.cached_namespaces), args.deploy_env)
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")

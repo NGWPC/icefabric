@@ -1,0 +1,96 @@
+"""Cache implementation for most commonly used domains"""
+
+import argparse
+import os
+from pathlib import Path
+
+import pyarrow as pa
+import yaml
+from pyiceberg.catalog import load_catalog
+from pyiceberg.transforms import IdentityTransform
+from tqdm import tqdm
+
+from icefabric.helpers import load_creds
+from icefabric.schemas import HydrofabricSnapshot
+from icefabric.schemas.hydrofabric import HydrofabricNamespace
+
+
+def build_cache(namespaces: set, deploy_env: str):
+    """Exports the catalog to a local SQL file based on the .pyiceberg.yaml in the project root
+
+    Parameters
+    ----------
+    namespaces : set
+        The namespaces to be included in the cache
+    """
+    for ns in namespaces:
+        if ns not in [e.value for e in HydrofabricNamespace]:
+            print(f"{ns} not a valid HydrofabricNamespace")
+            raise Exception(f"{ns} not a valid HydrofabricNamespace")
+
+    if str(os.environ.get("ICEFABRIC_DEPLOY_ENV")).lower() in ["t", "test", "p", "prod", "production"]:
+        # Override the deploy env. Allows for specifying the env when running a docker container
+        load_creds(os.environ["ICEFABRIC_DEPLOY_ENV"].lower())
+    else:
+        load_creds(deploy_env)
+
+    # Creates the local dir for the warehouse if it does not exist
+    with open(os.environ["PYICEBERG_HOME"]) as f:
+        config = yaml.safe_load(f)
+
+    warehouse = Path(config["catalog"]["sql"]["warehouse"].replace("file://", ""))
+    warehouse.mkdir(parents=True, exist_ok=True)
+
+    glue_catalog = load_catalog("glue")
+    local_catalog = load_catalog("sql")
+
+    for namespace in namespaces:
+        local_catalog.create_namespace_if_not_exists(namespace)
+
+        namespace_tables = glue_catalog.list_tables(namespace=namespace)
+
+        # Saving new snapshots for local
+        snapshots = {}
+        if "hf" in namespace:
+            is_hf = True
+            domain = namespace.split("_")[0]
+            snapshots["domain"] = domain
+        else:
+            is_hf = False
+
+        for _, table in tqdm(
+            namespace_tables, desc=f"Exporting {namespace} tables", total=len(namespace_tables)
+        ):
+            _table = glue_catalog.load_table(f"{namespace}.{table}").scan(snapshot_id=None)
+            _arrow = _table.to_arrow()
+
+            if local_catalog.table_exists(f"{namespace}.{table}"):
+                print("Warning: overwriting existing table in local SQL catalog")
+                local_catalog.drop_table(f"{namespace}.{table}")
+
+            iceberg_table = local_catalog.create_table_if_not_exists(
+                f"{namespace}.{table}",
+                schema=_arrow.schema,
+            )
+            if namespace == "conus_hf":
+                # Partitioning the CONUS HF data
+                partition_spec = iceberg_table.spec()
+                if len(partition_spec.fields) == 0:
+                    with iceberg_table.update_spec() as update:
+                        update.add_field("vpuid", IdentityTransform(), "vpuid_partition")
+            iceberg_table.append(_arrow)
+            if is_hf:
+                snapshots[table] = iceberg_table.current_snapshot().snapshot_id
+
+        if is_hf:
+            local_catalog.create_namespace_if_not_exists("hydrofabric_snapshots")
+            if local_catalog.table_exists("hydrofabric_snapshots.id"):
+                tbl = local_catalog.load_table("hydrofabric_snapshots.id")
+            else:
+                tbl = local_catalog.create_table(
+                    "hydrofabric_snapshots.id",
+                    schema=HydrofabricSnapshot.schema(),
+                )
+            df = pa.Table.from_pylist([snapshots], schema=HydrofabricSnapshot.arrow_schema())
+            tbl.append(df)
+        print(f"Exported {namespace} into local pyiceberg DB")

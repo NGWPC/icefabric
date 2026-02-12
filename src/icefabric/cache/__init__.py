@@ -15,7 +15,7 @@ from icefabric.schemas import HydrofabricSnapshot
 from icefabric.schemas.hydrofabric import HydrofabricNamespace
 
 
-def build_cache(namespaces: set, deploy_env: str):
+def build_cache(namespaces: set, deploy_env: str) -> None:
     """Exports the catalog to a local SQL file based on the .pyiceberg.yaml in the project root
 
     Parameters

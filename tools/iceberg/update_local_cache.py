@@ -95,7 +95,6 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--cached-namespaces",
-        # choices=["glue", "sql"],
         nargs="+",
         help="Optional local catalog to use for most common requests",
         default=["nhf", "conus_hf", "prvi_hf", "hi_hf", "ak_hf"],

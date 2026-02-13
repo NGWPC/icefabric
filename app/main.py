@@ -82,8 +82,8 @@ parser.add_argument(
     "--cache-catalog",
     choices=["glue", "sql"],
     help="Optional local catalog to use for most common requests",
-    default="glue",
-)  # Setting the default to read from S3
+    default="sql",
+)  # Setting the default to use local SQL cache
 parser.add_argument(
     "--cached-namespaces",
     nargs="+",
@@ -112,9 +112,14 @@ async def lifespan(app: FastAPI):
     app.state.main_logger.info("Application starting up.")
     if str(os.environ.get("ICEFABRIC_DEPLOY_ENV")).lower() in ["t", "test", "p", "prod", "production"]:
         # Override the deploy env. Allows for specifying the env when running a docker container
-        load_creds(os.environ["ICEFABRIC_DEPLOY_ENV"].lower())
+        deploy_env = os.environ["ICEFABRIC_DEPLOY_ENV"].lower()
+        load_creds(deploy_env)
     else:
-        load_creds(args.deploy_env)
+        deploy_env = args.deploy_env
+        load_creds(deploy_env)
+    if args.cache_catalog == "sql":
+        app.state.main_logger.info("Building local SQL cache...")
+        build_cache(set(args.cached_namespaces), deploy_env)
     catalog = load_catalog(args.catalog)
     cache_catalog = load_catalog(args.cache_catalog)
     hydrofabric_namespaces = ["conus_hf", "ak_hf", "hi_hf", "prvi_hf"]
@@ -202,8 +207,4 @@ else:
     print("INFO: Documentation directory 'static/docs' not found. Docs will not be served.")
 
 if __name__ == "__main__":
-    # update local cache if specified
-    if args.cache_catalog == "sql":
-        print("Updating local cache")
-        build_cache(set(args.cached_namespaces), args.deploy_env)
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")

@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS base
+FROM python:3.12.8-slim AS base
 
 # Install system dependencies including GDAL
 RUN apt-get update && apt-get install -y \
@@ -21,6 +21,11 @@ WORKDIR /app
 
 # Builder stage (install deps, build docs)
 FROM base AS builder
+
+# Prevent uv from downloading its own Python; use the system Python from the base image
+ENV UV_PYTHON_DOWNLOADS=never
+ENV UV_LINK_MODE=copy
+
 COPY .  .
 
 # Create virtual env and install deps from pyproject.toml

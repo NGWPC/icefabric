@@ -274,7 +274,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 120s
+      start_period: 900s
 EOF
 
 # === Compose Systemd Service ===

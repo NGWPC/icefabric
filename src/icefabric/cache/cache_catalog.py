@@ -11,7 +11,6 @@ from tqdm import tqdm
 
 from icefabric.helpers import load_creds
 from icefabric.schemas import HydrofabricSnapshot
-from icefabric.schemas.hydrofabric import HydrofabricNamespace
 
 
 def parse_namespaces(namespaces: set) -> set:
@@ -35,10 +34,6 @@ def build_cache(namespaces: set, deploy_env: str):
         The namespaces to be included in the cache
     """
     namespaces = parse_namespaces(namespaces)
-    for ns, _ in namespaces:
-        if ns not in [e.value for e in HydrofabricNamespace]:
-            print(f"{ns} not a valid HydrofabricNamespace")
-            raise Exception(f"{ns} not a valid HydrofabricNamespace")
 
     if str(os.environ.get("ICEFABRIC_DEPLOY_ENV")).lower() in ["t", "test", "p", "prod", "production"]:
         # Override the deploy env. Allows for specifying the env when running a docker container

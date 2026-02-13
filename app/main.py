@@ -88,7 +88,16 @@ parser.add_argument(
     "--cached-namespaces",
     nargs="+",
     help="List of namespaces to include in local cache. Optionally specified as <namespace>:<snapshot>",
-    default=["nhf", "conus_hf", "prvi_hf", "hi_hf", "ak_hf"],
+    default=[
+        "nhf",
+        "conus_nhf",
+        "conus_hf",
+        "prvi_hf",
+        "hi_hf",
+        "ak_hf",
+        "parameter_metadata",
+        "divide_parameters",
+    ],
 )
 parser.add_argument(
     "--deploy-env",

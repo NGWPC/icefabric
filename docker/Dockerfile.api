@@ -26,7 +26,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /app
 
 # Copy the content of the build context to /app
-COPY ../ /app
+COPY . /app
 
 RUN uv venv
 ENV PATH="/app/.venv/bin:$PATH"

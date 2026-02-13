@@ -1,10 +1,7 @@
-import statistics
 import time
 
 import folium
 import geopandas as gpd
-import matplotlib as mpl
-import numpy as np
 import pandas as pd
 import polars as pl
 import streamlit as st
@@ -18,29 +15,29 @@ from icefabric.schemas.iceberg_tables.ras_xs import ConflatedRasXS, Representati
 
 domain_class_map = {"representative": RepresentativeRasXS, "conflated": ConflatedRasXS}
 
-STYLE_MAP = {
+LAYER_FOLIUM_STYLING_MAP = {
     "divides": {
         "styling": {
             "color": "grey",
-            "weight": 2,
+            "weight": 1.5,
             "opacity": 0.5,
-            "fillOpacity": 0.33,
+            "fillOpacity": 0.5,
             "dashArray": [5, 5],
         },
         "highlight_styling": {
-            "weight": 4,
-            "opacity": 0.75,
-            "fillOpacity": 0.5,
+            "weight": 3,
+            "opacity": 0.8,
+            "fillOpacity": 0.8,
         },
     },
     "flowpaths": {
         "styling": {
             "color": "darkblue",
-            "weight": 3,
+            "weight": 4,
             "opacity": 1,
         },
         "highlight_styling": {
-            "weight": 6,
+            "weight": 8,
         },
     },
     "nexus": {"marker_styling": folium.Marker(icon=folium.Icon(color="orange", icon="filter"))},
@@ -57,57 +54,7 @@ STYLE_MAP = {
         },
     },
     "virtual_nexus": {"marker_styling": folium.Marker(icon=folium.Icon(color="green", icon="filter"))},
-    "ras_xs": {
-        "styling": {
-            "color": "black",
-            "weight": 2,
-            "opacity": 1,
-        },
-        "highlight_styling": {
-            "weight": 4,
-        },
-    },
 }
-
-
-def depth_to_gradient(val, domain="NHF", min_val=0, max_val=6.5, start_color="#7073FF", end_color="#0B0B1B"):
-    """Given a flowpath depth value, return a hex color code representing its position on a gradient"""
-    if val is None:
-        return "#FFFFFF"  # White for null values
-    if domain == "XS":
-        max_val = 25
-    if val > max_val:
-        val = max_val
-
-    # Normalize value between 0 and 1
-    norm = (val - min_val) / (max_val - min_val)
-    c1 = mpl.colors.to_rgb(start_color)
-    c2 = mpl.colors.to_rgb(end_color)
-    # Linear interpolation
-    rgb = [(1 - norm) * c1[i] + norm * c2[i] for i in range(3)]
-    return mpl.colors.to_hex(rgb)
-
-
-def normalize_width(val, domain="NHF", min=0, max=384, nmin=2, nmax=50):
-    """Given a flowpath width value, normalize it to a new range (for styling)"""
-    if val is None:
-        return 1  # Width for null values
-    if domain == "XS":
-        max = 1224
-    if val > max:
-        return nmax
-    else:
-        return round(nmin + (((val - min) * (nmax - nmin)) / (max - min)))
-
-
-def set_id_fields_as_strings(gdf):
-    """Helper to ensure id fields are of type string."""
-    id_field_names = [c for c in gdf.columns.tolist() if c.endswith("_id") and c != "vpu_id"]
-    for fn in id_field_names:
-        if gdf[fn].dtype == "int64" or gdf[fn].dtype == "float64":
-            # Convert floats/ints to string, handling NaNs
-            gdf[fn] = gdf[fn].apply(lambda x: f"{int(x)}" if pd.notna(x) else np.nan)
-    return gdf
 
 
 @st.cache_data(show_spinner=False)
@@ -128,135 +75,31 @@ def convert_for_download(gdf, tmp_path):
     gpd.GeoDataFrame(gdf).to_file(tmp_path, driver="GPKG", mode="w")
 
 
-def format_xs_map(_catalog, xs_gdf, domain):
+def format_xs_map(_catalog, xs_gdf):
     """Helper to create/format a folium map to display the cross-sectional data."""
-    # Create base map
-    m = folium.Map(tiles=folium.TileLayer(tiles="Cartodb Positron", control=False))
-
-    # Format cross-sectional data
-    ras_xs = xs_gdf.to_crs(epsg=4326)
-
-    # Pull and format reference layers
+    # Pull and filter reference divides/flowpaths from the catalog
     reference_divides = to_geopandas(
         _catalog.load_table("conus_reference.reference_divides")
         .scan(row_filter=In("flowpath_id", xs_gdf["flowpath_id"]))
         .to_pandas()
-    ).to_crs(epsg=4326)
+    )
     reference_flowpaths = to_geopandas(
         _catalog.load_table("conus_reference.reference_flowpaths")
         .scan(row_filter=In("flowpath_id", xs_gdf["flowpath_id"]))
         .to_pandas()
-    ).to_crs(epsg=4326)
-
-    # Ensure ID fields are strings for proper display in popups
-    ras_xs = set_id_fields_as_strings(ras_xs)
-    reference_divides = set_id_fields_as_strings(reference_divides)
-    reference_flowpaths = set_id_fields_as_strings(reference_flowpaths)
-
-    # Sort dataframes by flowpath_id for consistent ordering
-    ras_xs = ras_xs.sort_values(by="flowpath_id", ascending=True)
-    reference_flowpaths = reference_flowpaths.sort_values(by="flowpath_id", ascending=True)
-    reference_divides = reference_divides.sort_values(by="flowpath_id", ascending=True)
-
-    # Sometimes even representative XS data can have multiple entries per flowpath_id
-    unique_flowpaths = ras_xs["flowpath_id"].unique().tolist()
-
-    # Add width and depth to reference flowpaths
-    avg_widths, avg_depths = [], []
-    for fp in unique_flowpaths:
-        avg_widths.append(statistics.mean(ras_xs[ras_xs["flowpath_id"] == fp].TW.tolist()))
-        if domain == "representative":
-            avg_depths.append(statistics.mean(ras_xs[ras_xs["flowpath_id"] == fp].Y.tolist()))
-        elif domain == "conflated":
-            avg_depths.append(statistics.mean(ras_xs[ras_xs["flowpath_id"] == fp].Ym.tolist()))
-    reference_flowpaths["width"] = avg_widths
-    reference_flowpaths["depth"] = avg_depths
-
-    # Fit map to data bounds
-    min_points = [(row.miny, row.minx) for row in reference_flowpaths.geometry.bounds.itertuples()]
-    max_points = [(row.maxy, row.maxx) for row in reference_flowpaths.geometry.bounds.itertuples()]
-    lat_lon_coll = min_points + max_points
-    m.fit_bounds(lat_lon_coll)
-
-    # Reference divides GeoJSON layer
-    div_popup_fields = [col for col in reference_divides.columns if col != "geometry"]
-    div_style = STYLE_MAP["divides"].get("styling", {})
-    div_hl_style = STYLE_MAP["divides"].get("highlight_styling", {})
-    ref_div_poly = folium.GeoJson(
-        data=reference_divides,
-        popup=folium.GeoJsonPopup(fields=list(div_popup_fields[:25])),
-        tooltip=folium.GeoJsonTooltip(
-            fields=[div_popup_fields[0]],
-            aliases=["Reference Divide ID:"],
-        ),
-        style_function=lambda x: div_style,
-        highlight_function=lambda x: div_hl_style,
     )
 
-    # Reference/3D flowpaths GeoJSON layers
-    fp_popup_fields = [col for col in reference_flowpaths.columns if col != "geometry"]
-    fp_style = STYLE_MAP["flowpaths"].get("styling", {})
-    fp_hl_style = STYLE_MAP["flowpaths"].get("highlight_styling", {})
-    ref_fp_poly = folium.GeoJson(
-        data=reference_flowpaths,
-        popup=folium.GeoJsonPopup(fields=list(fp_popup_fields[:25])),
-        tooltip=folium.GeoJsonTooltip(
-            fields=[fp_popup_fields[0]],
-            aliases=["Reference Flowpath ID:"],
-        ),
-        style_function=lambda x: fp_style,
-        highlight_function=lambda x: fp_hl_style,
-    )
-    three_dim_fp_poly = folium.GeoJson(
-        data=reference_flowpaths,
-        popup=folium.GeoJsonPopup(fields=list(fp_popup_fields[:25])),
-        tooltip=folium.GeoJsonTooltip(
-            fields=[fp_popup_fields[0], "width", "depth"],
-            aliases=["Reference Flowpath ID:", "Width (ft):", "Depth (ft):"],
-            localize=True,
-        ),
-        style_function=lambda x: fp_style
-        | {
-            "weight": normalize_width(x["properties"]["width"], domain="XS"),
-            "color": depth_to_gradient(x["properties"]["depth"], domain="XS"),
-        },
-        highlight_function=lambda x: fp_hl_style
-        | {
-            "weight": normalize_width(x["properties"]["width"], domain="XS") + 4,
-        },
-    )
+    # Convert all data to the EPSG:4326 coordinate reference system
+    reference_divides = reference_divides.to_crs(epsg=4326)
+    reference_flowpaths = reference_flowpaths.to_crs(epsg=4326)
+    gdf = xs_gdf.to_crs(epsg=4326)
 
-    # Cross-sectional data GeoJSON layer
-    ras_xs_popup_fields = [col for col in ras_xs.columns if col != "geometry"]
-    ras_xs_style = STYLE_MAP["ras_xs"].get("styling", {})
-    ras_xs_hl_style = STYLE_MAP["ras_xs"].get("highlight_styling", {})
-    ras_xs_poly = folium.GeoJson(
-        data=ras_xs,
-        popup=folium.GeoJsonPopup(fields=list(ras_xs_popup_fields[:25])),
-        tooltip=folium.GeoJsonTooltip(
-            fields=[ras_xs_popup_fields[0]],
-            aliases=["XS Flowpath ID:"],
-        ),
-        style_function=lambda x: ras_xs_style,
-        highlight_function=lambda x: ras_xs_hl_style,
-    )
+    ref_div_ex = reference_divides.explore(color="grey")
+    ref_flo_ex = reference_flowpaths.explore(m=ref_div_ex, color="blue")
 
-    # Add layers to map with layer control
-    m.add_child(folium.FeatureGroup(name="Reference Divides").add_child(ref_div_poly))
-    m.add_child(folium.FeatureGroup(name="Reference Flowpaths").add_child(ref_fp_poly))
-    m.add_child(folium.FeatureGroup(name="RAS XS").add_child(ras_xs_poly))
-    m.add_child(folium.FeatureGroup(name="3D Flowpaths", show=False).add_child(three_dim_fp_poly))
-
-    # Move layer control to bottom right and add fullscreen button
-    folium.LayerControl(position="bottomright").add_to(m)
-    folium.plugins.Fullscreen(
-        position="topright",
-        title="Expand me",
-        title_cancel="Exit me",
-        force_separate_button=True,
-    ).add_to(m)
-
-    return m
+    # Final Map
+    xs_map = gdf.explore(m=ref_flo_ex, color="black")
+    return xs_map
 
 
 def create_table_from_schema(iceberg_schema):

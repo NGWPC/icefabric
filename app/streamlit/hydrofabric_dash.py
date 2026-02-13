@@ -1,17 +1,16 @@
 import folium
 import geopandas as gpd
+import numpy as np
+import pandas as pd
 import streamlit as st
 from botocore.exceptions import ClientError
 from streamlit_folium import st_folium
 
 from app.streamlit.helpers import (
-    STYLE_MAP,
-    depth_to_gradient,
+    LAYER_FOLIUM_STYLING_MAP,
     display_nhf_schemas,
     load_hf_gpkg,
-    normalize_width,
     post_transient_success_msg,
-    set_id_fields_as_strings,
     validate_nhf_subset_query,
 )
 from app.streamlit.tooltips import hf_subset_options_explanation
@@ -108,7 +107,6 @@ if subset_submit and submit_valid:
                 m = folium.Map(tiles=folium.TileLayer(tiles="Cartodb Positron", control=False))
                 lat_lon_coll = [(row.lat, row.lon) for row in subset_dfs["divides"].to_pandas().itertuples()]
                 m.fit_bounds(lat_lon_coll)
-                fp_data = None
                 for layer_name, df in subset_dfs.items():
                     if "geometry" in df.columns and not df.is_empty():
                         df = df.to_pandas()
@@ -119,24 +117,30 @@ if subset_submit and submit_valid:
                         ).to_crs(epsg=4326)
 
                         # Ensure ID fields are strings for proper display in popups
-                        gdf = set_id_fields_as_strings(gdf)
+                        id_field_names = [
+                            c for c in gdf.columns.tolist() if c.endswith("_id") and c != "vpu_id"
+                        ]
+                        for fn in id_field_names:
+                            if gdf[fn].dtype == "int64" or gdf[fn].dtype == "float64":
+                                # Convert floats/ints to string, handling NaNs
+                                gdf[fn] = df[fn].apply(lambda x: f"{int(x)}" if pd.notna(x) else np.nan)
 
-                        if layer_name == "flowpaths":
-                            fp_data = gdf.copy()
-                        style = STYLE_MAP[layer_name].get("styling", {})
-                        hl_style = STYLE_MAP[layer_name].get("highlight_styling", {})
-                        marker_style = STYLE_MAP[layer_name].get("marker_styling", None)
-                        popup_fields = [c for c in gdf.columns if c != "geometry"]
+                        styling = LAYER_FOLIUM_STYLING_MAP[layer_name].get("styling", {})
+                        highlight_styling = LAYER_FOLIUM_STYLING_MAP[layer_name].get("highlight_styling", {})
+                        marker_styling = LAYER_FOLIUM_STYLING_MAP[layer_name].get("marker_styling", None)
+                        popup_fields = list(gdf.columns)
+                        popup_fields.remove("geometry")
                         gdf_poly = folium.GeoJson(
                             data=gdf,
-                            popup=folium.GeoJsonPopup(fields=popup_fields[:25]),
+                            popup=folium.GeoJsonPopup(fields=popup_fields[:15]),
                             tooltip=folium.GeoJsonTooltip(
                                 fields=[popup_fields[0]],
                                 aliases=[f"{layer_name.title().replace('_', ' ')} ID:"],
                             ),
-                            style_function=lambda x, style=style: style,
-                            highlight_function=lambda x, hl_style=hl_style: hl_style,
-                            marker=marker_style,
+                            style_function=lambda x, styling=styling: styling,
+                            highlight_function=lambda x,
+                            highlight_styling=highlight_styling: highlight_styling,
+                            marker=marker_styling,
                         )
                         if layer_name == "divides" or layer_name == "flowpaths":
                             gdf_fig = folium.FeatureGroup(name=layer_name)
@@ -144,32 +148,6 @@ if subset_submit and submit_valid:
                             gdf_fig = folium.FeatureGroup(name=layer_name, show=False)
                         gdf_fig.add_child(gdf_poly)
                         m.add_child(gdf_fig)
-
-                fp_popup_fields = [c for c in fp_data.columns if c != "geometry"]
-                fp_styling = STYLE_MAP["flowpaths"].get("styling", {})
-                fp_hl_style = STYLE_MAP["flowpaths"].get("highlight_styling", {})
-                three_dim_fp_poly = folium.GeoJson(
-                    data=fp_data,
-                    popup=folium.GeoJsonPopup(
-                        fields=list(fp_popup_fields[:25]),
-                    ),
-                    tooltip=folium.GeoJsonTooltip(
-                        fields=[fp_popup_fields[0], "topwdth", "y_ml"],
-                        aliases=["Reference Flowpath ID:", "Width (ft):", "Depth (ft):"],
-                        localize=True,
-                    ),
-                    style_function=lambda x: fp_styling
-                    | {
-                        "weight": normalize_width(x["properties"]["topwdth"]),
-                        "color": depth_to_gradient(x["properties"]["y_ml"]),
-                        "dashArray": [5, 5] if not x["properties"]["topwdth"] else {},
-                    },
-                    highlight_function=lambda x: fp_hl_style
-                    | {
-                        "weight": normalize_width(x["properties"]["topwdth"]) + 4,
-                    },
-                )
-                m.add_child(folium.FeatureGroup(name="3D Flowpaths", show=False).add_child(three_dim_fp_poly))
 
                 folium.LayerControl(position="bottomright").add_to(m)
                 folium.plugins.Fullscreen(

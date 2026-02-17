@@ -24,7 +24,7 @@ ALL_MODULES = [
     "Snow-17",
     "T-Route",
     "TopModel",
-    "TopoFlow",
+    "Topoflow-Glacier",
     "UEB",
 ]
 

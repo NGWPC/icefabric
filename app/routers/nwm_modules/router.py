@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic.json_schema import SkipJsonSchema
 from pyiceberg.catalog import Catalog
 
-from app import get_catalog, get_graphs
+from app import get_cache_catalog, get_cached_namespaces, get_catalog, get_graphs
 from icefabric.modules import SmpModules, config_mapper, get_parameter_metadata
 from icefabric.schemas import GeographicDomain, HydrofabricNamespace, HydrofabricSource
 from icefabric.schemas.modules import (
@@ -818,6 +818,8 @@ async def get_calibratable_parameter_metadata(
         "or legacy values (nhf, conus_hf, etc.) for backwards compatibility.",
     ),
     catalog: Catalog = Depends(get_catalog),
+    cache_catalog: Catalog = Depends(get_cache_catalog),
+    cached_namespaces=Depends(get_cached_namespaces),
     network_graphs=Depends(get_graphs),
 ):
     """
@@ -885,9 +887,12 @@ async def get_calibratable_parameter_metadata(
             formatted_gage_id = f"gages-{gage_id}"
             graph = network_graphs[namespace]
 
+    # Use cache catalog if parameter_metadata namespace is cached
+    active_catalog = cache_catalog if "parameter_metadata" in cached_namespaces else catalog
+
     parameter_metadata = get_parameter_metadata(
         modules=modules,
-        catalog=catalog,
+        catalog=active_catalog,
         gage_id=formatted_gage_id,
         domain=namespace,
         graph=graph,

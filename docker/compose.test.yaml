@@ -1,0 +1,19 @@
+services:
+  myapp:
+    image: icefabric/api
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+    network_mode: "host"
+    environment:
+      - ICEFABRIC_DEPLOY_ENV=${ICEFABRIC_DEPLOY_ENV:-test}
+    env_file:
+      - ../${ICEFABRIC_CREDS_ENV_FILE:-.env}
+    restart: always
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "--head", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 900s

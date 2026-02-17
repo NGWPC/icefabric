@@ -788,7 +788,7 @@ async def get_calibratable_parameter_metadata(
         openapi_examples={
             "CFE-S": {"summary": "CFE-S", "value": "CFE-S"},
             "CFE-X": {"summary": "CFE-X", "value": "CFE-X"},
-            "LASAM": {"summary": "LASAM", "value": "lASAM"},
+            "LASAM": {"summary": "LASAM", "value": "LASAM"},
             "LSTM": {"summary": "LSTM", "value": "LSTM"},
             "Noah-OWP-Modular": {"summary": "Noah-OWP-Modular", "value": "Noah-OWP-Modular"},
             "Sac-SMA": {"summary": "Sac-SMA", "value": "Sac-SMA"},
@@ -797,7 +797,7 @@ async def get_calibratable_parameter_metadata(
             "Snow-17": {"summary": "Snow-17", "value": "Snow-17"},
             "T-Route": {"summary": "T-Route", "value": "T-Route"},
             "TopModel": {"summary": "TopModel", "value": "TopModel"},
-            "TopoFlow": {"summary": "TopoFlow", "value": "TopoFlow"},
+            "Topoflow-Glacier": {"summary": "Topoflow-Glacier", "value": "Topoflow-Glacier"},
             "UEB": {"summary": "UEB", "value": "UEB"},
         },
     ),
@@ -847,7 +847,7 @@ async def get_calibratable_parameter_metadata(
         "Snow-17": "snow17",
         "T-Route": "troute",
         "TopModel": "topmodel",
-        "Topoflow": "topoflow",
+        "Topoflow-Glacier": "topoflow",
         "UEB": "ueb",
     }
 
@@ -864,7 +864,7 @@ async def get_calibratable_parameter_metadata(
         "snow17": "Snow-17",
         "troute": "T-Route",
         "topmodel": "TopModel",
-        "topoflow": "Topoflow",
+        "topoflow": "Topoflow-Glacier",
         "ueb": "UEB",
     }
     modules = [nwm_icefabric_module_mapping.get(mod, mod) for mod in modules]

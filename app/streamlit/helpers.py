@@ -11,7 +11,6 @@ import streamlit as st
 from pyiceberg.expressions import In
 from shapely.geometry import box
 
-from app.streamlit.tooltips import three_dim_flowpath_legend, three_dim_flowpath_tooltip
 from icefabric.helpers import to_geopandas
 from icefabric.ras_xs import subset_xs
 from icefabric.schemas.iceberg_tables import nhf_layers
@@ -267,11 +266,6 @@ def format_xs_map(_catalog, xs_gdf, domain):
         title_cancel="Exit me",
         force_separate_button=True,
     ).add_to(m)
-
-    with st.container(border=True, width=725):
-        with st.expander("##### 3D Flowpaths Legend", icon=":material/info:"):
-            st.markdown(three_dim_flowpath_tooltip)
-        st.html(three_dim_flowpath_legend)
 
     return m
 

@@ -61,18 +61,29 @@ if xs_query:
     if xs_query == "Flowpath":
         with l_col.expander("Examples", icon=":material/info:", expanded=False):
             st.markdown("- 20059822\n- 17039777\n- 2539367")
-        xs_id = l_col.text_input(label="Flowpath ID", help=flowpath_id_tooltip, value="")
+        xs_id = l_col.text_input(
+            label="Flowpath ID", help=flowpath_id_tooltip, value=None, placeholder="e.g., 20059822"
+        )
     elif xs_query == "Bounding Box":
         l_col.markdown("##### __Bounding Box Coordinates__", help=bounding_box_tooltip)
         with l_col.expander("Examples", icon=":material/info:", expanded=False):
             st.table(bbox_examples)
-        min_lat = l_col.number_input("Min. Latitude (°)", format="%.4f")
-        min_lon = l_col.number_input("Min. Longitude (°)", format="%.4f")
-        max_lat = l_col.number_input("Max. Latitude (°)", format="%.4f")
-        max_lon = l_col.number_input("Max. Longitude (°)", format="%.4f")
+        min_lat = l_col.number_input(
+            "Min. Latitude (°)", format="%.4f", value=None, placeholder="e.g., 31.3323"
+        )
+        min_lon = l_col.number_input(
+            "Min. Longitude (°)", format="%.4f", value=None, placeholder="e.g., -109.0502"
+        )
+        max_lat = l_col.number_input(
+            "Max. Latitude (°)", format="%.4f", value=None, placeholder="e.g., 37.0002"
+        )
+        max_lon = l_col.number_input(
+            "Max. Longitude (°)", format="%.4f", value=None, placeholder="e.g., -103.0020"
+        )
 
 if l_col.button("Submit"):
     bbox_list = [min_lat, min_lon, max_lat, max_lon]
+    xs_gdf = None
 
     # Get subset
     try:
@@ -82,21 +93,22 @@ if l_col.button("Submit"):
             elif all(var is not None for var in bbox_list):
                 xs_gdf = get_data(catalog, xs_dom, bbox_list)
 
-        if xs_gdf.empty:
+        if xs_gdf is None or xs_gdf.empty:
             l_col.error(
                 f"ERROR - No results returned. Please try a different {xs_query}...", icon=":material/error:"
             )
         else:
             # Format and display map
-            with st.spinner(text="Generating map..."):
+            with st.spinner(text="Generating map...", show_time=True):
                 xs_map = format_xs_map(catalog, xs_gdf, xs_dom)
                 r_col.markdown("#### Map")
                 with r_col:
                     st_folium(fig=xs_map, width=725, returned_objects=[])
-                    with st.container(border=True, width=725):
-                        with st.expander("##### 3D Flowpaths Legend", icon=":material/info:"):
-                            st.markdown(three_dim_flowpath_tooltip)
-                        st.html(three_dim_flowpath_legend(upper_bound=25))
+
+            with r_col.container(border=True, width=725):
+                with st.expander("##### 3D Flowpaths Legend", icon=":material/info:"):
+                    st.markdown(three_dim_flowpath_tooltip)
+                st.html(three_dim_flowpath_legend(upper_bound=25))
 
             # Format and display dataframe
             df = xs_gdf.drop(columns="geometry")

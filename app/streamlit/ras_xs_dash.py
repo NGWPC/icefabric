@@ -13,10 +13,13 @@ from app.streamlit.helpers import (
     get_data,
 )
 from app.streamlit.tooltips import (
+    bbox_examples,
     bounding_box_tooltip,
     domain_tooltip,
     flowpath_id_tooltip,
     query_type_tooltip,
+    three_dim_flowpath_legend,
+    three_dim_flowpath_tooltip,
 )
 from icefabric.schemas import XsType
 
@@ -56,9 +59,13 @@ data_model_exp.dataframe(data=data_model, hide_index=True, row_height=65)
 xs_query = l_col.selectbox(label="Query Type", options=["Flowpath", "Bounding Box"], help=query_type_tooltip)
 if xs_query:
     if xs_query == "Flowpath":
+        with l_col.expander("Examples", icon=":material/info:", expanded=False):
+            st.markdown("- 20059822\n- 17039777\n- 2539367")
         xs_id = l_col.text_input(label="Flowpath ID", help=flowpath_id_tooltip, value="")
     elif xs_query == "Bounding Box":
         l_col.markdown("##### __Bounding Box Coordinates__", help=bounding_box_tooltip)
+        with l_col.expander("Examples", icon=":material/info:", expanded=False):
+            st.table(bbox_examples)
         min_lat = l_col.number_input("Min. Latitude (°)", format="%.4f")
         min_lon = l_col.number_input("Min. Longitude (°)", format="%.4f")
         max_lat = l_col.number_input("Max. Latitude (°)", format="%.4f")
@@ -86,6 +93,10 @@ if l_col.button("Submit"):
                 r_col.markdown("#### Map")
                 with r_col:
                     st_folium(fig=xs_map, width=725, returned_objects=[])
+                    with st.container(border=True, width=725):
+                        with st.expander("##### 3D Flowpaths Legend", icon=":material/info:"):
+                            st.markdown(three_dim_flowpath_tooltip)
+                        st.html(three_dim_flowpath_legend(upper_bound=25))
 
             # Format and display dataframe
             df = xs_gdf.drop(columns="geometry")

@@ -9,12 +9,15 @@ from app.streamlit.helpers import (
     depth_to_gradient,
     display_nhf_schemas,
     load_hf_gpkg,
-    normalize_width,
     post_transient_success_msg,
     set_id_fields_as_strings,
     validate_nhf_subset_query,
 )
-from app.streamlit.tooltips import hf_subset_options_explanation
+from app.streamlit.tooltips import (
+    hf_subset_options_explanation,
+    three_dim_flowpath_legend,
+    three_dim_flowpath_tooltip,
+)
 from icefabric.cli.streamflow import NoResultsFoundError
 from icefabric.hydrofabric import subset_nhf
 
@@ -148,6 +151,13 @@ if subset_submit and submit_valid:
                 fp_popup_fields = [c for c in fp_data.columns if c != "geometry"]
                 fp_styling = STYLE_MAP["flowpaths"].get("styling", {})
                 fp_hl_style = STYLE_MAP["flowpaths"].get("highlight_styling", {})
+
+                # Project flowpath line geometry to a metric CRS for buffering (to visualize width as a buffer around the line)
+                fp_data = fp_data.to_crs(epsg=32632)
+                # Scale factor for better visualization; may need to adjust as needed
+                fp_data["topwdth_half"] = (fp_data["topwdth"] / 2) * 20
+                fp_data["geometry"] = fp_data.geometry.buffer(fp_data["topwdth_half"])
+
                 three_dim_fp_poly = folium.GeoJson(
                     data=fp_data,
                     popup=folium.GeoJsonPopup(
@@ -155,19 +165,23 @@ if subset_submit and submit_valid:
                     ),
                     tooltip=folium.GeoJsonTooltip(
                         fields=[fp_popup_fields[0], "topwdth", "y_ml"],
-                        aliases=["Reference Flowpath ID:", "Width (ft):", "Depth (ft):"],
+                        aliases=["Reference Flowpath ID:", "Width (m):", "Depth (m):"],
                         localize=True,
                     ),
                     style_function=lambda x: fp_styling
                     | {
-                        "weight": normalize_width(x["properties"]["topwdth"]),
-                        "color": depth_to_gradient(x["properties"]["y_ml"]),
+                        "stroke": False,
+                        "fillColor": depth_to_gradient(x["properties"]["y_ml"]),
+                        "fillOpacity": 1,
                         "dashArray": [5, 5] if not x["properties"]["topwdth"] else {},
                     },
                     highlight_function=lambda x: fp_hl_style
                     | {
-                        "weight": normalize_width(x["properties"]["topwdth"]) + 4,
+                        "stroke": True,
+                        "color": "black",
+                        "weight": 2,
                     },
+                    popup_keep_highlighted=True,
                 )
                 m.add_child(folium.FeatureGroup(name="3D Flowpaths", show=False).add_child(three_dim_fp_poly))
 
@@ -179,6 +193,11 @@ if subset_submit and submit_valid:
                     force_separate_button=True,
                 ).add_to(m)
                 st_folium(fig=m, width=725, returned_objects=[])
+
+                with st.container(border=True, width=725):
+                    with st.expander("##### 3D Flowpaths Legend", icon=":material/info:"):
+                        st.markdown(three_dim_flowpath_tooltip)
+                    st.html(three_dim_flowpath_legend())
 
         # Download button
         with open(subset_gpkg_file, "rb") as file:

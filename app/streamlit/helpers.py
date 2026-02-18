@@ -11,6 +11,7 @@ import streamlit as st
 from pyiceberg.expressions import In
 from shapely.geometry import box
 
+from app.streamlit.tooltips import three_dim_flowpath_legend, three_dim_flowpath_tooltip
 from icefabric.helpers import to_geopandas
 from icefabric.ras_xs import subset_xs
 from icefabric.schemas.iceberg_tables import nhf_layers
@@ -207,23 +208,34 @@ def format_xs_map(_catalog, xs_gdf, domain):
         style_function=lambda x: fp_style,
         highlight_function=lambda x: fp_hl_style,
     )
+
+    # Project flowpath line geometry to a metric CRS for buffering (to visualize width as a buffer around the line)
+    three_dim_fp_data = reference_flowpaths.to_crs(epsg=32632)
+    # Scale factor for better visualization; may need to adjust as needed
+    three_dim_fp_data["topwdth_half"] = (three_dim_fp_data["width"] / 2) / 3
+    three_dim_fp_data["geometry"] = three_dim_fp_data.geometry.buffer(three_dim_fp_data["topwdth_half"])
     three_dim_fp_poly = folium.GeoJson(
-        data=reference_flowpaths,
+        data=three_dim_fp_data,
         popup=folium.GeoJsonPopup(fields=list(fp_popup_fields[:25])),
         tooltip=folium.GeoJsonTooltip(
             fields=[fp_popup_fields[0], "width", "depth"],
-            aliases=["Reference Flowpath ID:", "Width (ft):", "Depth (ft):"],
+            aliases=["Reference Flowpath ID:", "Width (m):", "Depth (m):"],
             localize=True,
         ),
         style_function=lambda x: fp_style
         | {
-            "weight": normalize_width(x["properties"]["width"], domain="XS"),
-            "color": depth_to_gradient(x["properties"]["depth"], domain="XS"),
+            "stroke": False,
+            "fillColor": depth_to_gradient(x["properties"]["depth"], domain="XS"),
+            "fillOpacity": 1,
+            "dashArray": [5, 5] if not x["properties"]["width"] else {},
         },
         highlight_function=lambda x: fp_hl_style
         | {
-            "weight": normalize_width(x["properties"]["width"], domain="XS") + 4,
+            "stroke": True,
+            "color": "black",
+            "weight": 2,
         },
+        popup_keep_highlighted=True,
     )
 
     # Cross-sectional data GeoJSON layer
@@ -255,6 +267,11 @@ def format_xs_map(_catalog, xs_gdf, domain):
         title_cancel="Exit me",
         force_separate_button=True,
     ).add_to(m)
+
+    with st.container(border=True, width=725):
+        with st.expander("##### 3D Flowpaths Legend", icon=":material/info:"):
+            st.markdown(three_dim_flowpath_tooltip)
+        st.html(three_dim_flowpath_legend)
 
     return m
 

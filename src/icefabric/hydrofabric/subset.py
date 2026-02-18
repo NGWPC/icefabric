@@ -334,7 +334,7 @@ def subset_hydrofabric(
         print(f"Found origin flowpath: {origin_id}")
         _upstream_ids = get_upstream_segments(origin_id, graph)
         upstream_ids |= _upstream_ids  # in-place union
-        if len(upstream_ids) == 0:
+        if len(_upstream_ids) == 0:
             upstream_ids.add(origin_id)  # Ensuring the origin WB is captured
         else:
             upstream_ids.add(to_id)  # Adding the nexus point to ensure it's captured in the network table

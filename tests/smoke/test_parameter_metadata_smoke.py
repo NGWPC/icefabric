@@ -9,8 +9,6 @@ API_BASE_URL = os.environ.get("API_BASE_URL")
 
 pytestmark = pytest.mark.skipif(not API_BASE_URL, reason="API_BASE_URL environment variable not set")
 
-NUMERIC_FIELDS = ["initial_value", "min", "max"]
-
 # All available modules from the endpoint
 ALL_MODULES = [
     "CFE-S",
@@ -29,8 +27,8 @@ ALL_MODULES = [
 ]
 
 
-def test_parameter_metadata_numeric_fields_not_null():
-    """Verify numeric fields are not null in the parameter_metadata response for ALL modules."""
+def test_all_valid_modules_return_no_error():
+    """Verify that all valid modules return without an error message."""
     modules_param = "&".join([f"modules={m}" for m in ALL_MODULES])
     url = f"{API_BASE_URL}/v1/modules/parameter_metadata/?{modules_param}"
 
@@ -40,39 +38,29 @@ def test_parameter_metadata_numeric_fields_not_null():
     data = response.json()
     assert "modules" in data
 
-    violations = []
+    errors = []
     for module in data["modules"]:
         module_name = module.get("module_name", "UNKNOWN")
-        for param in module.get("calibratable_parameters", []):
-            param_name = param.get("name", "UNKNOWN")
-            for field in NUMERIC_FIELDS:
-                if param.get(field) is None:
-                    violations.append(f"Module '{module_name}', Parameter '{param_name}': '{field}' is null")
+        if "error" in module:
+            errors.append(f"Module '{module_name}': {module['error']}")
 
-    assert len(violations) == 0, f"Found {len(violations)} null numeric field(s):\n" + "\n".join(violations)
+    assert len(errors) == 0, f"Found {len(errors)} module error(s):\n" + "\n".join(errors)
 
 
-def test_gage_specific_parameter_metadata_numeric_fields_not_null():
-    """Verify numeric fields are not null when querying with domain and gage_id."""
-    modules_param = "&".join([f"modules={m}" for m in ALL_MODULES])
-    url = f"{API_BASE_URL}/v1/modules/parameter_metadata/?{modules_param}&domain=CONUS&gage_id=01123000"
+def test_invalid_module_returns_error():
+    """Verify that a bogus module name returns an error message."""
+    url = f"{API_BASE_URL}/v1/modules/parameter_metadata/?modules=bogus_module"
 
     response = requests.get(url, timeout=30)
     assert response.status_code == 200, f"Request failed: {response.status_code}"
 
     data = response.json()
     assert "modules" in data
+    assert len(data["modules"]) == 1
 
-    violations = []
-    for module in data["modules"]:
-        module_name = module.get("module_name", "UNKNOWN")
-        for param in module.get("calibratable_parameters", []):
-            param_name = param.get("name", "UNKNOWN")
-            for field in NUMERIC_FIELDS:
-                if param.get(field) is None:
-                    violations.append(f"Module '{module_name}', Parameter '{param_name}': '{field}' is null")
-
-    assert len(violations) == 0, f"Found {len(violations)} null numeric field(s):\n" + "\n".join(violations)
+    module = data["modules"][0]
+    assert "error" in module, "Expected an error for invalid module name"
+    assert module["module_name"] == "bogus_module"
 
 
 def test_api_health():

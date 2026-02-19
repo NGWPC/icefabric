@@ -104,6 +104,14 @@ def get_parameter_metadata(
             query_string = "module == @module and calibratable == @calibratable"
             check_module_name = module
 
+        # Modules that are valid but don't have parameter metadata yet
+        modules_without_metadata = {"troute", "lstm"}
+
+        if check_module_name in modules_without_metadata:
+            output = {"module_name": module, "calibratable_parameters": []}
+            output_list.append(output)
+            continue
+
         if df["module"].isin([check_module_name]).any():
             module_params = df.query(query_string)[metadata]
 

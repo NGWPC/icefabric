@@ -18,7 +18,7 @@ from app.streamlit.tooltips import hf_subset_options_explanation
 from icefabric.cli.streamflow import NoResultsFoundError
 from icefabric.hydrofabric import subset_nhf
 
-st.session_state.NHF_SUBSET_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+st.session_state.TEMP_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 catalog = st.session_state.catalog
 
@@ -50,7 +50,8 @@ with r_col.form("Subset"):
 
 if subset_submit and submit_valid:
     subset_gpkg_file = (
-        st.session_state.NHF_SUBSET_OUTPUT_DIR
+        st.session_state.TEMP_OUTPUT_DIR
+        / "nhf_subset_gpkg_files"
         / f"nhf_subset_by_{subset_type.replace(' ', '_').lower()}_{subset_user_sel}.gpkg"
     )
     subset_successful = False

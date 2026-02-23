@@ -52,6 +52,7 @@ modules = {
     "Modules": [
         st.Page("hydrofabric_dash.py", title="NGWPC Hydrofabric", icon=":material/water_drop:"),
         st.Page("ras_xs_dash.py", title="RAS XS", icon=":material/arrow_range:"),
+        st.Page("sf_obsv_dash.py", title="Streamflow Observations", icon=":material/waves:"),
     ],
 }
 
@@ -62,16 +63,17 @@ st.set_page_config(
 
 # Cleanup temp files on app start
 if "initialized" not in st.session_state or not st.session_state.initialized:
-    if "NHF_SUBSET_OUTPUT_DIR" not in st.session_state:
-        st.session_state["NHF_SUBSET_OUTPUT_DIR"] = (
-            pathlib.Path(tempfile.gettempdir()) / "icefabric_streamlit_subsets"
+    if "TEMP_OUTPUT_DIR" not in st.session_state:
+        st.session_state["TEMP_OUTPUT_DIR"] = (
+            pathlib.Path(tempfile.gettempdir()) / "icefabric_streamlit_tmp_files"
         )
-    st.session_state.NHF_SUBSET_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    for item in st.session_state.NHF_SUBSET_OUTPUT_DIR.iterdir():
-        if item.is_dir():
-            item.rmdir(missing_ok=True)
-        else:
-            item.unlink(missing_ok=True)
+    st.session_state.TEMP_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    for dir in st.session_state.TEMP_OUTPUT_DIR.iterdir():
+        for item in dir.iterdir():
+            if item.is_dir():
+                pass
+            else:
+                item.unlink(missing_ok=True)
     st.session_state.initialized = True
 
 pg = st.navigation(modules)

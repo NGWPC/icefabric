@@ -33,17 +33,17 @@ st.write(
     "You can explore the data model/schemas for the NGWPC Hydrofabric, or subset the data and view/download the results."
 )
 
-foo = st.segmented_control(
+top_layer_control = st.segmented_control(
     label="__Select an option to explore:__",
     options=["Data Model/Schemas", "Subset Data"],
     selection_mode="single",
     key="hf_section_sel",
 )
 
-if foo == "Data Model/Schemas":
+if top_layer_control == "Data Model/Schemas":
     with st.container(border=True, width=900):
         display_nhf_schemas()
-elif foo == "Subset Data":
+elif top_layer_control == "Subset Data":
     with st.form("Subset", width=900):
         # ==============================
         # Form to subset the hydrofabric

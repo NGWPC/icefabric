@@ -131,7 +131,7 @@ def convert_for_download(gdf, tmp_path):
 def format_xs_map(_catalog, xs_gdf, domain):
     """Helper to create/format a folium map to display the cross-sectional data."""
     # Create base map
-    m = folium.Map(tiles=folium.TileLayer(tiles="Cartodb Positron", control=False))
+    m = folium.Map(tiles=folium.TileLayer(tiles="Cartodb Positron", control=False), prefer_canvas=True)
 
     # Format cross-sectional data
     ras_xs = xs_gdf.to_crs(epsg=4326)
@@ -187,13 +187,13 @@ def format_xs_map(_catalog, xs_gdf, domain):
         popup=folium.GeoJsonPopup(fields=list(div_popup_fields[:25])),
         tooltip=folium.GeoJsonTooltip(
             fields=[div_popup_fields[0]],
-            aliases=["Reference Divide ID:"],
+            aliases=["Divide ID:"],
         ),
         style_function=lambda x: div_style,
         highlight_function=lambda x: div_hl_style,
     )
 
-    # Reference/3D flowpaths GeoJSON layers
+    # Reference/Channel Geometry GeoJSON layers
     fp_popup_fields = [col for col in reference_flowpaths.columns if col != "geometry"]
     fp_style = STYLE_MAP["flowpaths"].get("styling", {})
     fp_hl_style = STYLE_MAP["flowpaths"].get("highlight_styling", {})
@@ -202,14 +202,14 @@ def format_xs_map(_catalog, xs_gdf, domain):
         popup=folium.GeoJsonPopup(fields=list(fp_popup_fields[:25])),
         tooltip=folium.GeoJsonTooltip(
             fields=[fp_popup_fields[0]],
-            aliases=["Reference Flowpath ID:"],
+            aliases=["Flowpath ID:"],
         ),
         style_function=lambda x: fp_style,
         highlight_function=lambda x: fp_hl_style,
     )
 
     # Project flowpath line geometry to a metric CRS for buffering (to visualize width as a buffer around the line)
-    three_dim_fp_data = reference_flowpaths.to_crs(epsg=32632)
+    three_dim_fp_data = reference_flowpaths.to_crs(epsg=5070)
     # Scale factor for better visualization; may need to adjust as needed
     three_dim_fp_data["topwdth_half"] = (three_dim_fp_data["width"] / 2) / 3
     three_dim_fp_data["geometry"] = three_dim_fp_data.geometry.buffer(three_dim_fp_data["topwdth_half"])
@@ -218,7 +218,7 @@ def format_xs_map(_catalog, xs_gdf, domain):
         popup=folium.GeoJsonPopup(fields=list(fp_popup_fields[:25])),
         tooltip=folium.GeoJsonTooltip(
             fields=[fp_popup_fields[0], "width", "depth"],
-            aliases=["Reference Flowpath ID:", "Width (m):", "Depth (m):"],
+            aliases=["Flowpath ID:", "Width (m):", "Depth (m):"],
             localize=True,
         ),
         style_function=lambda x: fp_style
@@ -256,7 +256,7 @@ def format_xs_map(_catalog, xs_gdf, domain):
     m.add_child(folium.FeatureGroup(name="Reference Divides").add_child(ref_div_poly))
     m.add_child(folium.FeatureGroup(name="Reference Flowpaths").add_child(ref_fp_poly))
     m.add_child(folium.FeatureGroup(name="RAS XS").add_child(ras_xs_poly))
-    m.add_child(folium.FeatureGroup(name="3D Flowpaths", show=False).add_child(three_dim_fp_poly))
+    m.add_child(folium.FeatureGroup(name="Channel Geometry", show=False).add_child(three_dim_fp_poly))
 
     # Move layer control to bottom right and add fullscreen button
     folium.LayerControl(position="bottomright").add_to(m)

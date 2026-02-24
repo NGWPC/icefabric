@@ -11,9 +11,9 @@ def three_dim_flowpath_legend(upper_bound=6.5):
             gap: 5px;
             font-family: sans-serif;
         ">
-            <div style="display: flex; justify-content: space-between; width:200px; font-size: 16px;">
-                <span></span>
+            <div style="display: flex; justify-content: space-between; width:200px; font-size: 16px; font-weight: bold;">
                 <span>Depth (m)</span>
+                <span></span>
                 <span></span>
             </div>
             <div style="
@@ -27,8 +27,30 @@ def three_dim_flowpath_legend(upper_bound=6.5):
                 <span>&rarr;</span>
                 <span>{upper_bound}</span>
             </div>
+            <div style="
+                background: white;
+                height: 20px;
+                width: 100px;
+                border: 1px solid #ccc;
+            "></div>
+            <div style="display: flex; justify-content: space-between; width:100px; font-size: 12px;">
+                <span></span>
+                <span>No Data</span>
+                <span></span>
+            </div>
         </div>
         """
+
+
+def three_dim_flowpath_tooltip(d_type="y_ml", w_type="topwdth"):
+    """Return legend information for channel geometry layer."""
+    base_data = "flowpath"
+    if d_type != "y_ml" and w_type != "topwdth":
+        base_data = "RAS XS"
+    return f"""The Channel Geometry map layer (not selected by default - check box in layer control at bottom righthand corner of the map) visualizes flowpath width and depth.
+- __depth__ (meters) - represented by the `{d_type}` attribute in the {base_data} data. The depth is visualized as a color gradient, with deeper flowpaths shown in darker colors. *NOTE: White flowpaths indicate missing data.*
+- __width__ (meters) - represented by the `{w_type}` attribute in the {base_data} data. The width is visualized as stream thickness. The thicker the stream, the wider the channel. *NOTE: Flowpaths with missing `{w_type}` values are drawn with a dashed line.*
+"""
 
 
 bbox_examples = pd.DataFrame(
@@ -54,7 +76,7 @@ domain_tooltip = """
 
 hf_subset_options_explanation = """
     - **Flowpath ID**: traces upstream from an origin flowpath - *e.g., 3490271*
-    - **Gage ID**: traces upstream from a USGS gage ID (maps to a flowpath) - *e.g., 01010000*
+    - **Gage ID**: traces upstream from a USGS gage ID (maps to a flowpath) - *e.g., 01099500*
     - **VPU ID**: includes all HF features within a vector processing unit (VPU) - *e.g., 08*
 """
 
@@ -65,8 +87,3 @@ bounding_box_tooltip = (
     "The min/max lat/lon coordinates should be in standard EPSG:4326 format.\n"
     "The subset returned will include only cross-sections that fully fit into the bounding box."
 )
-
-three_dim_flowpath_tooltip = """The 3D Flowpaths map layer visualizes flowpath width and depth.
-- __depth__ (meters) - represented by the `y_ml` attribute in the flowpath data. The depth is visualized as a color gradient, with deeper flowpaths shown in darker colors. *NOTE: White flowpaths indicate missing data.*
-- __width__ (meters) - represented by the `topwdth` attribute in the flowpath data. The width is visualized as stream thickness.
-"""

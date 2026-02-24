@@ -106,9 +106,12 @@ if l_col.button("Submit"):
                     st_folium(fig=xs_map, width=725, returned_objects=[])
 
             with r_col.container(border=True, width=725):
-                with st.expander("##### 3D Flowpaths Legend", icon=":material/info:"):
-                    st.markdown(three_dim_flowpath_tooltip)
+                with st.expander("##### Channel Geometry Legend", icon=":material/info:"):
+                    st.markdown(three_dim_flowpath_tooltip(d_type="Y", w_type="TW"))
                 st.html(three_dim_flowpath_legend(upper_bound=25))
+                st.markdown(
+                    "##### __Width (m)__\nRange: 0 &rarr; ~52450 meters. Mouseover reveals width value."
+                )
 
             # Format and display dataframe
             df = xs_gdf.drop(columns="geometry")

@@ -87,6 +87,7 @@ def get_subset(
         gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_nhf(
             gage_id=identifier,
             catalog=catalog,
+            namespace=namespace,
         )
     else:
         gauge: dict[str, pd.DataFrame | gpd.GeoDataFrame] = subset_hydrofabric(

@@ -81,7 +81,6 @@ class IdType(str, Enum):
     POI_ID = "poi_id"
     VPU_ID = "vpu_id"
     FP_ID = ("fp_id",)
-    SITE_NO = "site_no"
 
 
 class StreamflowDataSources(str, Enum):

@@ -43,9 +43,9 @@ async def get_hydrofabric_subset_gpkg(
         description="Identifier to start tracing from (e.g., catchment ID, POI ID, HL_URI)",
         openapi_examples={
             "fp_id": {"summary": "NHF Flowpath ID (NHF)", "value": 3490271},
-            "site-no": {"summary": "UGSG Site no (NHF)", "value": "02374250"},
+            #"site-no": {"summary": "UGSG Site no (NHF)", "value": "02374250"},
             "vpu-id": {"summary": "VPU ID (NHF)", "value": "01"},
-            "hl_uri": {"summary": "USGS Gauge (HFv2.2)", "value": "gages-01010000"},
+            "hl_uri": {"summary": "USGS Gauge ID (HFv2.2, NHF)", "value": "01010000"},
             "wb-id": {"summary": "Watershed ID (HFv2.2)", "value": "wb-4581"},
         },
     ),
@@ -55,7 +55,7 @@ async def get_hydrofabric_subset_gpkg(
         openapi_examples={
             "fp_id": {"summary": "NHF Flowpath ID (NHF)", "value": IdType.FP_ID},
             "vpu-id": {"summary": "VPU ID (NHF)", "value": IdType.VPU_ID},
-            "site-no": {"summary": "UGSG Site no (NHF)", "value": IdType.SITE_NO},
+            #"site-no": {"summary": "UGSG Site no (NHF)", "value": IdType.SITE_NO},
             "hl_uri": {"summary": "USGS Gauge (HFv2.2, NHF)", "value": IdType.HL_URI},
             "wb-id": {"summary": "Watershed ID (HFv2.2)", "value": IdType.ID},
         },
@@ -130,7 +130,7 @@ async def get_hydrofabric_subset_gpkg(
                     flowpath_id=int(identifier),
                     catalog=catalog,
                 )
-            elif id_type == IdType.SITE_NO:
+            elif id_type == IdType.HL_URI:
                 output_layers = subset_nhf(
                     gage_id=identifier,
                     catalog=catalog,
@@ -144,7 +144,7 @@ async def get_hydrofabric_subset_gpkg(
             ]:
                 output_layers = subset_hydrofabric(
                     catalog=catalog,
-                    identifier=identifier,
+                    identifier=f"gages-{identifier}",
                     id_type=id_type,
                     layers=layers or ["divides", "flowpaths", "network", "nexus"],
                     namespace=namespace,

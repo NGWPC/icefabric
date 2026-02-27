@@ -43,7 +43,6 @@ async def get_hydrofabric_subset_gpkg(
         description="Identifier to start tracing from (e.g., catchment ID, POI ID, HL_URI)",
         openapi_examples={
             "fp_id": {"summary": "NHF Flowpath ID (NHF)", "value": 3490271},
-            #"site-no": {"summary": "UGSG Site no (NHF)", "value": "02374250"},
             "vpu-id": {"summary": "VPU ID (NHF)", "value": "01"},
             "hl_uri": {"summary": "USGS Gauge ID (HFv2.2, NHF)", "value": "01010000"},
             "wb-id": {"summary": "Watershed ID (HFv2.2)", "value": "wb-4581"},
@@ -55,7 +54,6 @@ async def get_hydrofabric_subset_gpkg(
         openapi_examples={
             "fp_id": {"summary": "NHF Flowpath ID (NHF)", "value": IdType.FP_ID},
             "vpu-id": {"summary": "VPU ID (NHF)", "value": IdType.VPU_ID},
-            #"site-no": {"summary": "UGSG Site no (NHF)", "value": IdType.SITE_NO},
             "hl_uri": {"summary": "USGS Gauge (HFv2.2, NHF)", "value": IdType.HL_URI},
             "wb-id": {"summary": "Watershed ID (HFv2.2)", "value": IdType.ID},
         },

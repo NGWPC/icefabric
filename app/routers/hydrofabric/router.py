@@ -123,16 +123,19 @@ async def get_hydrofabric_subset_gpkg(
                 output_layers = subset_nhf(
                     vpu_id=identifier,
                     catalog=catalog,
+                    namespace=namespace,
                 )
             elif id_type == QueryIdType.FLOWPATH_ID:
                 output_layers = subset_nhf(
                     flowpath_id=int(identifier),
                     catalog=catalog,
+                    namespace=namespace,
                 )
             elif id_type == QueryIdType.GAGE_ID:
                 output_layers = subset_nhf(
                     gage_id=identifier,
                     catalog=catalog,
+                    namespace=namespace,
                 )
             else:
                 raise ValueError(f"Incorrect ID type: {id_type} for the NHF")

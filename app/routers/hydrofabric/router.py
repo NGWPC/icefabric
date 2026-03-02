@@ -31,6 +31,7 @@ from icefabric.schemas.hydrofabric import (
     HydrofabricNamespace,
     HydrofabricSource,
     IdType,
+    QueryIdType
 )
 
 api_router = APIRouter(prefix="/hydrofabric")
@@ -48,7 +49,7 @@ async def get_hydrofabric_subset_gpkg(
             "wb-id": {"summary": "Watershed ID (HFv2.2)", "value": "wb-4581"},
         },
     ),
-    id_type: IdType = Query(
+    id_type: QueryIdType = Query(
         ...,
         description="The type of identifier being used",
         openapi_examples={
@@ -118,17 +119,17 @@ async def get_hydrofabric_subset_gpkg(
 
     try:
         if namespace.is_nhf:
-            if id_type == IdType.VPU_ID:
+            if id_type == QueryIdType.VPU_ID:
                 output_layers = subset_nhf(
                     vpu_id=identifier,
                     catalog=catalog,
                 )
-            elif id_type == IdType.FP_ID:
+            elif id_type == QueryIdType.FLOWPATH_ID:
                 output_layers = subset_nhf(
                     flowpath_id=int(identifier),
                     catalog=catalog,
                 )
-            elif id_type == IdType.HL_URI:
+            elif id_type == QueryIdType.GAGE_ID:
                 output_layers = subset_nhf(
                     gage_id=identifier,
                     catalog=catalog,
@@ -136,14 +137,20 @@ async def get_hydrofabric_subset_gpkg(
             else:
                 raise ValueError(f"Incorrect ID type: {id_type} for the NHF")
         else:
-            if id_type in [
-                IdType.HL_URI,
-                IdType.ID,
-            ]:
+            if id_type == QueryIdType.GAGE_ID:
                 output_layers = subset_hydrofabric(
                     catalog=catalog,
                     identifier=f"gages-{identifier}",
-                    id_type=id_type,
+                    id_type=IdType.HL_URI.value,
+                    layers=layers or ["divides", "flowpaths", "network", "nexus"],
+                    namespace=namespace,
+                    graph=network_graphs[namespace],
+                )
+            elif id_type == QueryIdType.FLOWPATH_ID:
+                output_layers = subset_hydrofabric(
+                    catalog=catalog,
+                    identifier=identifier,
+                    id_type=IdType.ID.value,
                     layers=layers or ["divides", "flowpaths", "network", "nexus"],
                     namespace=namespace,
                     graph=network_graphs[namespace],

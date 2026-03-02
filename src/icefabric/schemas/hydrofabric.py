@@ -82,6 +82,23 @@ class IdType(str, Enum):
     VPU_ID = "vpu_id"
     FP_ID = ("fp_id",)
 
+class QueryIdType(str, Enum):
+    """All query types for the API.
+
+    Attributes
+    ----------
+    GAGE_ID : str
+        Gage ID query identifier
+    FLOWPATH_ID : str
+        Flowpath ID query identifier
+    VPU_ID : str
+         VPU ID query identifier
+    """
+
+    GAGE_ID = "gage_id"
+    FLOWPATH_ID = "flowpath_id"
+    VPU_ID = "vpu_id"
+
 
 class StreamflowDataSources(str, Enum):
     """The data sources used for hourly streamflow data"""

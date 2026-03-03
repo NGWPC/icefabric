@@ -12,6 +12,7 @@ import rustworkx as rx
 from pyiceberg.catalog import Catalog
 
 from icefabric.cli.streamflow import NoResultsFoundError
+from icefabric.schemas.hydrofabric import HydrofabricNamespace
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -88,9 +89,15 @@ def _build_rustworkx_object(
 class HydrofabricSource:
     """Unified interface for reading hydrofabric data from Parquet or Iceberg."""
 
-    def __init__(self, parquet_dir: Path | None = None, catalog: Catalog | None = None):
+    def __init__(
+        self,
+        parquet_dir: Path | None = None,
+        catalog: Catalog | None = None,
+        namespace: HydrofabricNamespace = HydrofabricNamespace.NHF,
+    ):
         self.parquet_dir = parquet_dir
         self.catalog = catalog
+        self.namespace = namespace
 
         if parquet_dir is None and catalog is None:
             raise ValueError("Must provide either parquet_dir or catalog")
@@ -98,7 +105,7 @@ class HydrofabricSource:
     def _get_lazy_frame(self, layer: str) -> pl.LazyFrame:
         """Get a LazyFrame for a given layer."""
         if self.catalog is not None:
-            return self.catalog.load_table(f"nhf.{layer}").to_polars()
+            return self.catalog.load_table(f"{self.namespace.value}.{layer}").to_polars()
         else:
             path = self.parquet_dir / f"{layer}.parquet"
             if not path.exists():
@@ -306,6 +313,7 @@ def subset_nhf(
     catalog: Catalog | None = None,
     parquet_dir: Path | None = None,
     output: Path | None = None,
+    namespace: HydrofabricNamespace = HydrofabricNamespace.NHF,
 ) -> dict[str, gpd.GeoDataFrame]:
     """Subset hydrofabric by flowpath ID, gage ID, or VPU ID.
 
@@ -346,7 +354,7 @@ def subset_nhf(
         if not parquet_dir.exists():
             raise FileNotFoundError(f"Parquet directory not found: {parquet_dir}")
 
-    source = HydrofabricSource(parquet_dir=parquet_dir, catalog=catalog)
+    source = HydrofabricSource(parquet_dir=parquet_dir, catalog=catalog, namespace=namespace)
 
     # ==================================================================
     # VPU PATH - no graph needed, just filter by vpu_id

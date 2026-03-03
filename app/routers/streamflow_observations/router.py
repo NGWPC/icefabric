@@ -6,7 +6,6 @@ from datetime import datetime
 import icechunk
 import numpy as np
 import xarray as xr
-from botocore.exceptions import ClientError
 from fastapi import APIRouter, HTTPException, Path, Query
 from fastapi.background import BackgroundTasks
 from fastapi.responses import FileResponse
@@ -100,15 +99,18 @@ def get_data_and_repo_hist():
         repo = icechunk.Repository.open(storage_config)
         session = repo.writable_session("main")
         ds = xr.open_zarr(session.store, consolidated=False)
-    except ClientError as e:
-        msg = "AWS Test account credentials expired. Can't access remote S3 Table"
-        raise ClientError(msg) from e
+    except icechunk.IcechunkError as e:
+        msg = "AWS credentials are expired or incorrect."
+        raise PermissionError(msg) from e
     return ds, repo
 
 
 def validate_identifier(identifier: str):
     """Check if identifier exists in the dataset"""
-    ds, repo = get_data_and_repo_hist()
+    try:
+        ds, repo = get_data_and_repo_hist()
+    except PermissionError as e:
+        raise PermissionError(f"Cannot access S3 storage - {e}") from e
     if identifier not in ds.coords["id"]:
         raise HTTPException(
             status_code=404,

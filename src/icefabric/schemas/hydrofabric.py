@@ -75,12 +75,14 @@ class IdType(str, Enum):
         Point of Interest ID identifier
     """
 
-    HL_URI = "hl_uri"
-    HF_ID = "hf_id"
-    ID = "id"
-    POI_ID = "poi_id"
+    HL_URI = "hl_uri"  # HF 2.2 only
+    HF_ID = "hf_id"  # HF 2.2 only
+    ID = "id"  # HF 2.2 only
+    POI_ID = "poi_id"  # HF 2.2 only
     VPU_ID = "vpu_id"
-    FP_ID = ("fp_id",)
+    FP_ID = "fp_id"
+    SITE_NO = "site_no"
+
 
 class QueryIdType(str, Enum):
     """All query types for the API.

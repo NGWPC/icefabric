@@ -1,3 +1,4 @@
+import logging
 import pathlib
 import sqlite3
 import tempfile
@@ -33,6 +34,9 @@ from icefabric.schemas.hydrofabric import (
     IdType,
     QueryIdType,
 )
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 api_router = APIRouter(prefix="/hydrofabric")
 
@@ -87,7 +91,7 @@ async def get_hydrofabric_subset_gpkg(
 
     **Parameters:**
     - **identifier**: The unique identifier to start tracing from
-    - **id_type**: Type of identifier (hl_uri, id, poi_id)
+    - **id_type**: Type of identifier (gage_id, flowpath_id, vpu_id)
     - **domain**: Hydrofabric domain/namespace to query
     - **layers**: Additional layers to include (core layers always included)
 
@@ -182,13 +186,13 @@ async def get_hydrofabric_subset_gpkg(
                 else:
                     nonspatial_layers[table_name] = layer_data
             else:
-                print(f"Warning: {table_name} layer is empty")
+                logger.warning(f"Warning: {table_name} layer is empty")
 
         # Write spatial layers first with pyogrio
         for table_name, layer_data in spatial_layers.items():
             pyogrio.write_dataframe(layer_data, tmp_path, layer=table_name)
             layers_written += 1
-            print(f"Written spatial layer '{table_name}' with {len(layer_data)} records")
+            logger.info(f"Written spatial layer '{table_name}' with {len(layer_data)} records")
 
         # Then write non-spatial layers with sqlite3
         if nonspatial_layers:
@@ -196,7 +200,7 @@ async def get_hydrofabric_subset_gpkg(
             for table_name, layer_data in nonspatial_layers.items():
                 layer_data.to_sql(table_name, conn, if_exists="replace", index=False)
                 layers_written += 1
-                print(f"Written non-spatial layer '{table_name}' with {len(layer_data)} records")
+                logger.info(f"Written non-spatial layer '{table_name}' with {len(layer_data)} records")
             conn.close()
 
             if layers_written == 0:
@@ -216,7 +220,7 @@ async def get_hydrofabric_subset_gpkg(
         if not tmp_path.is_file():
             raise HTTPException(status_code=500, detail="Expected file but got directory")
 
-        print(f"Successfully created geopackage: {tmp_path} (size: {tmp_path.stat().st_size} bytes)")
+        logger.info(f"Successfully created geopackage: {tmp_path} (size: {tmp_path.stat().st_size} bytes)")
 
         # Create download filename
         safe_identifier = identifier.replace("/", "_").replace("\\", "_")

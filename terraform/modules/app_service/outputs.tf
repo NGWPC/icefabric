@@ -15,7 +15,7 @@ output "instance_role_arn" {
 
 output "cloudwatch_log_group_name" {
   description = "Name of the CloudWatch log group"
-  value       = aws_cloudwatch_log_group.api_logs.name
+  value       = aws_cloudwatch_log_group.app_logs.name
 }
 
 output "alb_dns_name" {

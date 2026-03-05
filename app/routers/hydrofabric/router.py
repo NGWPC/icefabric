@@ -220,7 +220,8 @@ async def get_hydrofabric_subset_gpkg(
         if not tmp_path.is_file():
             raise HTTPException(status_code=500, detail="Expected file but got directory")
 
-        logger.info(f"Successfully created geopackage: {tmp_path} (size: {tmp_path.stat().st_size} bytes)")
+        filesize = tmp_path.stat().st_size
+        logger.info(f"Successfully created geopackage: {tmp_path} (size: {filesize} bytes)")
 
         # Create download filename
         safe_identifier = identifier.replace("/", "_").replace("\\", "_")

@@ -73,7 +73,8 @@ class IdType(str, Enum):
 
     HL_URI = "hl_uri"  # HF 2.2 only
     ID = "id"  # HF 2.2 only
-    POI_ID = "poi_id" # HF 2.2 only
+    POI_ID = "poi_id"  # HF 2.2 only
+
 
 class QueryIdType(str, Enum):
     """All query types for the API.

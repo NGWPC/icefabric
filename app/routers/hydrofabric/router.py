@@ -1,4 +1,3 @@
-import logging
 import pathlib
 import sqlite3
 import tempfile
@@ -34,9 +33,6 @@ from icefabric.schemas.hydrofabric import (
     IdType,
     QueryIdType,
 )
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 api_router = APIRouter(prefix="/hydrofabric")
 
@@ -186,13 +182,13 @@ async def get_hydrofabric_subset_gpkg(
                 else:
                     nonspatial_layers[table_name] = layer_data
             else:
-                logger.warning(f"Warning: {table_name} layer is empty")
+                print(f"Warning: {table_name} layer is empty")
 
         # Write spatial layers first with pyogrio
         for table_name, layer_data in spatial_layers.items():
             pyogrio.write_dataframe(layer_data, tmp_path, layer=table_name)
             layers_written += 1
-            logger.info(f"Written spatial layer '{table_name}' with {len(layer_data)} records")
+            print(f"Written spatial layer '{table_name}' with {len(layer_data)} records")
 
         # Then write non-spatial layers with sqlite3
         if nonspatial_layers:
@@ -200,7 +196,7 @@ async def get_hydrofabric_subset_gpkg(
             for table_name, layer_data in nonspatial_layers.items():
                 layer_data.to_sql(table_name, conn, if_exists="replace", index=False)
                 layers_written += 1
-                logger.info(f"Written non-spatial layer '{table_name}' with {len(layer_data)} records")
+                print(f"Written non-spatial layer '{table_name}' with {len(layer_data)} records")
             conn.close()
 
             if layers_written == 0:
@@ -221,7 +217,7 @@ async def get_hydrofabric_subset_gpkg(
             raise HTTPException(status_code=500, detail="Expected file but got directory")
 
         filesize = tmp_path.stat().st_size
-        logger.info(f"Successfully created geopackage: {tmp_path} (size: {filesize} bytes)")
+        print(f"Successfully created geopackage: {tmp_path} (size: {filesize} bytes)")
 
         # Create download filename
         safe_identifier = identifier.replace("/", "_").replace("\\", "_")

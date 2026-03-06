@@ -231,7 +231,7 @@ class TestHydrofabricRouterSourceParameter:
         """Test hydrofabric endpoint with legacy hi_hf domain still works."""
         response = client.get(
             f"/v1/hydrofabric/{watershed_bound_id_good}/gpkg"
-            "?id_type=id&domain=hi_hf&layers=divides&layers=flowpaths&layers=network&layers=nexus"
+            "?id_type=flowpath_id&domain=hi_hf&layers=divides&layers=flowpaths&layers=network&layers=nexus"
         )
         assert response.status_code == 200
 
@@ -243,14 +243,14 @@ class TestHydrofabricRouterSourceParameter:
         """
         response = client.get(
             f"/v1/hydrofabric/{watershed_bound_id_good}/gpkg"
-            "?id_type=id&source=hf&domain=Hawaii&layers=divides&layers=flowpaths&layers=network&layers=nexus"
+            "?id_type=flowpath_id&source=hf&domain=Hawaii&layers=divides&layers=flowpaths&layers=network&layers=nexus"
         )
         assert response.status_code == 200
 
     def test_hydrofabric_non_conus_nhf_returns_501(self, client):
         """Test hydrofabric endpoint returns 501 for non-CONUS domains with NHF."""
         response = client.get(
-            "/v1/hydrofabric/test-id/gpkg?id_type=id&source=nhf&domain=Hawaii&layers=divides"
+            "/v1/hydrofabric/test-id/gpkg?id_type=flowpath_id&source=nhf&domain=Hawaii&layers=divides"
         )
         assert response.status_code == 501
         data = response.json()
@@ -259,7 +259,7 @@ class TestHydrofabricRouterSourceParameter:
 
     def test_hydrofabric_source_without_domain_returns_400(self, client):
         """Test hydrofabric endpoint returns 400 when source provided without domain."""
-        response = client.get("/v1/hydrofabric/test-id/gpkg?id_type=id&source=nhf")
+        response = client.get("/v1/hydrofabric/test-id/gpkg?id_type=flowpath_id&source=nhf")
         assert response.status_code == 400
 
     @pytest.mark.slow
@@ -272,7 +272,7 @@ class TestHydrofabricRouterSourceParameter:
         """
         response = client.get(
             f"/v1/hydrofabric/{watershed_bound_id_good}/gpkg"
-            "?id_type=id&domain=Hawaii&layers=divides&layers=flowpaths&layers=network&layers=nexus"
+            "?id_type=flowpath_id&domain=Hawaii&layers=divides&layers=flowpaths&layers=network&layers=nexus"
         )
         assert response.status_code == 200
 

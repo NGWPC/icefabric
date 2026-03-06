@@ -67,21 +67,31 @@ class IdType(str, Enum):
     ----------
     HL_URI : str
         Hydrolocation URI identifier
-    HF_ID : str
-        Hydrofabric ID identifier
     ID : str
         Generic ID identifier
-    POI_ID : str
-        Point of Interest ID identifier
     """
 
-    HL_URI = "hl_uri"
-    HF_ID = "hf_id"
-    ID = "id"
-    POI_ID = "poi_id"
+    HL_URI = "hl_uri"  # HF 2.2 only
+    ID = "id"  # HF 2.2 only
+    POI_ID = "poi_id"  # HF 2.2 only
+
+
+class QueryIdType(str, Enum):
+    """All query types for the API.
+
+    Attributes
+    ----------
+    GAGE_ID : str
+        Gage ID query identifier
+    FLOWPATH_ID : str
+        Flowpath ID query identifier
+    VPU_ID : str
+         VPU ID query identifier
+    """
+
+    GAGE_ID = "gage_id"
+    FLOWPATH_ID = "flowpath_id"
     VPU_ID = "vpu_id"
-    FP_ID = ("fp_id",)
-    SITE_NO = "site_no"
 
 
 class StreamflowDataSources(str, Enum):

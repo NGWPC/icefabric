@@ -27,12 +27,9 @@ ALL_MODULES = [
 ]
 
 
-def test_all_valid_modules_return_no_error():
-    """Verify that all valid modules return without an error message."""
-    modules_param = "&".join([f"modules={m}" for m in ALL_MODULES])
-    url = f"{API_BASE_URL}/v1/modules/parameter_metadata/?{modules_param}"
-
-    response = requests.get(url, timeout=30)
+def _assert_all_modules_no_error(url):
+    """Helper to verify all modules in a response return without error."""
+    response = requests.get(url, timeout=120)
     assert response.status_code == 200, f"Request failed: {response.status_code}"
 
     data = response.json()
@@ -45,6 +42,27 @@ def test_all_valid_modules_return_no_error():
             errors.append(f"Module '{module_name}': {module['error']}")
 
     assert len(errors) == 0, f"Found {len(errors)} module error(s):\n" + "\n".join(errors)
+
+
+def test_all_valid_modules_return_no_error():
+    """Verify that all valid modules return without an error message."""
+    modules_param = "&".join([f"modules={m}" for m in ALL_MODULES])
+    url = f"{API_BASE_URL}/v1/modules/parameter_metadata/?{modules_param}"
+    _assert_all_modules_no_error(url)
+
+
+def test_all_valid_modules_conus_nhf():
+    """Verify all modules return without error for CONUS NHF."""
+    modules_param = "&".join([f"modules={m}" for m in ALL_MODULES])
+    url = f"{API_BASE_URL}/v1/modules/parameter_metadata/?{modules_param}&gage_id=01010000&domain=CONUS&source=nhf"
+    _assert_all_modules_no_error(url)
+
+
+def test_all_valid_modules_conus_hf():
+    """Verify all modules return without error for CONUS HF v2.2."""
+    modules_param = "&".join([f"modules={m}" for m in ALL_MODULES])
+    url = f"{API_BASE_URL}/v1/modules/parameter_metadata/?{modules_param}&gage_id=01010000&domain=CONUS&source=hf"
+    _assert_all_modules_no_error(url)
 
 
 def test_invalid_module_returns_error():

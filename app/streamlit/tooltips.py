@@ -88,9 +88,9 @@ flowpath_id_tooltip = "A flowpath ID from the reference hydrofabric."
 
 bounding_box_tooltip = textwrap.dedent("""\
     ###### Draw a defined rectangular bounding geometry on the map below.
-    Only the first drawn rectangle will be considered. Edit or delete the drawing as needed.\\
+    Only the most recently drawn/interacted-with rectangle will be considered. Edit or delete the drawing as needed.\\
     The coordinates will update below the map as you draw.\\
-    The subset returned will include only cross-sections that fully fit into the bounding box.\\
+    The subset returned will include only cross-sections that fully fit into the bounding box.
     > IMPORTANT\\
     > The bounding box query option is best used for small, focused areas due to the large number of
     > cross-sections in the dataset and resulting processing time. You will be notified if your bounding

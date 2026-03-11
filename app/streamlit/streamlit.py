@@ -22,16 +22,7 @@ if any("deploy-env=" in a for a in args_provided):
         pass
 
 # Check environment variable override
-if str(os.environ.get("ICEFABRIC_DEPLOY_ENV")).lower() in [
-    "t",
-    "test",
-    "p",
-    "prod",
-    "production",
-    "l",
-    "local",
-]:
-    deploy_env = os.environ["ICEFABRIC_DEPLOY_ENV"].lower()
+deploy_env = os.environ.get("ICEFABRIC_DEPLOY_ENV") or os.environ.get("ENVIRONMENT") or deploy_env
 
 # Set catalog type based on deploy environment
 catalog_type = "sql" if deploy_env in ["l", "local"] else "glue"

@@ -22,7 +22,7 @@ def load_creds(deploy: str | None = "test"):
     if deploy.lower() in ["t", "test"]:
         load_dotenv(dotenv_path=here() / ".env", override=True)
         os.environ["CATALOG_S3_BUCKET"] = "edfs-data"
-    elif deploy.lower() in ["p", "prod", "production"]:
+    elif deploy.lower() in ["p", "prod", "production", "oe"]:
         load_dotenv(dotenv_path=here() / ".prod.env", override=True)
         os.environ["CATALOG_S3_BUCKET"] = "iceberg-data-oe"
     pyiceberg_file = here() / ".pyiceberg.yaml"

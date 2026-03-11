@@ -12,10 +12,10 @@ from fastapi.responses import FileResponse
 from werkzeug.utils import secure_filename
 
 from icefabric.cli.streamflow import (
-    BUCKET,
     PREFIX,
     TIME_FORMATS,
     NoResultsFoundError,
+    get_bucket,
     streamflow_observations,
 )
 from icefabric.schemas.hydrofabric import StreamflowOutputFormats
@@ -95,7 +95,9 @@ def integrate_time_range(sd: str, ed: str, filename_parts: list, command_args: l
 def get_data_and_repo_hist():
     """Get repo/data from icechunk for a given data source"""
     try:
-        storage_config = icechunk.s3_storage(bucket=BUCKET, prefix=PREFIX, region="us-east-1", from_env=True)
+        storage_config = icechunk.s3_storage(
+            bucket=get_bucket(), prefix=PREFIX, region="us-east-1", from_env=True
+        )
         repo = icechunk.Repository.open(storage_config)
         session = repo.writable_session("main")
         ds = xr.open_zarr(session.store, consolidated=False)

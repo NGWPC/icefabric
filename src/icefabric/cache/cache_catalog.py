@@ -35,11 +35,8 @@ def build_cache(namespaces: set, deploy_env: str):
     """
     namespaces = parse_namespaces(namespaces)
 
-    if str(os.environ.get("ICEFABRIC_DEPLOY_ENV")).lower() in ["t", "test", "p", "prod", "production"]:
-        # Override the deploy env. Allows for specifying the env when running a docker container
-        load_creds(os.environ["ICEFABRIC_DEPLOY_ENV"].lower())
-    else:
-        load_creds(deploy_env)
+    deploy_env = os.environ.get("ICEFABRIC_DEPLOY_ENV") or os.environ.get("ENVIRONMENT") or deploy_env
+    load_creds(deploy_env.lower())
 
     # Creates the local dir for the warehouse if it does not exist
     with open(os.environ["PYICEBERG_HOME"]) as f:

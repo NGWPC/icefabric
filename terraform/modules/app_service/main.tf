@@ -14,8 +14,8 @@ resource "aws_security_group" "instance" {
   vpc_id      = data.aws_vpc.main.id
 
   ingress {
-    from_port       = var.container_port
-    to_port         = var.container_port
+    from_port       = 80
+    to_port         = 80
     protocol        = "tcp"
     security_groups = var.is_test_env ? null : [aws_security_group.alb[0].id]
     cidr_blocks     = var.is_test_env ? concat([data.aws_vpc.main.cidr_block], var.additional_vpc_cidrs) : null
@@ -107,10 +107,28 @@ resource "aws_iam_role" "instance_role" {
   tags = local.common_tags
 }
 
+# Found the Lake Formation tags should be created outside of this module to avoid conflicts
+#resource "aws_lakeformation_lf_tag" "team_tag" {
+#  key    = "Team"
+#  values = ["EDFS"]
+#  lifecycle {
+#    prevent_destroy = true
+#  }
+#}
+
+#resource "aws_lakeformation_lf_tag" "env_tag" {
+#  key    = "Environment"
+#  # Currently limited to oe and test
+#  values = ["oe", "test"]
+#  lifecycle {
+#    prevent_destroy = true
+#  }
+#}
+
 resource "aws_lakeformation_permissions" "icefabric_tbl" {
   principal   = aws_iam_role.instance_role.arn
   permissions = ["DESCRIBE", "SELECT"]
-  catalog_id = data.aws_caller_identity.current.account_id
+  catalog_id  = data.aws_caller_identity.current.account_id
 
   lf_tag_policy {
     resource_type = "TABLE"
@@ -122,7 +140,7 @@ resource "aws_lakeformation_permissions" "icefabric_tbl" {
 
     expression {
       key    = "Environment"
-      values = ["Test"]
+      values = [var.environment]
     }
   }
 }
@@ -153,8 +171,8 @@ resource "aws_iam_role_policy" "instance_policy" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "${aws_cloudwatch_log_group.api_logs.arn}:*",
-          aws_cloudwatch_log_group.api_logs.arn
+          "${aws_cloudwatch_log_group.app_logs.arn}:*",
+          aws_cloudwatch_log_group.app_logs.arn
         ]
       },
       {
@@ -225,7 +243,7 @@ resource "aws_instance" "test_instance" {
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
-    http_put_response_hop_limit = 1
+    http_put_response_hop_limit = 2
   }
 
   iam_instance_profile        = aws_iam_instance_profile.instance_profile.name
@@ -236,17 +254,18 @@ resource "aws_instance" "test_instance" {
   user_data_replace_on_change = true
   user_data_base64 = base64encode(templatefile("${path.module}/templates/user_data.sh.tpl", {
     aws_region           = var.aws_region
-    container_port       = var.container_port
     s3_bucket            = trimsuffix(var.data_lake_bucket_arn, "/*")
     directory_id         = var.directory_id,
     directory_name       = var.directory_name,
     ad_secret            = var.ad_secret,
     ad_dns_1             = var.ad_dns_1,
     ad_dns_2             = var.ad_dns_2,
-    log_group_name       = aws_cloudwatch_log_group.api_logs.name
+    log_group_name       = aws_cloudwatch_log_group.app_logs.name
     environment          = var.environment
-    docker_image_uri     = var.docker_image_uri
-    deployment_timestamp = var.deployment_timestamp
+    nginx_image_uri      = var.nginx_image_uri
+    api_image_uri        = var.api_image_uri
+    dashboard_image_uri  = var.dashboard_image_uri
+    nginx_conf           = file(var.nginx_conf_path)
   }))
 
   tags = merge(local.common_tags, {
@@ -274,7 +293,7 @@ resource "aws_launch_template" "app" {
   }
 
   block_device_mappings {
-    device_name = "/dev/xvda"
+    device_name = "/dev/sda1"
     ebs {
       volume_size           = var.root_volume_size
       volume_type           = var.root_volume_type
@@ -287,7 +306,7 @@ resource "aws_launch_template" "app" {
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
-    http_put_response_hop_limit = 1
+    http_put_response_hop_limit = 2
   }
 
   iam_instance_profile {
@@ -296,17 +315,18 @@ resource "aws_launch_template" "app" {
 
   user_data = base64encode(templatefile("${path.module}/templates/user_data.sh.tpl", {
     aws_region           = var.aws_region
-    container_port       = var.container_port
     s3_bucket            = trimsuffix(var.data_lake_bucket_arn, "/*")
     directory_id         = var.directory_id,
     directory_name       = var.directory_name,
     ad_secret            = var.ad_secret,
-    ad_dns_1             = "10.3.1.74",
-    ad_dns_2             = "10.3.0.60",
-    log_group_name       = aws_cloudwatch_log_group.api_logs.name
+    ad_dns_1             = var.ad_dns_1,
+    ad_dns_2             = var.ad_dns_2,
+    log_group_name       = aws_cloudwatch_log_group.app_logs.name
     environment          = var.environment
-    docker_image_uri     = var.docker_image_uri
-    deployment_timestamp = var.deployment_timestamp
+    nginx_image_uri      = var.nginx_image_uri
+    api_image_uri        = var.api_image_uri
+    dashboard_image_uri  = var.dashboard_image_uri
+    nginx_conf           = file(var.nginx_conf_path)
   }))
 
   monitoring {
@@ -404,7 +424,7 @@ resource "aws_lb_target_group" "app" {
   count = var.is_test_env ? 0 : 1
 
   name     = "${var.app_name}-${var.environment}"
-  port     = var.container_port
+  port     = 80
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.main.id
 
@@ -413,7 +433,7 @@ resource "aws_lb_target_group" "app" {
     healthy_threshold   = 3
     interval            = 30
     matcher            = "200"  # Accept 200 from the version endpoint
-    path               = "/version/"
+    path               = "/health"
     port               = "traffic-port"
     timeout            = 10
     unhealthy_threshold = 3
@@ -608,7 +628,7 @@ resource "aws_route53_record" "app" {
 }
 
 # CloudWatch Resources
-resource "aws_cloudwatch_log_group" "api_logs" {
+resource "aws_cloudwatch_log_group" "app_logs" {
   name              = "/aws/ec2/${var.app_name}-${var.environment}"
   retention_in_days = var.log_retention_days
 

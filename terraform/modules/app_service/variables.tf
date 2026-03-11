@@ -18,9 +18,26 @@ variable "app_name" {
   type        = string
 }
 
-variable "docker_image_uri" {
-  description = "The full URI of the Docker image to deploy (e.g., ghcr.io/ngwpc/icefabric:latest)"
+variable "nginx_image_uri" {
+  description = "Docker image URI for the Nginx proxy"
   type        = string
+  default     = "nginx:latest"
+}
+
+variable "api_image_uri" {
+  description = "Docker image URI for the API (e.g., ghcr.io/ngwpc/icefabric:latest)"
+  type        = string
+}
+
+variable "dashboard_image_uri" {
+  description = "Docker image URI for the Dashboard"
+  type        = string
+}
+
+variable "nginx_conf_path" {
+  description = "Local file path to the Nginx default.conf"
+  type        = string
+  default     = "../../../docker/nginx/default.conf"
 }
 
 variable "vpc_name" {

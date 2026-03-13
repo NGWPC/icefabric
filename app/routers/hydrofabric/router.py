@@ -1,4 +1,7 @@
+import logging
+import os
 import pathlib
+import re
 import sqlite3
 import tempfile
 import uuid
@@ -33,6 +36,9 @@ from icefabric.schemas.hydrofabric import (
     IdType,
     QueryIdType,
 )
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 api_router = APIRouter(prefix="/hydrofabric")
 
@@ -95,7 +101,11 @@ async def get_hydrofabric_subset_gpkg(
     """
     unique_id = str(uuid.uuid4())[:8]
     temp_dir = pathlib.Path(tempfile.gettempdir())
-    tmp_path = temp_dir / f"subset_{identifier}_{unique_id}.gpkg"
+    #create sanitized path and filename
+    identifier_clean = re.sub(r"[^A-Za-z0-9_]", "_", identifier)
+    tmp_path = os.path.normpath(temp_dir / f"subset_{identifier_clean}_{unique_id}.gpkg")
+    if not tmp_path.startswith(temp_dir):
+        raise Exception("temporary path for geopackages not allowed")
 
     # Resolve namespace from domain/source combination (outside try block for error handling access)
     try:
@@ -182,13 +192,13 @@ async def get_hydrofabric_subset_gpkg(
                 else:
                     nonspatial_layers[table_name] = layer_data
             else:
-                print(f"Warning: {table_name} layer is empty")
+                logger.warning(f"Warning: {table_name} layer is empty")
 
         # Write spatial layers first with pyogrio
         for table_name, layer_data in spatial_layers.items():
             pyogrio.write_dataframe(layer_data, tmp_path, layer=table_name)
             layers_written += 1
-            print(f"Written spatial layer '{table_name}' with {len(layer_data)} records")
+            logger.info(f"Written spatial layer '{table_name}' with {len(layer_data)} records")
 
         # Then write non-spatial layers with sqlite3
         if nonspatial_layers:
@@ -196,7 +206,7 @@ async def get_hydrofabric_subset_gpkg(
             for table_name, layer_data in nonspatial_layers.items():
                 layer_data.to_sql(table_name, conn, if_exists="replace", index=False)
                 layers_written += 1
-                print(f"Written non-spatial layer '{table_name}' with {len(layer_data)} records")
+                logger.info(f"Written non-spatial layer '{table_name}' with {len(layer_data)} records")
             conn.close()
 
             if layers_written == 0:

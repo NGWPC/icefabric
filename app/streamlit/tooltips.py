@@ -1,3 +1,5 @@
+import textwrap
+
 import pandas as pd
 
 
@@ -47,10 +49,12 @@ def three_dim_flowpath_tooltip(d_type="y_ml", w_type="topwdth"):
     base_data = "flowpath"
     if d_type != "y_ml" and w_type != "topwdth":
         base_data = "RAS XS"
-    return f"""The Channel Geometry map layer (not selected by default - check box in layer control at bottom righthand corner of the map) visualizes flowpath width and depth.
-- __depth__ (meters) - represented by the `{d_type}` attribute in the {base_data} data. The depth is visualized as a color gradient, with deeper flowpaths shown in darker colors. *NOTE: White flowpaths indicate missing data.*
-- __width__ (meters) - represented by the `{w_type}` attribute in the {base_data} data. The width is visualized as stream thickness. The thicker the stream, the wider the channel. *NOTE: Flowpaths with missing `{w_type}` values are drawn with a dashed line.*
-"""
+    tooltip = textwrap.dedent(f"""\
+        The Channel Geometry map layer (not selected by default - check box in layer control at bottom righthand corner of the map) visualizes flowpath width and depth.
+        - __depth__ (meters) - represented by the `{d_type}` attribute in the {base_data} data. The depth is visualized as a color gradient, with deeper flowpaths shown in darker colors. *NOTE: White flowpaths indicate missing data.*
+        - __width__ (meters) - represented by the `{w_type}` attribute in the {base_data} data. The width is visualized as stream thickness. The thicker the stream, the wider the channel. *NOTE: Flowpaths with missing `{w_type}` values are drawn with a dashed line.*
+    """)
+    return tooltip
 
 
 bbox_examples = pd.DataFrame(
@@ -62,28 +66,33 @@ bbox_examples = pd.DataFrame(
     index=["Min. Latitude (°)", "Min. Longitude (°)", "Max. Latitude (°)", "Max. Longitude (°)"],
 )
 
-query_type_tooltip = """
+query_type_tooltip = textwrap.dedent("""\
     The two query type options when subsetting the cross-sections.
     - `Flowpath` - Subset will include all cross-sections that belong/map to a reference hydrofabric flowpath ID.
     - `Bounding Box` - Subset will include all cross-sections that are fully contained within a defined lat/lon geospatial bounding box.
-"""
+""")
 
-domain_tooltip = """
+domain_tooltip = textwrap.dedent("""\
     The two domain options when querying the cross-sections.
     - `conflated` - HEC-RAS data mapped to nearest hydrofabric flowpath.
     - `representative` - The median, representative, cross-sections - derived from the conflated data set. Used as training/testing inputs for RiverML.
-"""
+""")
 
-hf_subset_options_explanation = """
+hf_subset_options_explanation = textwrap.dedent("""\
     - **Flowpath ID**: traces upstream from an origin flowpath - *e.g., 3490271*
     - **Gage ID**: traces upstream from a USGS gage ID (maps to a flowpath) - *e.g., 01099500*
     - **VPU ID**: includes all HF features within a vector processing unit (VPU) - *e.g., 08*
-"""
+""")
 
 flowpath_id_tooltip = "A flowpath ID from the reference hydrofabric."
 
-bounding_box_tooltip = (
-    "A defined rectangular bounding geometry.\n"
-    "The min/max lat/lon coordinates should be in standard EPSG:4326 format.\n"
-    "The subset returned will include only cross-sections that fully fit into the bounding box."
-)
+bounding_box_tooltip = textwrap.dedent("""\
+    ###### Draw a defined rectangular bounding geometry on the map below.
+    Only the most recently drawn/interacted-with rectangle will be considered. Edit or delete the drawing as needed.\\
+    The coordinates will update below the map as you draw.\\
+    The subset returned will include only cross-sections that fully fit into the bounding box.
+    > IMPORTANT\\
+    > The bounding box query option is best used for small, focused areas due to the large number of
+    > cross-sections in the dataset and resulting processing time. You will be notified if your bounding
+    > box query is too large to process.
+""")

@@ -1,5 +1,4 @@
 import logging
-import os
 import pathlib
 import re
 import sqlite3
@@ -103,8 +102,9 @@ async def get_hydrofabric_subset_gpkg(
     temp_dir = pathlib.Path(tempfile.gettempdir())
     #create sanitized path and filename
     identifier_clean = re.sub(r"[^A-Za-z0-9_]", "_", identifier)
-    tmp_path = os.path.normpath(temp_dir / f"subset_{identifier_clean}_{unique_id}.gpkg")
-    if not tmp_path.startswith(temp_dir):
+    tmp_path = temp_dir / f"subset_{identifier_clean}_{unique_id}.gpkg"
+    tmp_path = tmp_path.resolve()
+    if not str(tmp_path).startswith(str(temp_dir)):
         raise Exception("temporary path for geopackages not allowed")
 
     # Resolve namespace from domain/source combination (outside try block for error handling access)

@@ -94,8 +94,9 @@ async def get_hydrofabric_subset_gpkg(
     **Returns:** Geopackage file (.gpkg) containing the subset data
     """
     unique_id = str(uuid.uuid4())[:8]
-    temp_dir = pathlib.Path(tempfile.gettempdir())
-    tmp_path = temp_dir / f"subset_{identifier}_{unique_id}.gpkg"
+    temp_dir = pathlib.Path(tempfile.gettempdir()).resolve()
+    # Use only the UUID in the filename to avoid user-controlled data in path expressions
+    tmp_path = temp_dir / f"subset_{unique_id}.gpkg"
 
     # Resolve namespace from domain/source combination (outside try block for error handling access)
     try:

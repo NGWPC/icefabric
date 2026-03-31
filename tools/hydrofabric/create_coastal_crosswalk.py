@@ -196,17 +196,6 @@ def find_crossings(boundary_line, fp_gdf, nexus, boundary_node_ids, mesh, node_t
             # LineString overlap or GeometryCollection — take centroid
             cross_pt = intersection.centroid
 
-        # Check flow direction at crossing: flowpath goes upstream -> downstream
-        # (geom start = up_nex, geom end = dn_nex)
-        line = row.geometry.geoms[0] if row.geometry.geom_type == "MultiLineString" else row.geometry
-        line_length = line.length
-        cross_dist = line.project(cross_pt)
-
-        # If crossing is in the downstream half, flow is heading toward/past this
-        # boundary = downstream crossing = SOURCE (water entering mesh)
-        if cross_dist < line_length * 0.5:
-            continue  # upstream half — flow hasn't reached boundary yet going downstream
-
         results.append(
             {
                 "fp_id": row.fp_id,

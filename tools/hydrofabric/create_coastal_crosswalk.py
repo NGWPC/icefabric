@@ -15,6 +15,10 @@ Script produces two output sets:
   2. Seaward — flowpaths crossing the open boundary (NOPE) flowing downstream.
 
 Each set is written as a CSV and a GPKG (with points and cell polygon layers).
+
+Usage:
+  python create_coastal_crosswalk.py hgrid.gr3 nhf_1.1.3.gpkg
+  python create_coastal_crosswalk.py hgrid.gr3 nhf_1.1.3.gpkg --out-name my_crosswalk
 """
 
 import argparse
@@ -248,7 +252,7 @@ def find_crossings(boundary_line, fp_gdf, nexus, boundary_node_ids, mesh, node_t
     dist, idxs = bnd_tree.query(cross_rad, k=2)
     dist_km = dist[:, 0] * earth_radius_km
 
-    # Distance filter
+    # Discard matches where the nearest boundary node is farther than max_distance_km
     close_mask = dist_km <= max_distance_km
     if not close_mask.any():
         return pd.DataFrame()

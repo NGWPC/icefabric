@@ -8,7 +8,7 @@ into the mesh, and maps each crossing to a boundary element.
 Current version of this tool was built for NHF v1.1.3 and uses schism meshes in gr3 format.
 
 An example schism mesh can be found at: s3://ngwpc-coastal/parm/coastal/atlgulf/hgrid.gr3
-The full NHF gpkg for superCONUS can be found at: s3://edfs-data/hydrofabric-builds/super_conus/nhf_vpu01_1.1.3.gpkg
+The full NHF gpkg for superCONUS can be found at: s3://edfs-data/hydrofabric-builds/super_conus/nhf_1.1.3.gpkg
 
 Script produces two output sets:
   1. Inlets — flowpaths crossing the inland boundary (NBOU) flowing downstream.

@@ -180,11 +180,20 @@ def find_crossings(boundary_line, fp_gdf, nexus, boundary_node_ids, mesh, node_t
 
     print(f"  {len(crossing_fps)} flowpaths cross the boundary line")
 
-    # For each crossing flowpath, get the intersection point and check direction
+    # For each crossing flowpath, get the intersection point and verify
+    # that the upstream and downstream nexuses are on opposite sides of the boundary
     results = []
     for _, row in crossing_fps.iterrows():
         intersection = row.geometry.intersection(boundary_line)
         if intersection.is_empty:
+            continue
+
+        # Check that start (upstream) and end (downstream) are on opposite sides
+        line = row.geometry.geoms[0] if row.geometry.geom_type == "MultiLineString" else row.geometry
+        start_pt = line.coords[0]
+        end_pt = line.coords[-1]
+        nexus_line = LineString([start_pt, end_pt])
+        if not nexus_line.intersects(boundary_line):
             continue
 
         # Get a representative crossing point

@@ -6,7 +6,7 @@ NOTE - THIS IS A WORK IN PROGRESS
 
 import pyarrow as pa
 from pyiceberg.schema import Schema
-from pyiceberg.types import BinaryType, BooleanType, DoubleType, FloatType, LongType, NestedField, StringType
+from pyiceberg.types import BinaryType, DoubleType, FloatType, LongType, NestedField, StringType
 
 
 class Divides:
@@ -548,6 +548,8 @@ class Flowpaths:
         Estimated depth associated with top width at maximum levee
     r_ml : float
         Hydraulic radius at maximum levee
+    fp_to_id : float
+        Downstream flowpath identifier
     geometry : binary
         Spatial Geometry (MULTILINESTRING format) - stored in WKB binary format
 
@@ -592,6 +594,7 @@ class Flowpaths:
             "topwdth_ml",
             "y_ml",
             "r_ml",
+            "fp_to_id",
             "geometry",
         ]
 
@@ -635,6 +638,7 @@ class Flowpaths:
             "Top width at maximum levee",
             "Estimated depth associated with top width at maximum levee",
             "Hydraulic radius at maximum levee",
+            "Downstream flowpath identifier",
             "Spatial Geometry (MULTILINESTRING format) - stored in WKB binary format",
         ]
         return Schema(
@@ -667,7 +671,8 @@ class Flowpaths:
             NestedField(27, "topwdth_ml", DoubleType(), required=False, doc=desc[26]),
             NestedField(28, "y_ml", FloatType(), required=False, doc=desc[27]),
             NestedField(29, "r_ml", FloatType(), required=False, doc=desc[28]),
-            NestedField(30, "geometry", BinaryType(), required=False, doc=desc[29]),
+            NestedField(30, "fp_to_id", DoubleType(), required=False, doc=desc[29]),
+            NestedField(31, "geometry", BinaryType(), required=False, doc=desc[30]),
             identifier_field_ids=[1],
         )
 
@@ -712,6 +717,7 @@ class Flowpaths:
                 pa.field("topwdth_ml", pa.float64(), nullable=True),
                 pa.field("y_ml", pa.float32(), nullable=True),
                 pa.field("r_ml", pa.float32(), nullable=True),
+                pa.field("fp_to_id", pa.float64(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
             ]
         )
@@ -808,6 +814,10 @@ class ReferenceFlowpaths:
         Virtual flowpath identifier
     div_id : int
         Associated divide identifier
+    mainstem_virtual_fp_id : int
+        Mainstem virtual flowpath identifier
+    segment_order : int
+        Segment order
     """
 
     @classmethod
@@ -825,6 +835,8 @@ class ReferenceFlowpaths:
             "fp_id",
             "virtual_fp_id",
             "div_id",
+            "mainstem_virtual_fp_id",
+            "segment_order",
         ]
 
     @classmethod
@@ -842,12 +854,16 @@ class ReferenceFlowpaths:
             "A flowpath ID from the flowpath table that was derived from the reference flowpath ID",
             "Virtual flowpath identifier",
             "Associated divide identifier",
+            "Mainstem virtual flowpath identifier",
+            "Segment order",
         ]
         return Schema(
             NestedField(1, "ref_fp_id", LongType(), required=True, doc=desc[0]),
             NestedField(2, "fp_id", LongType(), required=False, doc=desc[1]),
             NestedField(3, "virtual_fp_id", LongType(), required=False, doc=desc[2]),
             NestedField(4, "div_id", LongType(), required=False, doc=desc[3]),
+            NestedField(5, "mainstem_virtual_fp_id", LongType(), required=False, doc=desc[4]),
+            NestedField(6, "segment_order", LongType(), required=False, doc=desc[5]),
             identifier_field_ids=[1],
         )
 
@@ -867,6 +883,8 @@ class ReferenceFlowpaths:
                 pa.field("fp_id", pa.int64(), nullable=True),
                 pa.field("virtual_fp_id", pa.int64(), nullable=True),
                 pa.field("div_id", pa.int64(), nullable=True),
+                pa.field("mainstem_virtual_fp_id", pa.int64(), nullable=True),
+                pa.field("segment_order", pa.int64(), nullable=True),
             ]
         )
 
@@ -911,6 +929,14 @@ class Waterbodies:
         Dam length
     ifd : float
         Initial flood depth
+    div_id : float
+        Associated divide identifier
+    dn_nex_id : float
+        Downstream nexus identifier
+    dn_virtual_nex_id : float
+        Downstream virtual nexus identifier
+    virtual_fp_id : float
+        Virtual flowpath identifier
     geometry : binary
         Spatial Geometry (POINT format) - stored in WKB binary format
     """
@@ -943,6 +969,10 @@ class Waterbodies:
             "OrficeE",
             "Dam_Length",
             "ifd",
+            "div_id",
+            "dn_nex_id",
+            "dn_virtual_nex_id",
+            "virtual_fp_id",
             "geometry",
         ]
 
@@ -974,6 +1004,10 @@ class Waterbodies:
             "Orifice elevation",
             "Dam length",
             "Initial flood depth",
+            "Associated divide identifier",
+            "Downstream nexus identifier",
+            "Downstream virtual nexus identifier",
+            "Virtual flowpath identifier",
             "Spatial Geometry (POLYGON format) - stored in WKB binary format",
         ]
         return Schema(
@@ -994,7 +1028,11 @@ class Waterbodies:
             NestedField(15, "OrficeE", FloatType(), required=False, doc=desc[14]),
             NestedField(16, "Dam_Length", FloatType(), required=False, doc=desc[15]),
             NestedField(17, "ifd", FloatType(), required=False, doc=desc[16]),
-            NestedField(18, "geometry", BinaryType(), required=False, doc=desc[17]),
+            NestedField(18, "div_id", DoubleType(), required=False, doc=desc[17]),
+            NestedField(19, "dn_nex_id", DoubleType(), required=False, doc=desc[18]),
+            NestedField(20, "dn_virtual_nex_id", DoubleType(), required=False, doc=desc[19]),
+            NestedField(21, "virtual_fp_id", DoubleType(), required=False, doc=desc[20]),
+            NestedField(22, "geometry", BinaryType(), required=False, doc=desc[21]),
             identifier_field_ids=[1],
         )
 
@@ -1027,6 +1065,10 @@ class Waterbodies:
                 pa.field("OrficeE", pa.float32(), nullable=True),
                 pa.field("Dam_Length", pa.float32(), nullable=True),
                 pa.field("ifd", pa.float32(), nullable=True),
+                pa.field("div_id", pa.float64(), nullable=True),
+                pa.field("dn_nex_id", pa.float64(), nullable=True),
+                pa.field("dn_virtual_nex_id", pa.float64(), nullable=True),
+                pa.field("virtual_fp_id", pa.float64(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
             ]
         )
@@ -1054,6 +1096,16 @@ class Gages:
         Flowpath Identifier
     virtual_fp_id : float
         Virtual Flowpath Identifier
+    div_id : float
+        Associated divide identifier
+    dn_nex_id : float
+        Downstream nexus identifier
+    dn_virtual_nex_id : float
+        Downstream virtual nexus identifier
+    mainstem_virtual_fp_id : float
+        Mainstem virtual flowpath identifier
+    segment_order : float
+        Segment order
     geometry : binary
         Spatial Geometry (POINT format) - stored in WKB binary format
     """
@@ -1077,6 +1129,11 @@ class Gages:
             "method_fp_to_gage",
             "fp_id",
             "virtual_fp_id",
+            "div_id",
+            "dn_nex_id",
+            "dn_virtual_nex_id",
+            "mainstem_virtual_fp_id",
+            "segment_order",
             "geometry",
         ]
 
@@ -1099,6 +1156,11 @@ class Gages:
             "Method used to associate flowpath to gage",
             "Flowpath Identifier",
             "Virtual Flowpath Identifier",
+            "Associated divide identifier",
+            "Downstream nexus identifier",
+            "Downstream virtual nexus identifier",
+            "Mainstem virtual flowpath identifier",
+            "Segment order",
             "Spatial Geometry (POINT format) - stored in WKB binary format",
         ]
         return Schema(
@@ -1110,7 +1172,12 @@ class Gages:
             NestedField(6, "method_fp_to_gage", StringType(), required=False, doc=desc[5]),
             NestedField(7, "fp_id", DoubleType(), required=False, doc=desc[6]),
             NestedField(8, "virtual_fp_id", DoubleType(), required=False, doc=desc[7]),
-            NestedField(9, "geometry", BinaryType(), required=False, doc=desc[8]),
+            NestedField(9, "div_id", DoubleType(), required=False, doc=desc[8]),
+            NestedField(10, "dn_nex_id", DoubleType(), required=False, doc=desc[9]),
+            NestedField(11, "dn_virtual_nex_id", DoubleType(), required=False, doc=desc[10]),
+            NestedField(12, "mainstem_virtual_fp_id", DoubleType(), required=False, doc=desc[11]),
+            NestedField(13, "segment_order", DoubleType(), required=False, doc=desc[12]),
+            NestedField(14, "geometry", BinaryType(), required=False, doc=desc[13]),
             identifier_field_ids=[1],
         )
 
@@ -1134,6 +1201,11 @@ class Gages:
                 pa.field("method_fp_to_gage", pa.string(), nullable=True),
                 pa.field("fp_id", pa.float64(), nullable=True),
                 pa.field("virtual_fp_id", pa.float64(), nullable=True),
+                pa.field("div_id", pa.float64(), nullable=True),
+                pa.field("dn_nex_id", pa.float64(), nullable=True),
+                pa.field("dn_virtual_nex_id", pa.float64(), nullable=True),
+                pa.field("mainstem_virtual_fp_id", pa.float64(), nullable=True),
+                pa.field("segment_order", pa.float64(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
             ]
         )
@@ -1151,8 +1223,8 @@ class VirtualFlowpaths:
         Downstream virtual nexus identifier
     up_virtual_nex_id : float
         Upstream virtual nexus identifier
-    routing_segment : bool
-        Routing segment indicator
+    segment_order : int
+        Segment order
     length_km : float
         Flowpath length [in kilometers]
     area_sqkm : float
@@ -1179,7 +1251,7 @@ class VirtualFlowpaths:
             "virtual_fp_id",
             "dn_virtual_nex_id",
             "up_virtual_nex_id",
-            "routing_segment",
+            "segment_order",
             "length_km",
             "area_sqkm",
             "percentage_area_contribution",
@@ -1201,7 +1273,7 @@ class VirtualFlowpaths:
             "Virtual flowpath identifier",
             "Downstream virtual nexus identifier",
             "Upstream virtual nexus identifier",
-            "Routing segment indicator",
+            "Segment order",
             "Flowpath length [in kilometers]",
             "Incremental areas of divide [in square kilometers]",
             "Percentage area contribution",
@@ -1212,7 +1284,7 @@ class VirtualFlowpaths:
             NestedField(1, "virtual_fp_id", LongType(), required=True, doc=desc[0]),
             NestedField(2, "dn_virtual_nex_id", LongType(), required=False, doc=desc[1]),
             NestedField(3, "up_virtual_nex_id", DoubleType(), required=False, doc=desc[2]),
-            NestedField(4, "routing_segment", BooleanType(), required=False, doc=desc[3]),
+            NestedField(4, "segment_order", LongType(), required=False, doc=desc[3]),
             NestedField(5, "length_km", DoubleType(), required=False, doc=desc[4]),
             NestedField(6, "area_sqkm", DoubleType(), required=False, doc=desc[5]),
             NestedField(7, "percentage_area_contribution", DoubleType(), required=False, doc=desc[6]),
@@ -1236,7 +1308,7 @@ class VirtualFlowpaths:
                 pa.field("virtual_fp_id", pa.int64(), nullable=False),
                 pa.field("dn_virtual_nex_id", pa.int64(), nullable=True),
                 pa.field("up_virtual_nex_id", pa.float64(), nullable=True),
-                pa.field("routing_segment", pa.bool_(), nullable=True),
+                pa.field("segment_order", pa.int64(), nullable=True),
                 pa.field("length_km", pa.float64(), nullable=True),
                 pa.field("area_sqkm", pa.float64(), nullable=True),
                 pa.field("percentage_area_contribution", pa.float64(), nullable=True),
@@ -1333,6 +1405,8 @@ class Hydrolocations:
         Hydrolocations identifier
     dn_nex_id : int
         Downstream nexus identifier
+    dn_virtual_nex_id : float
+        Downstream virtual nexus identifier
     """
 
     @classmethod
@@ -1348,6 +1422,7 @@ class Hydrolocations:
         return [
             "hy_id",
             "dn_nex_id",
+            "dn_virtual_nex_id",
         ]
 
     @classmethod
@@ -1363,10 +1438,12 @@ class Hydrolocations:
         desc = [
             "Hydrolocations identifier",
             "Downstream nexus identifier",
+            "Downstream virtual nexus identifier",
         ]
         return Schema(
             NestedField(1, "hy_id", LongType(), required=True, doc=desc[0]),
             NestedField(2, "dn_nex_id", LongType(), required=False, doc=desc[1]),
+            NestedField(3, "dn_virtual_nex_id", DoubleType(), required=False, doc=desc[2]),
             identifier_field_ids=[1],
         )
 
@@ -1384,5 +1461,6 @@ class Hydrolocations:
             [
                 pa.field("hy_id", pa.int64(), nullable=False),
                 pa.field("dn_nex_id", pa.int64(), nullable=True),
+                pa.field("dn_virtual_nex_id", pa.float64(), nullable=True),
             ]
         )

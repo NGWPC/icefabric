@@ -62,7 +62,7 @@ def tear_down_nhf(catalog_type: str):
         print(f"Snapshot table {snapshot_table_identifier} does not exist. Skipping purge.")
 
 
-def build_nhf(catalog_type: str, file_dir: str):
+def build_nhf(catalog_type: str, file_dir: str, overwrite_existing: bool = False):
     """
     Builds the hydrofabric Iceberg tables
 
@@ -72,6 +72,8 @@ def build_nhf(catalog_type: str, file_dir: str):
         the type of catalog. sql is local, glue is production
     file_dir : str
         where the files are located
+    overwrite_existing : bool
+        if True, overwrite existing populated tables (preserves old snapshots for rollback)
     """
     catalog = load_catalog(catalog_type)
     namespace = "nhf"
@@ -90,9 +92,19 @@ def build_nhf(catalog_type: str, file_dir: str):
         if catalog.table_exists(f"{namespace}.{layer}"):
             current_snapshot = catalog.load_table(f"{namespace}.{layer}").current_snapshot()
             if current_snapshot is not None:
-                print(f"Table {layer} already exists, and is populated. Skipping build")
-                snapshots[layer] = current_snapshot.snapshot_id
-                build_table = False
+                if overwrite_existing:
+                    print(f"Table {layer} already exists. Overwriting (old snapshots preserved)...")
+                    iceberg_table = catalog.load_table(f"{namespace}.{layer}")
+                    with iceberg_table.update_schema() as update:
+                        update.union_by_name(schema.arrow_schema())
+                    iceberg_table.overwrite(table)
+                    snapshots[layer] = iceberg_table.current_snapshot().snapshot_id
+                    update_snapshots = True
+                    build_table = False
+                else:
+                    print(f"Table {layer} already exists, and is populated. Skipping build")
+                    snapshots[layer] = current_snapshot.snapshot_id
+                    build_table = False
             else:
                 print(f"Table {layer} has no current snapshot (must be empty).")
 
@@ -170,9 +182,15 @@ if __name__ == "__main__":
         default=False,
         help="Purges old catalog tables before building new ones - use with caution! Only use if the schemas have changed.",
     )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="Overwrite existing populated tables. Preserves old snapshots for rollback via Iceberg time-travel.",
+    )
 
     args = parser.parse_args()
 
     if args.delete_old:
         tear_down_nhf(catalog_type=args.catalog)
-    build_nhf(catalog_type=args.catalog, file_dir=args.files)
+    build_nhf(catalog_type=args.catalog, file_dir=args.files, overwrite_existing=args.overwrite)

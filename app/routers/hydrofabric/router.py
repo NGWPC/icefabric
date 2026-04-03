@@ -181,13 +181,10 @@ async def get_hydrofabric_subset_gpkg(
 
         # Separate spatial vs non-spatial
         for table_name, layer_data in output_layers.items():
-            if len(layer_data) > 0:
-                if isinstance(layer_data, gpd.GeoDataFrame):
-                    spatial_layers[table_name] = layer_data
-                else:
-                    nonspatial_layers[table_name] = layer_data
-            else:
-                logger.warning(f"Warning: {table_name} layer is empty")
+            if isinstance(layer_data, gpd.GeoDataFrame) and len(layer_data) > 0:
+                spatial_layers[table_name] = layer_data
+            elif not isinstance(layer_data, gpd.GeoDataFrame):
+                nonspatial_layers[table_name] = layer_data
 
         # Write spatial layers first with pyogrio
         for table_name, layer_data in spatial_layers.items():
@@ -195,19 +192,18 @@ async def get_hydrofabric_subset_gpkg(
             layers_written += 1
             logger.info(f"Written spatial layer '{table_name}' with {len(layer_data)} records")
 
-        # Then write non-spatial layers with sqlite3
-        if nonspatial_layers:
-            conn = sqlite3.connect(tmp_path)
-            for table_name, layer_data in nonspatial_layers.items():
-                layer_data.to_sql(table_name, conn, if_exists="replace", index=False)
-                layers_written += 1
-                logger.info(f"Written non-spatial layer '{table_name}' with {len(layer_data)} records")
-            conn.close()
+        # Then write non-spatial layers with sqlite3 (includes empty layers)
+        conn = sqlite3.connect(tmp_path)
+        for table_name, layer_data in nonspatial_layers.items():
+            layer_data.to_sql(table_name, conn, if_exists="replace", index=False)
+            layers_written += 1
+            logger.info(f"Written non-spatial layer '{table_name}' with {len(layer_data)} records")
+        conn.close()
 
-            if layers_written == 0:
-                raise HTTPException(
-                    status_code=404, detail=f"No non-empty layers found for identifier '{identifier}'"
-                )
+        if layers_written == 0:
+            raise HTTPException(
+                status_code=404, detail=f"No non-empty layers found for identifier '{identifier}'"
+            )
 
         # Verify the file was created successfully
         if not tmp_path.exists():

@@ -115,25 +115,34 @@ class HydrofabricSource:
                 return None
             return pl.scan_parquet(path)
 
+    @staticmethod
+    def _empty_for_layer(layer: str) -> pl.DataFrame:
+        """Return an empty DataFrame with the correct schema for a missing layer."""
+        from icefabric.schemas.iceberg_tables import nhf_layers
+
+        if layer in nhf_layers:
+            return pl.from_arrow(nhf_layers[layer].arrow_schema().empty_table())
+        return pl.DataFrame()
+
     def load_filtered(self, layer: str, col: str, ids: set[int]) -> pl.DataFrame:
         """Load a layer filtered by a set of IDs."""
         lf = self._get_lazy_frame(layer)
         if lf is None:
-            return pl.DataFrame()
+            return self._empty_for_layer(layer)
         return lf.filter(pl.col(col).is_in(ids)).collect()
 
     def load_filtered_eq(self, layer: str, col: str, value: str) -> pl.DataFrame:
         """Load a layer filtered by string equality."""
         lf = self._get_lazy_frame(layer)
         if lf is None:
-            return pl.DataFrame()
+            return self._empty_for_layer(layer)
         return lf.filter(pl.col(col) == value).collect()
 
     def load_columns(self, layer: str, columns: list[str]) -> pl.DataFrame:
         """Load specific columns from a layer."""
         lf = self._get_lazy_frame(layer)
         if lf is None:
-            return pl.DataFrame()
+            return self._empty_for_layer(layer)
         return lf.select(columns).collect()
 
 
@@ -192,19 +201,21 @@ def generate_subset_from_ids(
     logger.debug(f"Subsetting {len(flowpath_ids)} flowpaths")
 
     # Wave 1: fp_id/div_id filtered (parallel)
-    with ThreadPoolExecutor(max_workers=5) as ex:
+    with ThreadPoolExecutor(max_workers=6) as ex:
         f = {
             "fp": ex.submit(source.load_filtered, "flowpaths", "fp_id", flowpath_ids),
             "div": ex.submit(source.load_filtered, "divides", "div_id", flowpath_ids),
             "wb": ex.submit(source.load_filtered, "waterbodies", "fp_id", flowpath_ids),
             "gages": ex.submit(source.load_filtered, "gages", "fp_id", flowpath_ids),
             "ref_fp": ex.submit(source.load_filtered, "reference_flowpaths", "div_id", flowpath_ids),
+            "lakes": ex.submit(source.load_filtered, "lakes", "fp_id", flowpath_ids),
         }
         subset_fp = f["fp"].result()
         subset_div = f["div"].result()
         subset_wb = f["wb"].result()
         subset_gages = f["gages"].result()
         subset_ref_fp = f["ref_fp"].result()
+        subset_lakes = f["lakes"].result()
 
     # Derive dependent IDs
     all_nex_ids = set(
@@ -267,6 +278,7 @@ def generate_subset_from_ids(
         "virtual_flowpaths": pl_to_gdf(subset_v_fp),
         "waterbodies": pl_to_gdf(subset_wb) if len(subset_wb) > 0 else subset_wb.to_pandas(),
         "gages": pl_to_gdf(subset_gages) if len(subset_gages) > 0 else subset_gages.to_pandas(),
+        "lakes": pl_to_gdf(subset_lakes) if len(subset_lakes) > 0 else subset_lakes.to_pandas(),
         "reference_flowpaths": subset_ref_fp.to_pandas(),
         "hydrolocations": subset_hydrolocations.to_pandas(),
     }
@@ -275,22 +287,27 @@ def generate_subset_from_ids(
         logger.debug(f"Writing to {subset_file}...")
         subset_file.parent.mkdir(parents=True, exist_ok=True)
 
-        for name, df in [
-            ("flowpaths", output["flowpaths"]),
-            ("nexus", output["nexus"]),
-            ("divides", output["divides"]),
-            ("virtual_nexus", output["virtual_nexus"]),
-            ("virtual_flowpaths", output["virtual_flowpaths"]),
-            ("waterbodies", output["waterbodies"]),
-            ("gages", output["gages"]),
-        ]:
+        spatial_layers = [
+            "flowpaths",
+            "nexus",
+            "divides",
+            "virtual_nexus",
+            "virtual_flowpaths",
+            "waterbodies",
+            "gages",
+            "lakes",
+        ]
+        for name in spatial_layers:
+            df = output[name]
             logger.debug(f"  {name}: {len(df)} rows")
-            pyogrio.write_dataframe(df, subset_file, layer=name)
+            if isinstance(df, gpd.GeoDataFrame) and len(df) > 0:
+                pyogrio.write_dataframe(df, subset_file, layer=name)
 
-        logger.debug(f"  reference_flowpaths: {len(subset_ref_fp)} rows")
+        nonspatial_layers = ["reference_flowpaths", "hydrolocations"]
         conn = sqlite3.connect(subset_file)
-        output["reference_flowpaths"].to_sql("reference_flowpaths", conn, if_exists="replace", index=False)
-        output["hydrolocations"].to_sql("hydrolocations", conn, if_exists="replace", index=False)
+        for name in nonspatial_layers:
+            logger.debug(f"  {name}: {len(output[name])} rows")
+            output[name].to_sql(name, conn, if_exists="replace", index=False)
         conn.close()
 
     return output

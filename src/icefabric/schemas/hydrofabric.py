@@ -144,6 +144,9 @@ class HydrofabricNamespace(str, Enum):
 
     NHF = "nhf"
     CONUS_NHF = "conus_nhf"
+    ALASKA_NHF = "ak_nhf"
+    HAWAII_NHF = "hi_nhf"
+    PUERTO_RICO_NHF = "prvi_nhf"
     CONUS_HF = "conus_hf"
     ALASKA_HF = "ak_hf"
     HAWAII_HF = "hi_hf"
@@ -164,7 +167,13 @@ class HydrofabricNamespace(str, Enum):
     @property
     def is_nhf(self) -> bool:
         """Return True if this namespace is NHF data."""
-        return self in (HydrofabricNamespace.NHF, HydrofabricNamespace.CONUS_NHF)
+        return self in (
+            HydrofabricNamespace.NHF,
+            HydrofabricNamespace.CONUS_NHF,
+            HydrofabricNamespace.ALASKA_NHF,
+            HydrofabricNamespace.HAWAII_NHF,
+            HydrofabricNamespace.PUERTO_RICO_NHF,
+        )
 
     @property
     def is_oconus_hf(self) -> bool:
@@ -183,6 +192,9 @@ class HydrofabricNamespace(str, Enum):
         aliases = {
             "nhf": cls.NHF,
             "conus_nhf": cls.CONUS_NHF,
+            "ak_nhf": cls.ALASKA_NHF,
+            "hi_nhf": cls.HAWAII_NHF,
+            "prvi_nhf": cls.PUERTO_RICO_NHF,
             "conus_hf": cls.CONUS_HF,
             "ak_hf": cls.ALASKA_HF,
             "hi_hf": cls.HAWAII_HF,
@@ -286,11 +298,11 @@ class HydrofabricNamespace(str, Enum):
         ] = {
             (GeographicDomain.CONUS, HydrofabricSource.NHF): cls.CONUS_NHF,
             (GeographicDomain.CONUS, HydrofabricSource.HF): cls.CONUS_HF,
-            (GeographicDomain.ALASKA, HydrofabricSource.NHF): None,
+            (GeographicDomain.ALASKA, HydrofabricSource.NHF): cls.ALASKA_NHF,
             (GeographicDomain.ALASKA, HydrofabricSource.HF): cls.ALASKA_HF,
-            (GeographicDomain.HAWAII, HydrofabricSource.NHF): None,
+            (GeographicDomain.HAWAII, HydrofabricSource.NHF): cls.HAWAII_NHF,
             (GeographicDomain.HAWAII, HydrofabricSource.HF): cls.HAWAII_HF,
-            (GeographicDomain.PUERTO_RICO, HydrofabricSource.NHF): None,
+            (GeographicDomain.PUERTO_RICO, HydrofabricSource.NHF): cls.PUERTO_RICO_NHF,
             (GeographicDomain.PUERTO_RICO, HydrofabricSource.HF): cls.PUERTO_RICO_HF,
             (GeographicDomain.GREAT_LAKES, HydrofabricSource.NHF): None,
             (GeographicDomain.GREAT_LAKES, HydrofabricSource.HF): cls.GREAT_LAKES_HF,
@@ -300,8 +312,7 @@ class HydrofabricNamespace(str, Enum):
 
         if namespace is None:
             raise NotImplementedError(
-                f"Domain '{domain.value}' is not currently available for source '{source.value}'. "  # type: ignore[union-attr]
-                f"Only 'CONUS' is available for the National Hydrofabric (nhf) at this time."
+                f"Domain '{domain.value}' is not currently available for source '{source.value}'."  # type: ignore[union-attr]
             )
 
         return namespace

@@ -31,7 +31,15 @@ LOCATION = {
 warnings.filterwarnings("ignore", category=ResourceWarning)
 
 
-def tear_down_nhf(catalog_type: str):
+DOMAIN_TO_NAMESPACE = {
+    "conus": "nhf",
+    "ak": "ak_nhf",
+    "hi": "hi_nhf",
+    "prvi": "prvi_nhf",
+}
+
+
+def tear_down_nhf(catalog_type: str, domain: str = "conus"):
     """
     Tears down the hydrofabric Iceberg tables
 
@@ -39,11 +47,13 @@ def tear_down_nhf(catalog_type: str):
     ----------
     catalog_type : str
         the type of catalog. sql is local, glue is production
+    domain : str
+        the NHF domain (conus, ak, hi, prvi)
     """
     catalog = load_catalog(catalog_type)
-    namespace = "nhf"
+    namespace = DOMAIN_TO_NAMESPACE[domain]
 
-    print("Tearing down existing NHF tables...")
+    print(f"Tearing down existing NHF tables in {namespace}...")
     for layer in nhf_layers.keys():
         table_identifier = f"{namespace}.{layer}"
         if catalog.table_exists(table_identifier):
@@ -53,7 +63,7 @@ def tear_down_nhf(catalog_type: str):
             print(f"NHF layer table {table_identifier} does not exist. Skipping purge.")
 
     print("Tearing down existing NHF snapshot table...")
-    snapshot_namespace = "nhf_snapshots"
+    snapshot_namespace = f"{namespace}_snapshots"
     snapshot_table_identifier = f"{snapshot_namespace}.id"
     if catalog.table_exists(snapshot_table_identifier):
         catalog.purge_table(snapshot_table_identifier)
@@ -62,7 +72,7 @@ def tear_down_nhf(catalog_type: str):
         print(f"Snapshot table {snapshot_table_identifier} does not exist. Skipping purge.")
 
 
-def build_nhf(catalog_type: str, file_dir: str, overwrite_existing: bool = False):
+def build_nhf(catalog_type: str, file_dir: str, domain: str = "conus", overwrite_existing: bool = False):
     """
     Builds the hydrofabric Iceberg tables
 
@@ -72,11 +82,13 @@ def build_nhf(catalog_type: str, file_dir: str, overwrite_existing: bool = False
         the type of catalog. sql is local, glue is production
     file_dir : str
         where the files are located
+    domain : str
+        the NHF domain (conus, ak, hi, prvi)
     overwrite_existing : bool
         if True, overwrite existing populated tables (preserves old snapshots for rollback)
     """
     catalog = load_catalog(catalog_type)
-    namespace = "nhf"
+    namespace = DOMAIN_TO_NAMESPACE[domain]
     catalog.create_namespace_if_not_exists(namespace)
     snapshots = {}
 
@@ -139,7 +151,7 @@ def build_nhf(catalog_type: str, file_dir: str, overwrite_existing: bool = False
             snapshots[layer] = current_snapshot.snapshot_id
 
     if update_snapshots:
-        snapshot_namespace = "nhf_snapshots"
+        snapshot_namespace = f"{namespace}_snapshots"
         snapshot_table = f"{snapshot_namespace}.id"
         catalog.create_namespace_if_not_exists(snapshot_namespace)
         if catalog.table_exists(snapshot_table):
@@ -180,7 +192,7 @@ if __name__ == "__main__":
         "--delete-old",
         action="store_true",
         default=False,
-        help="Purges old catalog tables before building new ones - use with caution! Only use if the schemas have changed.",
+        help="Purges old catalog tables before building new ones - use with caution! This permanently deletes data with no rollback. Prefer --overwrite instead.",
     )
     parser.add_argument(
         "--overwrite",
@@ -188,9 +200,18 @@ if __name__ == "__main__":
         default=False,
         help="Overwrite existing populated tables. Preserves old snapshots for rollback via Iceberg time-travel.",
     )
+    parser.add_argument(
+        "--domain",
+        type=str,
+        default="conus",
+        choices=["conus", "ak", "hi", "prvi"],
+        help="The NHF domain (default: conus). Determines the namespace (e.g., ak -> ak_nhf).",
+    )
 
     args = parser.parse_args()
 
     if args.delete_old:
-        tear_down_nhf(catalog_type=args.catalog)
-    build_nhf(catalog_type=args.catalog, file_dir=args.files, overwrite_existing=args.overwrite)
+        tear_down_nhf(catalog_type=args.catalog, domain=args.domain)
+    build_nhf(
+        catalog_type=args.catalog, file_dir=args.files, domain=args.domain, overwrite_existing=args.overwrite
+    )

@@ -48,6 +48,11 @@ def nhf_gpkg_to_parquet(input_file: Path, output_folder: Path) -> None:
             # Drop the GeoDataFrame's geometry reference
             gdf = pd.DataFrame(gdf)
 
+        # Add missing nullable columns as null (handles domain differences)
+        for col in schema.columns():
+            if col not in gdf.columns:
+                gdf[col] = None
+
         # Create PyArrow table with schema validation
         table = pa.Table.from_pandas(gdf[schema.columns()], schema=schema.arrow_schema())
 

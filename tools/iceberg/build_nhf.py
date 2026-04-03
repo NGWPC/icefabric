@@ -15,20 +15,27 @@ from icefabric.helpers import load_creds
 from icefabric.schemas.iceberg_tables import nhf_layers
 from icefabric.schemas.iceberg_tables.nhf_snapshots import NHFSnapshot
 
-# Loading credentials, setting path to save outputs
-load_creds()
-with open(os.environ["PYICEBERG_HOME"]) as f:
-    CONFIG = yaml.safe_load(f)
-WAREHOUSE = Path(CONFIG["catalog"]["sql"]["warehouse"].replace("file://", ""))
-WAREHOUSE.mkdir(parents=True, exist_ok=True)
-
-LOCATION = {
-    "glue": "s3://edfs-data/icefabric_catalog",
-    "sql": CONFIG["catalog"]["sql"]["warehouse"],
-}
-
 # Suppress threading cleanup warnings
 warnings.filterwarnings("ignore", category=ResourceWarning)
+
+S3_BUCKETS = {
+    "test": "edfs-data",
+    "prod": "iceberg-data-oe",
+}
+
+
+def _init(deploy_env: str = "test"):
+    """Load credentials and resolve catalog locations."""
+    load_creds(deploy_env)
+    with open(os.environ["PYICEBERG_HOME"]) as f:
+        config = yaml.safe_load(f)
+    warehouse = Path(config["catalog"]["sql"]["warehouse"].replace("file://", ""))
+    warehouse.mkdir(parents=True, exist_ok=True)
+    s3_bucket = S3_BUCKETS.get(deploy_env, S3_BUCKETS["test"])
+    return {
+        "glue": f"s3://{s3_bucket}/icefabric_catalog",
+        "sql": config["catalog"]["sql"]["warehouse"],
+    }
 
 
 DOMAIN_TO_NAMESPACE = {
@@ -39,7 +46,7 @@ DOMAIN_TO_NAMESPACE = {
 }
 
 
-def tear_down_nhf(catalog_type: str, domain: str = "conus"):
+def tear_down_nhf(catalog_type: str, domain: str = "conus", deploy_env: str = "test"):
     """
     Tears down the hydrofabric Iceberg tables
 
@@ -49,7 +56,10 @@ def tear_down_nhf(catalog_type: str, domain: str = "conus"):
         the type of catalog. sql is local, glue is production
     domain : str
         the NHF domain (conus, ak, hi, prvi)
+    deploy_env : str
+        the deploy environment (test or prod)
     """
+    _init(deploy_env)
     catalog = load_catalog(catalog_type)
     namespace = DOMAIN_TO_NAMESPACE[domain]
 
@@ -72,7 +82,13 @@ def tear_down_nhf(catalog_type: str, domain: str = "conus"):
         print(f"Snapshot table {snapshot_table_identifier} does not exist. Skipping purge.")
 
 
-def build_nhf(catalog_type: str, file_dir: str, domain: str = "conus", overwrite_existing: bool = False):
+def build_nhf(
+    catalog_type: str,
+    file_dir: str,
+    domain: str = "conus",
+    overwrite_existing: bool = False,
+    deploy_env: str = "test",
+):
     """
     Builds the hydrofabric Iceberg tables
 
@@ -86,7 +102,10 @@ def build_nhf(catalog_type: str, file_dir: str, domain: str = "conus", overwrite
         the NHF domain (conus, ak, hi, prvi)
     overwrite_existing : bool
         if True, overwrite existing populated tables (preserves old snapshots for rollback)
+    deploy_env : str
+        the deploy environment (test or prod)
     """
+    location = _init(deploy_env)
     catalog = load_catalog(catalog_type)
     namespace = DOMAIN_TO_NAMESPACE[domain]
     catalog.create_namespace_if_not_exists(namespace)
@@ -125,7 +144,7 @@ def build_nhf(catalog_type: str, file_dir: str, domain: str = "conus", overwrite
             iceberg_table = catalog.create_table_if_not_exists(
                 f"{namespace}.{layer}",
                 schema=schema.schema(),
-                location=f"{LOCATION[catalog_type]}/{namespace.lower()}/{layer}",
+                location=f"{location[catalog_type]}/{namespace.lower()}/{layer}",
             )
 
             # Bucket partitioning on the schema ID field
@@ -156,11 +175,13 @@ def build_nhf(catalog_type: str, file_dir: str, domain: str = "conus", overwrite
         catalog.create_namespace_if_not_exists(snapshot_namespace)
         if catalog.table_exists(snapshot_table):
             tbl = catalog.load_table(snapshot_table)
+            with tbl.update_schema() as update:
+                update.union_by_name(NHFSnapshot.arrow_schema())
         else:
             tbl = catalog.create_table(
                 snapshot_table,
                 schema=NHFSnapshot.schema(),
-                location=f"{LOCATION[catalog_type]}/{snapshot_namespace}",
+                location=f"{location[catalog_type]}/{snapshot_namespace}",
             )
         df = pa.Table.from_pylist([snapshots], schema=NHFSnapshot.arrow_schema())
         tbl.append(df)
@@ -207,11 +228,22 @@ if __name__ == "__main__":
         choices=["conus", "ak", "hi", "prvi"],
         help="The NHF domain (default: conus). Determines the namespace (e.g., ak -> ak_nhf).",
     )
+    parser.add_argument(
+        "--deploy-env",
+        type=str,
+        default="test",
+        choices=["test", "prod"],
+        help="Deploy environment (default: test). Controls AWS credentials and S3 bucket location.",
+    )
 
     args = parser.parse_args()
 
     if args.delete_old:
-        tear_down_nhf(catalog_type=args.catalog, domain=args.domain)
+        tear_down_nhf(catalog_type=args.catalog, domain=args.domain, deploy_env=args.deploy_env)
     build_nhf(
-        catalog_type=args.catalog, file_dir=args.files, domain=args.domain, overwrite_existing=args.overwrite
+        catalog_type=args.catalog,
+        file_dir=args.files,
+        domain=args.domain,
+        overwrite_existing=args.overwrite,
+        deploy_env=args.deploy_env,
     )

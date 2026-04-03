@@ -53,8 +53,18 @@ def nhf_gpkg_to_parquet(input_file: Path, output_folder: Path) -> None:
             if col not in gdf.columns:
                 gdf[col] = None
 
+        # Coerce string-encoded numeric columns to match the arrow schema
+        arrow_schema = schema.arrow_schema()
+        for field in arrow_schema:
+            if (
+                field.name in gdf.columns
+                and gdf[field.name].dtype == object
+                and pa.types.is_integer(field.type)
+            ):
+                gdf[field.name] = pd.to_numeric(gdf[field.name], errors="coerce")
+
         # Create PyArrow table with schema validation
-        table = pa.Table.from_pandas(gdf[schema.columns()], schema=schema.arrow_schema())
+        table = pa.Table.from_pandas(gdf[schema.columns()], schema=arrow_schema)
 
         # Write parquet file
         output_path = output_folder / f"{layer}.parquet"

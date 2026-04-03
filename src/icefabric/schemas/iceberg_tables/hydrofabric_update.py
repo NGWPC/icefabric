@@ -1395,6 +1395,194 @@ class VirtualNexus:
         )
 
 
+class NHFLakes:
+    """
+    The schema for the NHF lakes table
+
+    Attributes
+    ----------
+    nhf_lake_id : int
+        Unique NHF lake identifier
+    ref_fp_id : int
+        Reference flowpath identifier
+    hy_id : int
+        Hydrolocation identifier
+    fp_id : float
+        Flowpath identifier
+    virtual_fp_id : int
+        Virtual flowpath identifier
+    dn_nex_id : float
+        Downstream nexus identifier
+    dn_virtual_nex_id : int
+        Downstream virtual nexus identifier
+    div_id : int
+        Associated divide identifier
+    lake_id : int
+        Lake identifier
+    res_id : str
+        Reservoir identifier
+    LkArea : float
+        Lake area
+    LkMxE : float
+        Lake maximum elevation
+    WeirC : float
+        Weir coefficient
+    WeirL : float
+        Weir length
+    WeirE : float
+        Weir elevation
+    OrificeC : float
+        Orifice coefficient
+    OrificeA : float
+        Orifice area
+    OrificeE : float
+        Orifice elevation
+    Dam_Length : float
+        Dam length
+    ifd : float
+        Initial flood depth
+    reservoir_index_AnA : float
+        Reservoir index for AnA configuration
+    reservoir_index_Extended_AnA : float
+        Reservoir index for Extended AnA configuration
+    reservoir_index_GDL_AK : float
+        Reservoir index for GDL AK configuration
+    reservoir_index_Medium_Range : float
+        Reservoir index for Medium Range configuration
+    reservoir_index_Short_Range : float
+        Reservoir index for Short Range configuration
+    geometry : binary
+        Spatial Geometry (POINT format) - stored in WKB binary format
+    """
+
+    @classmethod
+    def columns(cls) -> list[str]:
+        """Returns the columns associated with this schema."""
+        return [
+            "nhf_lake_id",
+            "ref_fp_id",
+            "hy_id",
+            "fp_id",
+            "virtual_fp_id",
+            "dn_nex_id",
+            "dn_virtual_nex_id",
+            "div_id",
+            "lake_id",
+            "res_id",
+            "LkArea",
+            "LkMxE",
+            "WeirC",
+            "WeirL",
+            "WeirE",
+            "OrificeC",
+            "OrificeA",
+            "OrificeE",
+            "Dam_Length",
+            "ifd",
+            "reservoir_index_AnA",
+            "reservoir_index_Extended_AnA",
+            "reservoir_index_GDL_AK",
+            "reservoir_index_Medium_Range",
+            "reservoir_index_Short_Range",
+            "geometry",
+        ]
+
+    @classmethod
+    def schema(cls) -> Schema:
+        """Returns the PyIceberg Schema object."""
+        desc = [
+            "Unique NHF lake identifier",
+            "Reference flowpath identifier",
+            "Hydrolocation identifier",
+            "Flowpath identifier",
+            "Virtual flowpath identifier",
+            "Downstream nexus identifier",
+            "Downstream virtual nexus identifier",
+            "Associated divide identifier",
+            "Lake identifier",
+            "Reservoir identifier",
+            "Lake area",
+            "Lake maximum elevation",
+            "Weir coefficient",
+            "Weir length",
+            "Weir elevation",
+            "Orifice coefficient",
+            "Orifice area",
+            "Orifice elevation",
+            "Dam length",
+            "Initial flood depth",
+            "Reservoir index for AnA configuration",
+            "Reservoir index for Extended AnA configuration",
+            "Reservoir index for GDL AK configuration",
+            "Reservoir index for Medium Range configuration",
+            "Reservoir index for Short Range configuration",
+            "Spatial Geometry (POINT format) - stored in WKB binary format",
+        ]
+        return Schema(
+            NestedField(1, "nhf_lake_id", LongType(), required=True, doc=desc[0]),
+            NestedField(2, "ref_fp_id", LongType(), required=False, doc=desc[1]),
+            NestedField(3, "hy_id", LongType(), required=False, doc=desc[2]),
+            NestedField(4, "fp_id", DoubleType(), required=False, doc=desc[3]),
+            NestedField(5, "virtual_fp_id", LongType(), required=False, doc=desc[4]),
+            NestedField(6, "dn_nex_id", DoubleType(), required=False, doc=desc[5]),
+            NestedField(7, "dn_virtual_nex_id", LongType(), required=False, doc=desc[6]),
+            NestedField(8, "div_id", LongType(), required=False, doc=desc[7]),
+            NestedField(9, "lake_id", LongType(), required=False, doc=desc[8]),
+            NestedField(10, "res_id", StringType(), required=False, doc=desc[9]),
+            NestedField(11, "LkArea", DoubleType(), required=False, doc=desc[10]),
+            NestedField(12, "LkMxE", DoubleType(), required=False, doc=desc[11]),
+            NestedField(13, "WeirC", DoubleType(), required=False, doc=desc[12]),
+            NestedField(14, "WeirL", DoubleType(), required=False, doc=desc[13]),
+            NestedField(15, "WeirE", DoubleType(), required=False, doc=desc[14]),
+            NestedField(16, "OrificeC", DoubleType(), required=False, doc=desc[15]),
+            NestedField(17, "OrificeA", DoubleType(), required=False, doc=desc[16]),
+            NestedField(18, "OrificeE", DoubleType(), required=False, doc=desc[17]),
+            NestedField(19, "Dam_Length", DoubleType(), required=False, doc=desc[18]),
+            NestedField(20, "ifd", DoubleType(), required=False, doc=desc[19]),
+            NestedField(21, "reservoir_index_AnA", DoubleType(), required=False, doc=desc[20]),
+            NestedField(22, "reservoir_index_Extended_AnA", DoubleType(), required=False, doc=desc[21]),
+            NestedField(23, "reservoir_index_GDL_AK", DoubleType(), required=False, doc=desc[22]),
+            NestedField(24, "reservoir_index_Medium_Range", DoubleType(), required=False, doc=desc[23]),
+            NestedField(25, "reservoir_index_Short_Range", DoubleType(), required=False, doc=desc[24]),
+            NestedField(26, "geometry", BinaryType(), required=False, doc=desc[25]),
+            identifier_field_ids=[1],
+        )
+
+    @classmethod
+    def arrow_schema(cls) -> pa.Schema:
+        """Returns the PyArrow Schema object."""
+        return pa.schema(
+            [
+                pa.field("nhf_lake_id", pa.int64(), nullable=False),
+                pa.field("ref_fp_id", pa.int64(), nullable=True),
+                pa.field("hy_id", pa.int64(), nullable=True),
+                pa.field("fp_id", pa.float64(), nullable=True),
+                pa.field("virtual_fp_id", pa.int64(), nullable=True),
+                pa.field("dn_nex_id", pa.float64(), nullable=True),
+                pa.field("dn_virtual_nex_id", pa.int64(), nullable=True),
+                pa.field("div_id", pa.int64(), nullable=True),
+                pa.field("lake_id", pa.int64(), nullable=True),
+                pa.field("res_id", pa.string(), nullable=True),
+                pa.field("LkArea", pa.float64(), nullable=True),
+                pa.field("LkMxE", pa.float64(), nullable=True),
+                pa.field("WeirC", pa.float64(), nullable=True),
+                pa.field("WeirL", pa.float64(), nullable=True),
+                pa.field("WeirE", pa.float64(), nullable=True),
+                pa.field("OrificeC", pa.float64(), nullable=True),
+                pa.field("OrificeA", pa.float64(), nullable=True),
+                pa.field("OrificeE", pa.float64(), nullable=True),
+                pa.field("Dam_Length", pa.float64(), nullable=True),
+                pa.field("ifd", pa.float64(), nullable=True),
+                pa.field("reservoir_index_AnA", pa.float64(), nullable=True),
+                pa.field("reservoir_index_Extended_AnA", pa.float64(), nullable=True),
+                pa.field("reservoir_index_GDL_AK", pa.float64(), nullable=True),
+                pa.field("reservoir_index_Medium_Range", pa.float64(), nullable=True),
+                pa.field("reservoir_index_Short_Range", pa.float64(), nullable=True),
+                pa.field("geometry", pa.binary(), nullable=True),
+            ]
+        )
+
+
 class Hydrolocations:
     """
     The schema for the virtual_nexus table

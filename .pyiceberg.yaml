@@ -2,7 +2,8 @@ catalog:
   glue:
     type: glue
     s3.endpoint: s3.us-east-1.amazonaws.com
-    warehouse: s3://52fcde3e7-5582-477d-7686ou4ij1ptxj8equ83a5xc51fsuse1b--table-s3
+    warehouse: s3://52fcde3e7-5582-477d-7686ou4ij1ptxj8equ83a5xc51fsuse1b--table-s3  # Test
+    # warehouse: 154735606025  # OE
     region: us-east-1
     glue_region: us-east-1
   sql:

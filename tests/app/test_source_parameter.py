@@ -140,34 +140,29 @@ class TestHydrofabricNamespaceResolve:
         assert namespace == "gl_hf"
         assert namespace.is_nhf is False
 
-    # 501 Not Implemented tests - non-CONUS with NHF
-    def test_alaska_nhf_not_implemented(self):
-        """Test Alaska + NHF raises NotImplementedError."""
-        with pytest.raises(NotImplementedError) as exc_info:
-            HydrofabricNamespace.resolve(GeographicDomain.ALASKA, HydrofabricSource.NHF)
-        assert "Alaska" in str(exc_info.value)
-        assert "CONUS" in str(exc_info.value)
+    # Non-CONUS NHF domain tests
+    def test_alaska_nhf(self):
+        """Test Alaska + NHF returns ak_nhf namespace."""
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.ALASKA, HydrofabricSource.NHF)
+        assert namespace == "ak_nhf"
+        assert namespace.is_nhf is True
 
-    def test_hawaii_nhf_not_implemented(self):
-        """Test Hawaii + NHF raises NotImplementedError."""
-        with pytest.raises(NotImplementedError) as exc_info:
-            HydrofabricNamespace.resolve(GeographicDomain.HAWAII, HydrofabricSource.NHF)
-        assert "Hawaii" in str(exc_info.value)
-        assert "CONUS" in str(exc_info.value)
+    def test_hawaii_nhf(self):
+        """Test Hawaii + NHF returns hi_nhf namespace."""
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.HAWAII, HydrofabricSource.NHF)
+        assert namespace == "hi_nhf"
+        assert namespace.is_nhf is True
 
-    def test_puerto_rico_nhf_not_implemented(self):
-        """Test Puerto_Rico + NHF raises NotImplementedError."""
-        with pytest.raises(NotImplementedError) as exc_info:
-            HydrofabricNamespace.resolve(GeographicDomain.PUERTO_RICO, HydrofabricSource.NHF)
-        assert "Puerto_Rico" in str(exc_info.value)
-        assert "CONUS" in str(exc_info.value)
+    def test_puerto_rico_nhf(self):
+        """Test Puerto_Rico + NHF returns prvi_nhf namespace."""
+        namespace = HydrofabricNamespace.resolve(GeographicDomain.PUERTO_RICO, HydrofabricSource.NHF)
+        assert namespace == "prvi_nhf"
+        assert namespace.is_nhf is True
 
     def test_great_lakes_nhf_not_implemented(self):
         """Test Great_Lakes + NHF raises NotImplementedError."""
-        with pytest.raises(NotImplementedError) as exc_info:
+        with pytest.raises(NotImplementedError):
             HydrofabricNamespace.resolve(GeographicDomain.GREAT_LAKES, HydrofabricSource.NHF)
-        assert "Great_Lakes" in str(exc_info.value)
-        assert "CONUS" in str(exc_info.value)
 
     # String input tests
     def test_string_domain_conus(self):
@@ -205,6 +200,18 @@ class TestHydrofabricNamespaceProperties:
     def test_is_nhf_for_conus_nhf(self):
         """Test is_nhf returns True for CONUS_NHF namespace."""
         assert HydrofabricNamespace.CONUS_NHF.is_nhf is True
+
+    def test_is_nhf_for_alaska_nhf(self):
+        """Test is_nhf returns True for ALASKA_NHF namespace."""
+        assert HydrofabricNamespace.ALASKA_NHF.is_nhf is True
+
+    def test_is_nhf_for_hawaii_nhf(self):
+        """Test is_nhf returns True for HAWAII_NHF namespace."""
+        assert HydrofabricNamespace.HAWAII_NHF.is_nhf is True
+
+    def test_is_nhf_for_puerto_rico_nhf(self):
+        """Test is_nhf returns True for PUERTO_RICO_NHF namespace."""
+        assert HydrofabricNamespace.PUERTO_RICO_NHF.is_nhf is True
 
     def test_is_nhf_for_conus_hf(self):
         """Test is_nhf returns False for CONUS_HF namespace."""
@@ -247,15 +254,14 @@ class TestHydrofabricRouterSourceParameter:
         )
         assert response.status_code == 200
 
-    def test_hydrofabric_non_conus_nhf_returns_501(self, client):
-        """Test hydrofabric endpoint returns 501 for non-CONUS domains with NHF."""
+    def test_hydrofabric_great_lakes_nhf_returns_501(self, client):
+        """Test hydrofabric endpoint returns 501 for Great Lakes with NHF."""
         response = client.get(
-            "/v1/hydrofabric/test-id/gpkg?id_type=flowpath_id&source=nhf&domain=Hawaii&layers=divides"
+            "/v1/hydrofabric/test-id/gpkg?id_type=flowpath_id&source=nhf&domain=Great_Lakes&layers=divides"
         )
         assert response.status_code == 501
         data = response.json()
         assert data["detail"]["error"] == "domain_not_available"
-        assert "CONUS" in data["detail"]["available_domains"]
 
     def test_hydrofabric_source_without_domain_returns_400(self, client):
         """Test hydrofabric endpoint returns 400 when source provided without domain."""
@@ -280,9 +286,9 @@ class TestHydrofabricRouterSourceParameter:
 class TestModuleRouterSourceParameter:
     """Integration tests for the NWM module routers source parameter."""
 
-    def test_module_sft_non_conus_nhf_returns_501(self, client):
-        """Test SFT endpoint returns 501 for non-CONUS domains with NHF."""
-        response = client.get("/v1/modules/sft/?identifier=01010000&source=nhf&domain=Alaska")
+    def test_module_sft_great_lakes_nhf_returns_501(self, client):
+        """Test SFT endpoint returns 501 for Great Lakes with NHF."""
+        response = client.get("/v1/modules/sft/?identifier=01010000&source=nhf&domain=Great_Lakes")
         assert response.status_code == 501
         data = response.json()
         assert data["detail"]["error"] == "domain_not_available"
@@ -292,10 +298,10 @@ class TestModuleRouterSourceParameter:
         response = client.get("/v1/modules/sft/?identifier=01010000&source=nhf")
         assert response.status_code == 400
 
-    def test_module_parameter_metadata_non_conus_nhf_returns_501(self, client):
-        """Test parameter_metadata endpoint returns 501 for non-CONUS domains with NHF."""
+    def test_module_parameter_metadata_great_lakes_nhf_returns_501(self, client):
+        """Test parameter_metadata endpoint returns 501 for Great Lakes with NHF."""
         response = client.get(
-            "/v1/modules/parameter_metadata/?modules=SFT&source=nhf&domain=Alaska&gage_id=01010000"
+            "/v1/modules/parameter_metadata/?modules=SFT&source=nhf&domain=Great_Lakes&gage_id=01010000"
         )
         assert response.status_code == 501
         data = response.json()

@@ -90,6 +90,9 @@ parser.add_argument(
     help="List of namespaces to include in local cache. Optionally specified as <namespace>:<snapshot>",
     default=[
         "conus_nhf",
+        "ak_nhf",
+        "hi_nhf",
+        "prvi_nhf",
         "conus_hf",
         "prvi_hf",
         "hi_hf",

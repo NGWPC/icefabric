@@ -9,7 +9,9 @@ import geopandas as gpd
 import polars as pl
 import pyogrio
 import rustworkx as rx
+from botocore.exceptions import ClientError
 from pyiceberg.catalog import Catalog
+from pyiceberg.exceptions import NoSuchTableError
 
 from icefabric.cli.streamflow import NoResultsFoundError
 from icefabric.schemas.hydrofabric import HydrofabricNamespace
@@ -106,9 +108,13 @@ class HydrofabricSource:
         """Get a LazyFrame for a given layer, or None if the layer doesn't exist."""
         if self.catalog is not None:
             table_id = f"{self.namespace.value}.{layer}"
-            if not self.catalog.table_exists(table_id):
+            try:
+                if not self.catalog.table_exists(table_id):
+                    return None
+                return self.catalog.load_table(table_id).to_polars()
+            except (NoSuchTableError, ClientError):
+                logger.warning(f"Could not access table {table_id}, treating as missing")
                 return None
-            return self.catalog.load_table(table_id).to_polars()
         else:
             path = self.parquet_dir / f"{layer}.parquet"
             if not path.exists():

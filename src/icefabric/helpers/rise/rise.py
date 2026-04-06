@@ -45,7 +45,11 @@ async def make_get_req_to_rise(full_url: str):
             resp = await client.get(full_url, headers=RISE_HEADERS, timeout=15)
             resp.raise_for_status()
             rise_response["detail"] = resp.json()
-        except httpx.HTTPError as err:
+        except httpx.TimeoutException as err:
+            print(f"RISE API timed out: {err}")
+            rise_response["status_code"] = 504
+            rise_response["detail"] = "RISE API request timed out"
+        except httpx.HTTPStatusError as err:
             print(f"RISE API returned an HTTP error: {err}")
             rise_response["status_code"] = int(err.response.status_code)
             rise_response["detail"] = err.response.text
@@ -78,7 +82,11 @@ def make_sync_get_req_to_rise(full_url: str) -> dict[str, Any]:
         resp = httpx.get(full_url, headers=RISE_HEADERS, timeout=15)
         resp.raise_for_status()
         rise_response["detail"] = resp.json()
-    except httpx.HTTPError as err:
+    except httpx.TimeoutException as err:
+        print(f"RISE API timed out: {err}")
+        rise_response["status_code"] = 504
+        rise_response["detail"] = "RISE API request timed out"
+    except httpx.HTTPStatusError as err:
         print(f"RISE API returned an HTTP error: {err}")
         rise_response["status_code"] = int(err.response.status_code)
         rise_response["detail"] = err.response.text

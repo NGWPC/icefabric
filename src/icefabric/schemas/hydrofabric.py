@@ -184,6 +184,20 @@ class HydrofabricNamespace(str, Enum):
             HydrofabricNamespace.GREAT_LAKES_HF,
         )
 
+    @property
+    def crs(self) -> str:
+        """Return the EPSG CRS string for this namespace's native geometries.
+
+        NHF geometries are ingested without reprojection, so the CRS differs by
+        domain and must be re-applied when reading WKB back out of Iceberg.
+        """
+        oconus_nhf_crs = {
+            HydrofabricNamespace.ALASKA_NHF: "EPSG:3338",
+            HydrofabricNamespace.HAWAII_NHF: "EPSG:32604",
+            HydrofabricNamespace.PUERTO_RICO_NHF: "EPSG:6566",
+        }
+        return oconus_nhf_crs.get(self, "EPSG:5070")
+
     @classmethod
     def _missing_(cls, value: object) -> HydrofabricNamespace | None:
         """Handle legacy string values."""

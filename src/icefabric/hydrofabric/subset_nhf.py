@@ -158,7 +158,12 @@ class HydrofabricSource:
 
 
 def pl_to_gdf(pl_df: pl.DataFrame, crs: str = "EPSG:5070") -> gpd.GeoDataFrame:
-    """Convert Polars DataFrame with WKB geometry to GeoDataFrame."""
+    """Convert Polars DataFrame with WKB geometry to GeoDataFrame.
+
+    NHF geometries are ingested into Iceberg as WKB without reprojection, so
+    the caller is responsible for supplying the native CRS of the source
+    domain (see ``HydrofabricNamespace.crs``).
+    """
     df = pl_df.to_pandas()
     df["geometry"] = gpd.GeoSeries.from_wkb(df["geometry"])
     return gpd.GeoDataFrame(df, crs=crs)
@@ -205,6 +210,7 @@ def generate_subset_from_ids(
 ) -> dict[str, gpd.GeoDataFrame]:
     """Subset hydrofabric to a given set of flowpath IDs."""
     logger.debug(f"Subsetting {len(flowpath_ids)} flowpaths")
+    crs = source.namespace.crs
 
     # Wave 1: fp_id/div_id filtered (parallel)
     with ThreadPoolExecutor(max_workers=6) as ex:
@@ -277,14 +283,14 @@ def generate_subset_from_ids(
     # Write output
     # ======================================================================
     output = {
-        "flowpaths": pl_to_gdf(subset_fp),
-        "nexus": pl_to_gdf(subset_nex),
-        "divides": pl_to_gdf(subset_div),
-        "virtual_nexus": pl_to_gdf(subset_v_nex),
-        "virtual_flowpaths": pl_to_gdf(subset_v_fp),
-        "waterbodies": pl_to_gdf(subset_wb) if len(subset_wb) > 0 else subset_wb.to_pandas(),
-        "gages": pl_to_gdf(subset_gages) if len(subset_gages) > 0 else subset_gages.to_pandas(),
-        "lakes": pl_to_gdf(subset_lakes) if len(subset_lakes) > 0 else subset_lakes.to_pandas(),
+        "flowpaths": pl_to_gdf(subset_fp, crs=crs),
+        "nexus": pl_to_gdf(subset_nex, crs=crs),
+        "divides": pl_to_gdf(subset_div, crs=crs),
+        "virtual_nexus": pl_to_gdf(subset_v_nex, crs=crs),
+        "virtual_flowpaths": pl_to_gdf(subset_v_fp, crs=crs),
+        "waterbodies": pl_to_gdf(subset_wb, crs=crs) if len(subset_wb) > 0 else subset_wb.to_pandas(),
+        "gages": pl_to_gdf(subset_gages, crs=crs) if len(subset_gages) > 0 else subset_gages.to_pandas(),
+        "lakes": pl_to_gdf(subset_lakes, crs=crs) if len(subset_lakes) > 0 else subset_lakes.to_pandas(),
         "reference_flowpaths": subset_ref_fp.to_pandas(),
         "hydrolocations": subset_hydrolocations.to_pandas(),
     }

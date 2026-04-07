@@ -229,6 +229,23 @@ class TestHydrofabricNamespaceProperties:
         """Test is_oconus_hf returns False for HAWAII_HF namespace (it's OCONUS but not in the set)."""
         assert HydrofabricNamespace.HAWAII_HF.is_oconus_hf is False
 
+    def test_crs_for_conus_nhf(self):
+        """CONUS NHF is stored in EPSG:5070 (NAD83 / Conus Albers)."""
+        assert HydrofabricNamespace.NHF.crs == "EPSG:5070"
+        assert HydrofabricNamespace.CONUS_NHF.crs == "EPSG:5070"
+
+    def test_crs_for_alaska_nhf(self):
+        """Alaska NHF is stored in EPSG:3338 (NAD83 / Alaska Albers)."""
+        assert HydrofabricNamespace.ALASKA_NHF.crs == "EPSG:3338"
+
+    def test_crs_for_hawaii_nhf(self):
+        """Hawaii NHF is stored in EPSG:32604 (WGS 84 / UTM 4N)."""
+        assert HydrofabricNamespace.HAWAII_NHF.crs == "EPSG:32604"
+
+    def test_crs_for_puerto_rico_nhf(self):
+        """Puerto Rico / USVI NHF is stored in EPSG:6566."""
+        assert HydrofabricNamespace.PUERTO_RICO_NHF.crs == "EPSG:6566"
+
 
 class TestHydrofabricRouterSourceParameter:
     """Integration tests for the hydrofabric router source parameter."""

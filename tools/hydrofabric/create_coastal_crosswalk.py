@@ -104,72 +104,52 @@ def build_nexus_lookup(nexus_gdf):
     return dict(zip(nexus_gdf["nex_id"], nexus_gdf.geometry, strict=False))
 
 
-def _cross_product_sign(px, py, ax, ay, bx, by):
-    """Sign of cross product of (B-A) x (P-A)."""
-    return (bx - ax) * (py - ay) - (by - ay) * (px - ax)
+def build_mesh_polygon(mesh, target_crs):
+    """Construct the mesh domain polygon from all boundary segments.
 
-
-def is_on_mesh_side(px, py, seg_start, seg_end, elem_centroid):
-    """Check if a point is on the same side of a boundary segment as the mesh interior.
-
-    Uses the cross product to determine which side of the directed segment
-    (seg_start -> seg_end) a point falls on, calibrated against elem_centroid
-    which is known to be on the mesh-interior side.
-
-    All coordinates must be in the same CRS.
-    """
-    sign_point = _cross_product_sign(px, py, *seg_start, *seg_end)
-    sign_centroid = _cross_product_sign(elem_centroid[0], elem_centroid[1], *seg_start, *seg_end)
-    return (sign_point > 0) == (sign_centroid > 0)
-
-
-def get_boundary_context(cross_pt_4326, boundary_node_ids, nodes_df, node_to_elems, elements):
-    """Get a local boundary segment and mesh element centroid near a crossing point.
-
-    For the cross-product direction check, we need:
-    1. Two adjacent boundary nodes forming the nearest segment
-    2. A mesh element centroid on the interior side of that segment
-
-    All coordinates are in EPSG:4326 (the mesh CRS).
+    Combines NBOU (land) and NOPE (open) boundary segments into LineStrings,
+    then polygonizes them to get the mesh interior polygon.
 
     Parameters
     ----------
-    cross_pt_4326 : tuple
-        (x, y) of the crossing point in EPSG:4326.
-    boundary_node_ids : list[int]
-        Ordered boundary node IDs.
-    nodes_df : DataFrame
-        Mesh nodes with x, y columns in EPSG:4326.
-    node_to_elems : dict
-        Mapping from node ID to list of element row indices.
-    elements : DataFrame
-        Mesh element table.
+    mesh : dict
+        Parsed mesh dictionary from buffer_to_dict.
+    target_crs : CRS
+        Target coordinate reference system (e.g., hydrofabric CRS EPSG:5070).
 
     Returns
     -------
-    tuple or None
-        ((seg_start_x, seg_start_y), (seg_end_x, seg_end_y), (cx, cy)) or None if
-        no element centroid can be found.
+    shapely.geometry.Polygon or None
+        The mesh domain polygon in target_crs, or None if construction fails.
     """
-    bnd_arr = np.array(boundary_node_ids)
-    bnd_coords = nodes_df.loc[bnd_arr, ["x", "y"]].values
-    dists = np.sqrt((bnd_coords[:, 0] - cross_pt_4326[0]) ** 2 + (bnd_coords[:, 1] - cross_pt_4326[1]) ** 2)
-    nearest_idx = np.argpartition(dists, 2)[:2]
-    n0, n1 = bnd_arr[nearest_idx[0]], bnd_arr[nearest_idx[1]]
-    seg_start = (nodes_df.loc[n0, "x"], nodes_df.loc[n0, "y"])
-    seg_end = (nodes_df.loc[n1, "x"], nodes_df.loc[n1, "y"])
+    from shapely.ops import polygonize, unary_union
 
-    elem_rows = node_to_elems.get(n0, []) or node_to_elems.get(n1, [])
-    if not elem_rows:
+    nodes_df = mesh["nodes"]
+    lines = []
+    for seg in mesh.get("open_boundaries", []):
+        coords = [(nodes_df.loc[n, "x"], nodes_df.loc[n, "y"]) for n in seg]
+        if len(coords) >= 2:
+            lines.append(LineString(coords))
+    for _, seg in mesh.get("land_boundaries", []):
+        coords = [(nodes_df.loc[n, "x"], nodes_df.loc[n, "y"]) for n in seg]
+        if len(coords) >= 2:
+            lines.append(LineString(coords))
+
+    if not lines:
         return None
 
-    row_idx = elem_rows[0]
-    n_nodes = elements.values[row_idx, 0]
-    nids = elements.values[row_idx, 1 : n_nodes + 1]
-    cx = nodes_df.loc[nids, "x"].mean()
-    cy = nodes_df.loc[nids, "y"].mean()
+    merged = unary_union(lines)
+    polys = list(polygonize(merged))
+    if not polys:
+        print("  WARNING: Could not polygonize mesh boundaries.")
+        return None
 
-    return seg_start, seg_end, (cx, cy)
+    # Take the largest polygon (main mesh domain)
+    mesh_poly = max(polys, key=lambda p: p.area)
+
+    # Reproject from 4326 to target CRS
+    poly_gdf = gpd.GeoDataFrame(geometry=[mesh_poly], crs="EPSG:4326").to_crs(target_crs)
+    return poly_gdf.geometry.iloc[0]
 
 
 def enrich_with_hydrofabric(df, nexus, fp):
@@ -248,6 +228,7 @@ def find_crossings(
     max_distance_km,
     nexus_lookup=None,
     boundary_type="inlet",
+    mesh_polygon=None,
 ):
     """Find flowpaths that cross a boundary line flowing downstream.
 
@@ -298,49 +279,22 @@ def find_crossings(
 
         straddle_rows.append((row, start_pt, end_pt, up_x, up_y, dn_x, dn_y))
 
-    # Step 2: Batch reproject all direction-check points to 4326
-    dir_indices = []  # indices into straddle_rows that need direction check
-    all_mid_x, all_mid_y = [], []
-    all_up_x, all_up_y = [], []
-    all_dn_x, all_dn_y = [], []
-    for i, (_, start_pt, end_pt, up_x, up_y, dn_x, dn_y) in enumerate(straddle_rows):
-        if up_x is not None:
-            dir_indices.append(i)
-            all_mid_x.append((start_pt[0] + end_pt[0]) / 2)
-            all_mid_y.append((start_pt[1] + end_pt[1]) / 2)
-            all_up_x.append(up_x)
-            all_up_y.append(up_y)
-            all_dn_x.append(dn_x)
-            all_dn_y.append(dn_y)
-
-    # Single batch reprojection for all direction-check points
+    # Step 2: Direction check using mesh polygon containment
+    # Nexus points are already in hydrofabric CRS (same as mesh_polygon) — no reprojection needed
     skip_set = set()
-    if dir_indices:
-        all_xs = all_mid_x + all_up_x + all_dn_x
-        all_ys = all_mid_y + all_up_y + all_dn_y
-        pts_4326 = (
-            gpd.GeoDataFrame(geometry=gpd.points_from_xy(all_xs, all_ys), crs=fp_gdf.crs)
-            .to_crs("EPSG:4326")
-            .geometry
-        )
-        n = len(dir_indices)
-        for j, i in enumerate(dir_indices):
-            mid_4326 = pts_4326.iloc[j]
-            up_4326 = pts_4326.iloc[n + j]
-            dn_4326 = pts_4326.iloc[2 * n + j]
+    if mesh_polygon is not None:
+        from shapely.geometry import Point
 
-            ctx = get_boundary_context(
-                (mid_4326.x, mid_4326.y), boundary_node_ids, nodes_df, node_to_elems, elements
-            )
-            if ctx is not None:
-                seg_start, seg_end, elem_centroid = ctx
-                up_mesh = is_on_mesh_side(up_4326.x, up_4326.y, seg_start, seg_end, elem_centroid)
-                dn_mesh = is_on_mesh_side(dn_4326.x, dn_4326.y, seg_start, seg_end, elem_centroid)
+        for i, (_, _, _, up_x, up_y, dn_x, dn_y) in enumerate(straddle_rows):
+            if up_x is None:
+                continue
+            up_inside = mesh_polygon.contains(Point(up_x, up_y))
+            dn_inside = mesh_polygon.contains(Point(dn_x, dn_y))
 
-                if boundary_type == "inlet" and (up_mesh or not dn_mesh):
-                    skip_set.add(i)
-                elif boundary_type == "seaward" and (not up_mesh or dn_mesh):
-                    skip_set.add(i)
+            if boundary_type == "inlet" and (up_inside or not dn_inside):
+                skip_set.add(i)
+            elif boundary_type == "seaward" and (not up_inside or dn_inside):
+                skip_set.add(i)
 
     if skip_set:
         print(f"  Skipped {len(skip_set)} flowpaths with wrong flow direction")
@@ -525,6 +479,13 @@ def main():
     nexus_lookup = build_nexus_lookup(nexus)
     print(f"  {len(nexus_lookup)} nexus entries")
 
+    print("Building mesh domain polygon...")
+    mesh_polygon = build_mesh_polygon(mesh, hf_crs)
+    if mesh_polygon is not None:
+        print(f"  Mesh polygon built ({mesh_polygon.area:.0f} sq units in {hf_crs})")
+    else:
+        print("  WARNING: Could not build mesh polygon. Direction check will be skipped.")
+
     print("\n=== Inlets (flowpaths crossing inland boundary downstream) ===")
     inlets_df = find_crossings(
         inland_line,
@@ -536,6 +497,7 @@ def main():
         args.max_distance_km,
         nexus_lookup=nexus_lookup,
         boundary_type="inlet",
+        mesh_polygon=mesh_polygon,
     )
 
     if len(inlets_df) > 0:
@@ -560,6 +522,7 @@ def main():
         args.max_distance_km,
         nexus_lookup=nexus_lookup,
         boundary_type="seaward",
+        mesh_polygon=mesh_polygon,
     )
 
     if len(seaward_df) > 0:

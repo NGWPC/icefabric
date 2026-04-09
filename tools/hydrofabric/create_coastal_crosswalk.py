@@ -99,6 +99,66 @@ def boundary_nodes_to_line(mesh, node_ids, target_crs):
     return line_target, line_4326
 
 
+def build_nexus_lookup(nexus_gdf):
+    """Build a dictionary mapping nex_id to Point geometry for O(1) lookups."""
+    return dict(zip(nexus_gdf["nex_id"], nexus_gdf.geometry, strict=False))
+
+
+def build_mesh_polygon(mesh, target_crs):
+    """Construct the mesh domain polygon from all boundary segments.
+
+    Combines NBOU (land) and NOPE (open) boundary segments into LineStrings,
+    then polygonizes them to get the mesh interior polygon.
+
+    Parameters
+    ----------
+    mesh : dict
+        Parsed mesh dictionary from buffer_to_dict.
+    target_crs : CRS
+        Target coordinate reference system (e.g., hydrofabric CRS EPSG:5070).
+
+    Returns
+    -------
+    shapely.geometry.Polygon or None
+        The mesh domain polygon in target_crs, or None if construction fails.
+    """
+    from shapely.ops import linemerge, polygonize, unary_union
+
+    nodes_df = mesh["nodes"]
+    lines = []
+    for seg in mesh.get("open_boundaries", []):
+        coords = [(nodes_df.loc[n, "x"], nodes_df.loc[n, "y"]) for n in seg]
+        if len(coords) >= 2:
+            lines.append(LineString(coords))
+    for _, seg in mesh.get("land_boundaries", []):
+        coords = [(nodes_df.loc[n, "x"], nodes_df.loc[n, "y"]) for n in seg]
+        if len(coords) >= 2:
+            lines.append(LineString(coords))
+
+    if not lines:
+        return None
+
+    # Merge segments into a single linestring and close the ring if needed
+    merged = linemerge(unary_union(lines))
+    if merged.geom_type == "LineString" and not merged.is_ring:
+        # Close the gap between the two open endpoints
+        coords = list(merged.coords)
+        coords.append(coords[0])
+        merged = LineString(coords)
+
+    polys = list(polygonize(merged))
+    if not polys:
+        print("  WARNING: Could not polygonize mesh boundaries.")
+        return None
+
+    # Take the largest polygon (main mesh domain)
+    mesh_poly = max(polys, key=lambda p: p.area)
+
+    # Reproject from 4326 to target CRS
+    poly_gdf = gpd.GeoDataFrame(geometry=[mesh_poly], crs="EPSG:4326").to_crs(target_crs)
+    return poly_gdf.geometry.iloc[0]
+
+
 def enrich_with_hydrofabric(df, nexus, fp):
     """Merge flowpath and divide attributes onto a DataFrame with nex_id."""
     df = df.merge(
@@ -111,7 +171,9 @@ def enrich_with_hydrofabric(df, nexus, fp):
         left_on="dn_fp_id",
         right_on="fp_id",
         how="left",
+        suffixes=("", "_drop"),
     )
+    df = df.drop(columns=["fp_id_drop"], errors="ignore")
     return df
 
 
@@ -165,7 +227,18 @@ def build_boundary_node_to_elem(boundary_node_ids, elements):
     return node_to_elems
 
 
-def find_crossings(boundary_line, fp_gdf, nexus, boundary_node_ids, mesh, node_to_elems, max_distance_km):
+def find_crossings(
+    boundary_line,
+    fp_gdf,
+    nexus,
+    boundary_node_ids,
+    mesh,
+    node_to_elems,
+    max_distance_km,
+    nexus_lookup=None,
+    boundary_type="inlet",
+    mesh_polygon=None,
+):
     """Find flowpaths that cross a boundary line flowing downstream.
 
     Returns a DataFrame of crossing points matched to boundary elements.
@@ -184,15 +257,10 @@ def find_crossings(boundary_line, fp_gdf, nexus, boundary_node_ids, mesh, node_t
 
     print(f"  {len(crossing_fps)} flowpaths cross the boundary line")
 
-    # For each crossing flowpath, get the intersection point and verify
-    # that the upstream and downstream nexuses are on opposite sides of the boundary
-    results = []
+    # For each crossing flowpath, apply straddle check and collect direction-check inputs
+    straddle_rows = []  # (row, start_pt, end_pt, up_x, up_y, dn_x, dn_y) or None for no-check
     for _, row in crossing_fps.iterrows():
-        intersection = row.geometry.intersection(boundary_line)
-        if intersection.is_empty:
-            continue
-
-        # Check that start (upstream) and end (downstream) are on opposite sides
+        # Step 1: Geometric straddle check — start/end of geometry on opposite sides
         line = row.geometry.geoms[0] if row.geometry.geom_type == "MultiLineString" else row.geometry
         start_pt = line.coords[0]
         end_pt = line.coords[-1]
@@ -200,13 +268,61 @@ def find_crossings(boundary_line, fp_gdf, nexus, boundary_node_ids, mesh, node_t
         if not nexus_line.intersects(boundary_line):
             continue
 
-        # Get a representative crossing point
+        # Resolve upstream/downstream coordinates for direction check
+        up_x = up_y = dn_x = dn_y = None
+        if nexus_lookup is not None:
+            up_nex = row.up_nex_id if hasattr(row, "up_nex_id") else np.nan
+            dn_nex = row.dn_nex_id if hasattr(row, "dn_nex_id") else np.nan
+            up_pt = nexus_lookup.get(int(up_nex)) if pd.notna(up_nex) else None
+            dn_pt = nexus_lookup.get(int(dn_nex)) if pd.notna(dn_nex) else None
+
+            if up_pt is not None and dn_pt is not None:
+                up_x, up_y = up_pt.x, up_pt.y
+                dn_x, dn_y = dn_pt.x, dn_pt.y
+            elif up_pt is None and dn_pt is not None:
+                # Headwater: use the flowpath endpoint farthest from dn_nex as upstream
+                dn_x, dn_y = dn_pt.x, dn_pt.y
+                d_start = (start_pt[0] - dn_x) ** 2 + (start_pt[1] - dn_y) ** 2
+                d_end = (end_pt[0] - dn_x) ** 2 + (end_pt[1] - dn_y) ** 2
+                up_x, up_y = (start_pt[0], start_pt[1]) if d_start >= d_end else (end_pt[0], end_pt[1])
+
+        straddle_rows.append((row, start_pt, end_pt, up_x, up_y, dn_x, dn_y))
+
+    # Step 2: Direction check using mesh polygon containment
+    # Nexus points are already in hydrofabric CRS (same as mesh_polygon) — no reprojection needed
+    skip_set = set()
+    if mesh_polygon is not None:
+        from shapely.geometry import Point
+
+        for i, (_, _, _, up_x, up_y, dn_x, dn_y) in enumerate(straddle_rows):
+            if up_x is None:
+                continue
+            up_inside = mesh_polygon.contains(Point(up_x, up_y))
+            dn_inside = mesh_polygon.contains(Point(dn_x, dn_y))
+
+            if boundary_type == "inlet" and (up_inside or not dn_inside):
+                skip_set.add(i)
+            elif boundary_type == "seaward" and (not up_inside or dn_inside):
+                skip_set.add(i)
+
+    if skip_set:
+        print(f"  Skipped {len(skip_set)} flowpaths with wrong flow direction")
+
+    # Step 3: Compute intersection points for non-skipped flowpaths
+    results = []
+    for i, (row, _, _, _, _, _, _) in enumerate(straddle_rows):
+        if i in skip_set:
+            continue
+
+        intersection = row.geometry.intersection(boundary_line)
+        if intersection.is_empty:
+            continue
+
         if intersection.geom_type == "Point":
             cross_pt = intersection
         elif intersection.geom_type == "MultiPoint":
             cross_pt = intersection.geoms[0]
         else:
-            # LineString overlap or GeometryCollection — take centroid
             cross_pt = intersection.centroid
 
         results.append(
@@ -337,10 +453,6 @@ def main():
     hf_crs = nexus.crs
     print(f"  {len(nexus)} nexus points loaded (CRS: {hf_crs})")
 
-    print("Reading hydrofabric flowpaths...")
-    fp = gpd.read_file(args.gpkg, layer="flowpaths")
-    print(f"  {len(fp)} flowpaths loaded")
-
     print("Reading SCHISM mesh (this may take a while for large grids)...")
     mesh = buffer_to_dict(args.grid)
     nodes_df = mesh["nodes"]
@@ -368,6 +480,27 @@ def main():
     node_to_elems = build_boundary_node_to_elem(all_bnd_nodes, elements)
     print(f"  Indexed {len(node_to_elems)} boundary nodes across elements")
 
+    print("Building nexus lookup...")
+    nexus_lookup = build_nexus_lookup(nexus)
+    print(f"  {len(nexus_lookup)} nexus entries")
+
+    print("Building mesh domain polygon...")
+    mesh_polygon = build_mesh_polygon(mesh, hf_crs)
+    if mesh_polygon is not None:
+        print(f"  Mesh polygon built ({mesh_polygon.area:.0f} sq units in {hf_crs})")
+    else:
+        print("  WARNING: Could not build mesh polygon. Direction check will be skipped.")
+
+    # Load only flowpaths near the mesh boundary using a spatial mask
+    # Buffer the polygon boundary to capture flowpaths that cross it
+    print("Reading hydrofabric flowpaths near mesh boundary...")
+    if mesh_polygon is not None:
+        boundary_mask = mesh_polygon.boundary.buffer(args.max_distance_km * 1000)
+        fp = gpd.read_file(args.gpkg, layer="flowpaths", mask=boundary_mask)
+    else:
+        fp = gpd.read_file(args.gpkg, layer="flowpaths")
+    print(f"  {len(fp)} flowpaths loaded")
+
     print("\n=== Inlets (flowpaths crossing inland boundary downstream) ===")
     inlets_df = find_crossings(
         inland_line,
@@ -377,6 +510,9 @@ def main():
         mesh,
         node_to_elems,
         args.max_distance_km,
+        nexus_lookup=nexus_lookup,
+        boundary_type="inlet",
+        mesh_polygon=mesh_polygon,
     )
 
     if len(inlets_df) > 0:
@@ -399,6 +535,9 @@ def main():
         mesh,
         node_to_elems,
         args.max_distance_km,
+        nexus_lookup=nexus_lookup,
+        boundary_type="seaward",
+        mesh_polygon=mesh_polygon,
     )
 
     if len(seaward_df) > 0:

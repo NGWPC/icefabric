@@ -123,27 +123,38 @@ def is_on_mesh_side(px, py, seg_start, seg_end, elem_centroid):
     return (sign_point > 0) == (sign_centroid > 0)
 
 
-def get_boundary_context(cross_xy, bnd_ids, bnd_coords, node_to_elems, elem_centroids):
+def get_boundary_context(
+    cross_xy, bnd_ids, bnd_coords, node_to_elems, elements, nodes_df, crs_from, crs_to, centroid_cache
+):
     """Get a local boundary segment and mesh element centroid near a crossing point.
 
     For the cross-product direction check, we need:
     1. Two adjacent boundary nodes forming the nearest segment
     2. A mesh element centroid on the interior side of that segment
 
-    All coordinates must be in the same CRS.
+    Boundary coordinates (bnd_coords) must already be in the target CRS.
+    Element centroids are computed lazily and cached in centroid_cache.
 
     Parameters
     ----------
     cross_xy : tuple
-        (x, y) of the crossing point.
+        (x, y) of the crossing point in the target CRS.
     bnd_ids : ndarray
         Array of boundary node IDs.
     bnd_coords : ndarray
-        (N, 2) array of boundary node (x, y) coordinates.
+        (N, 2) array of boundary node (x, y) coordinates in the target CRS.
     node_to_elems : dict
         Mapping from node ID to list of element row indices.
-    elem_centroids : dict
-        Mapping from element row index to (cx, cy) centroid coordinates.
+    elements : DataFrame
+        Mesh element table.
+    nodes_df : DataFrame
+        Mesh nodes with x, y columns (in source CRS).
+    crs_from : CRS
+        Source CRS of nodes_df (e.g., EPSG:4326).
+    crs_to : CRS
+        Target CRS for the centroid (e.g., EPSG:5070).
+    centroid_cache : dict
+        Mutable cache mapping element row_idx to (cx, cy) in target CRS.
 
     Returns
     -------
@@ -152,7 +163,7 @@ def get_boundary_context(cross_xy, bnd_ids, bnd_coords, node_to_elems, elem_cent
         no element centroid can be found.
     """
     dists = np.sqrt((bnd_coords[:, 0] - cross_xy[0]) ** 2 + (bnd_coords[:, 1] - cross_xy[1]) ** 2)
-    nearest_idx = np.argsort(dists)[:2]
+    nearest_idx = np.argpartition(dists, 2)[:2]
     n0, n1 = bnd_ids[nearest_idx[0]], bnd_ids[nearest_idx[1]]
     seg_start = tuple(bnd_coords[nearest_idx[0]])
     seg_end = tuple(bnd_coords[nearest_idx[1]])
@@ -161,11 +172,20 @@ def get_boundary_context(cross_xy, bnd_ids, bnd_coords, node_to_elems, elem_cent
     if not elem_rows:
         return None
 
-    for row_idx in elem_rows:
-        if row_idx in elem_centroids:
-            return seg_start, seg_end, elem_centroids[row_idx]
+    row_idx = elem_rows[0]
+    if row_idx not in centroid_cache:
+        n_nodes = elements.values[row_idx, 0]
+        nids = elements.values[row_idx, 1 : n_nodes + 1]
+        cx_4326 = nodes_df.loc[nids, "x"].mean()
+        cy_4326 = nodes_df.loc[nids, "y"].mean()
+        pt = (
+            gpd.GeoDataFrame(geometry=gpd.points_from_xy([cx_4326], [cy_4326]), crs=crs_from)
+            .to_crs(crs_to)
+            .geometry.iloc[0]
+        )
+        centroid_cache[row_idx] = (pt.x, pt.y)
 
-    return None
+    return seg_start, seg_end, centroid_cache[row_idx]
 
 
 def enrich_with_hydrofabric(df, nexus, fp):
@@ -271,29 +291,7 @@ def find_crossings(
         crs="EPSG:4326",
     ).to_crs(fp_gdf.crs)
     bnd_coords_hf = np.column_stack([bnd_pts_gdf.geometry.x, bnd_pts_gdf.geometry.y])
-
-    unique_elem_rows = set()
-    for nid in bnd_arr:
-        unique_elem_rows.update(node_to_elems.get(nid, []))
-
-    centroids_x, centroids_y, centroid_rows = [], [], []
-    for row_idx in unique_elem_rows:
-        n_nodes = elements.values[row_idx, 0]
-        nids = elements.values[row_idx, 1 : n_nodes + 1]
-        centroids_x.append(nodes_df.loc[nids, "x"].mean())
-        centroids_y.append(nodes_df.loc[nids, "y"].mean())
-        centroid_rows.append(row_idx)
-
-    elem_centroids_hf = {}
-    if centroid_rows:
-        ec_gdf = gpd.GeoDataFrame(
-            geometry=gpd.points_from_xy(centroids_x, centroids_y),
-            crs="EPSG:4326",
-        ).to_crs(fp_gdf.crs)
-        elem_centroids_hf = {
-            centroid_rows[i]: (ec_gdf.geometry.iloc[i].x, ec_gdf.geometry.iloc[i].y)
-            for i in range(len(centroid_rows))
-        }
+    centroid_cache = {}  # lazily populated by get_boundary_context
 
     # For each crossing flowpath, verify straddle + flow direction, then get intersection point
     results = []
@@ -333,7 +331,15 @@ def find_crossings(
                 mid_y = (start_pt[1] + end_pt[1]) / 2
 
                 ctx = get_boundary_context(
-                    (mid_x, mid_y), bnd_arr, bnd_coords_hf, node_to_elems, elem_centroids_hf
+                    (mid_x, mid_y),
+                    bnd_arr,
+                    bnd_coords_hf,
+                    node_to_elems,
+                    elements,
+                    nodes_df,
+                    "EPSG:4326",
+                    fp_gdf.crs,
+                    centroid_cache,
                 )
                 if ctx is not None:
                     seg_start, seg_end, elem_centroid = ctx

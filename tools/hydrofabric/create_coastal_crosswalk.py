@@ -99,6 +99,75 @@ def boundary_nodes_to_line(mesh, node_ids, target_crs):
     return line_target, line_4326
 
 
+def build_nexus_lookup(nexus_gdf):
+    """Build a dictionary mapping nex_id to Point geometry for O(1) lookups."""
+    return dict(zip(nexus_gdf["nex_id"], nexus_gdf.geometry, strict=False))
+
+
+def _cross_product_sign(px, py, ax, ay, bx, by):
+    """Sign of cross product of (B-A) x (P-A)."""
+    return (bx - ax) * (py - ay) - (by - ay) * (px - ax)
+
+
+def is_on_mesh_side(px, py, seg_start, seg_end, elem_centroid):
+    """Check if a point is on the same side of a boundary segment as the mesh interior.
+
+    Uses the cross product to determine which side of the directed segment
+    (seg_start -> seg_end) a point falls on, calibrated against elem_centroid
+    which is known to be on the mesh-interior side.
+
+    All coordinates must be in the same CRS.
+    """
+    sign_point = _cross_product_sign(px, py, *seg_start, *seg_end)
+    sign_centroid = _cross_product_sign(elem_centroid[0], elem_centroid[1], *seg_start, *seg_end)
+    return (sign_point > 0) == (sign_centroid > 0)
+
+
+def get_boundary_context(cross_xy, bnd_ids, bnd_coords, node_to_elems, elem_centroids):
+    """Get a local boundary segment and mesh element centroid near a crossing point.
+
+    For the cross-product direction check, we need:
+    1. Two adjacent boundary nodes forming the nearest segment
+    2. A mesh element centroid on the interior side of that segment
+
+    All coordinates must be in the same CRS.
+
+    Parameters
+    ----------
+    cross_xy : tuple
+        (x, y) of the crossing point.
+    bnd_ids : ndarray
+        Array of boundary node IDs.
+    bnd_coords : ndarray
+        (N, 2) array of boundary node (x, y) coordinates.
+    node_to_elems : dict
+        Mapping from node ID to list of element row indices.
+    elem_centroids : dict
+        Mapping from element row index to (cx, cy) centroid coordinates.
+
+    Returns
+    -------
+    tuple or None
+        ((seg_start_x, seg_start_y), (seg_end_x, seg_end_y), (cx, cy)) or None if
+        no element centroid can be found.
+    """
+    dists = np.sqrt((bnd_coords[:, 0] - cross_xy[0]) ** 2 + (bnd_coords[:, 1] - cross_xy[1]) ** 2)
+    nearest_idx = np.argsort(dists)[:2]
+    n0, n1 = bnd_ids[nearest_idx[0]], bnd_ids[nearest_idx[1]]
+    seg_start = tuple(bnd_coords[nearest_idx[0]])
+    seg_end = tuple(bnd_coords[nearest_idx[1]])
+
+    elem_rows = node_to_elems.get(n0, []) or node_to_elems.get(n1, [])
+    if not elem_rows:
+        return None
+
+    for row_idx in elem_rows:
+        if row_idx in elem_centroids:
+            return seg_start, seg_end, elem_centroids[row_idx]
+
+    return None
+
+
 def enrich_with_hydrofabric(df, nexus, fp):
     """Merge flowpath and divide attributes onto a DataFrame with nex_id."""
     df = df.merge(
@@ -165,7 +234,17 @@ def build_boundary_node_to_elem(boundary_node_ids, elements):
     return node_to_elems
 
 
-def find_crossings(boundary_line, fp_gdf, nexus, boundary_node_ids, mesh, node_to_elems, max_distance_km):
+def find_crossings(
+    boundary_line,
+    fp_gdf,
+    nexus,
+    boundary_node_ids,
+    mesh,
+    node_to_elems,
+    max_distance_km,
+    nexus_lookup=None,
+    boundary_type="inlet",
+):
     """Find flowpaths that cross a boundary line flowing downstream.
 
     Returns a DataFrame of crossing points matched to boundary elements.
@@ -184,15 +263,43 @@ def find_crossings(boundary_line, fp_gdf, nexus, boundary_node_ids, mesh, node_t
 
     print(f"  {len(crossing_fps)} flowpaths cross the boundary line")
 
-    # For each crossing flowpath, get the intersection point and verify
-    # that the upstream and downstream nexuses are on opposite sides of the boundary
-    results = []
-    for _, row in crossing_fps.iterrows():
-        intersection = row.geometry.intersection(boundary_line)
-        if intersection.is_empty:
-            continue
+    # Pre-compute boundary node coords and element centroids in hydrofabric CRS
+    # so that direction checks don't need per-flowpath reprojection
+    bnd_arr = np.array(boundary_node_ids)
+    bnd_pts_gdf = gpd.GeoDataFrame(
+        geometry=gpd.points_from_xy(nodes_df.loc[bnd_arr, "x"], nodes_df.loc[bnd_arr, "y"]),
+        crs="EPSG:4326",
+    ).to_crs(fp_gdf.crs)
+    bnd_coords_hf = np.column_stack([bnd_pts_gdf.geometry.x, bnd_pts_gdf.geometry.y])
 
-        # Check that start (upstream) and end (downstream) are on opposite sides
+    unique_elem_rows = set()
+    for nid in bnd_arr:
+        unique_elem_rows.update(node_to_elems.get(nid, []))
+
+    centroids_x, centroids_y, centroid_rows = [], [], []
+    for row_idx in unique_elem_rows:
+        n_nodes = elements.values[row_idx, 0]
+        nids = elements.values[row_idx, 1 : n_nodes + 1]
+        centroids_x.append(nodes_df.loc[nids, "x"].mean())
+        centroids_y.append(nodes_df.loc[nids, "y"].mean())
+        centroid_rows.append(row_idx)
+
+    elem_centroids_hf = {}
+    if centroid_rows:
+        ec_gdf = gpd.GeoDataFrame(
+            geometry=gpd.points_from_xy(centroids_x, centroids_y),
+            crs="EPSG:4326",
+        ).to_crs(fp_gdf.crs)
+        elem_centroids_hf = {
+            centroid_rows[i]: (ec_gdf.geometry.iloc[i].x, ec_gdf.geometry.iloc[i].y)
+            for i in range(len(centroid_rows))
+        }
+
+    # For each crossing flowpath, verify straddle + flow direction, then get intersection point
+    results = []
+    skipped_direction = 0
+    for _, row in crossing_fps.iterrows():
+        # Step 1: Geometric straddle check — start/end of geometry on opposite sides
         line = row.geometry.geoms[0] if row.geometry.geom_type == "MultiLineString" else row.geometry
         start_pt = line.coords[0]
         end_pt = line.coords[-1]
@@ -200,7 +307,56 @@ def find_crossings(boundary_line, fp_gdf, nexus, boundary_node_ids, mesh, node_t
         if not nexus_line.intersects(boundary_line):
             continue
 
-        # Get a representative crossing point
+        # Step 2: Direction check using nexus points + cross product
+        if nexus_lookup is not None:
+            up_nex = row.up_nex_id if hasattr(row, "up_nex_id") else np.nan
+            dn_nex = row.dn_nex_id if hasattr(row, "dn_nex_id") else np.nan
+
+            up_pt = nexus_lookup.get(int(up_nex)) if pd.notna(up_nex) else None
+            dn_pt = nexus_lookup.get(int(dn_nex)) if pd.notna(dn_nex) else None
+
+            # Resolve upstream/downstream coordinates for the direction check
+            if up_pt is not None and dn_pt is not None:
+                up_x, up_y = up_pt.x, up_pt.y
+                dn_x, dn_y = dn_pt.x, dn_pt.y
+            elif up_pt is None and dn_pt is not None:
+                # Headwater: use the flowpath endpoint farthest from dn_nex as upstream
+                dn_x, dn_y = dn_pt.x, dn_pt.y
+                d_start = (start_pt[0] - dn_x) ** 2 + (start_pt[1] - dn_y) ** 2
+                d_end = (end_pt[0] - dn_x) ** 2 + (end_pt[1] - dn_y) ** 2
+                up_x, up_y = (start_pt[0], start_pt[1]) if d_start >= d_end else (end_pt[0], end_pt[1])
+            else:
+                up_x = up_y = dn_x = dn_y = None
+
+            if up_x is not None:
+                mid_x = (start_pt[0] + end_pt[0]) / 2
+                mid_y = (start_pt[1] + end_pt[1]) / 2
+
+                ctx = get_boundary_context(
+                    (mid_x, mid_y), bnd_arr, bnd_coords_hf, node_to_elems, elem_centroids_hf
+                )
+                if ctx is not None:
+                    seg_start, seg_end, elem_centroid = ctx
+
+                    up_mesh = is_on_mesh_side(up_x, up_y, seg_start, seg_end, elem_centroid)
+                    dn_mesh = is_on_mesh_side(dn_x, dn_y, seg_start, seg_end, elem_centroid)
+
+                    if boundary_type == "inlet":
+                        # Inlet: up_nex outside mesh (inland), dn_nex inside mesh (coastal)
+                        if up_mesh or not dn_mesh:
+                            skipped_direction += 1
+                            continue
+                    elif boundary_type == "seaward":
+                        # Seaward: up_nex inside mesh, dn_nex outside mesh
+                        if not up_mesh or dn_mesh:
+                            skipped_direction += 1
+                            continue
+
+        # Step 3: Compute intersection point
+        intersection = row.geometry.intersection(boundary_line)
+        if intersection.is_empty:
+            continue
+
         if intersection.geom_type == "Point":
             cross_pt = intersection
         elif intersection.geom_type == "MultiPoint":
@@ -220,6 +376,9 @@ def find_crossings(boundary_line, fp_gdf, nexus, boundary_node_ids, mesh, node_t
 
     if not results:
         return pd.DataFrame()
+
+    if skipped_direction > 0:
+        print(f"  Skipped {skipped_direction} flowpaths with wrong flow direction")
 
     crossings_df = pd.DataFrame(results)
     print(f"  {len(crossings_df)} downstream crossings")
@@ -368,6 +527,10 @@ def main():
     node_to_elems = build_boundary_node_to_elem(all_bnd_nodes, elements)
     print(f"  Indexed {len(node_to_elems)} boundary nodes across elements")
 
+    print("Building nexus lookup...")
+    nexus_lookup = build_nexus_lookup(nexus)
+    print(f"  {len(nexus_lookup)} nexus entries")
+
     print("\n=== Inlets (flowpaths crossing inland boundary downstream) ===")
     inlets_df = find_crossings(
         inland_line,
@@ -377,6 +540,8 @@ def main():
         mesh,
         node_to_elems,
         args.max_distance_km,
+        nexus_lookup=nexus_lookup,
+        boundary_type="inlet",
     )
 
     if len(inlets_df) > 0:
@@ -399,6 +564,8 @@ def main():
         mesh,
         node_to_elems,
         args.max_distance_km,
+        nexus_lookup=nexus_lookup,
+        boundary_type="seaward",
     )
 
     if len(seaward_df) > 0:

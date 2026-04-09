@@ -122,7 +122,7 @@ def build_mesh_polygon(mesh, target_crs):
     shapely.geometry.Polygon or None
         The mesh domain polygon in target_crs, or None if construction fails.
     """
-    from shapely.ops import polygonize, unary_union
+    from shapely.ops import linemerge, polygonize, unary_union
 
     nodes_df = mesh["nodes"]
     lines = []
@@ -138,7 +138,14 @@ def build_mesh_polygon(mesh, target_crs):
     if not lines:
         return None
 
-    merged = unary_union(lines)
+    # Merge segments into a single linestring and close the ring if needed
+    merged = linemerge(unary_union(lines))
+    if merged.geom_type == "LineString" and not merged.is_ring:
+        # Close the gap between the two open endpoints
+        coords = list(merged.coords)
+        coords.append(coords[0])
+        merged = LineString(coords)
+
     polys = list(polygonize(merged))
     if not polys:
         print("  WARNING: Could not polygonize mesh boundaries.")

@@ -171,7 +171,9 @@ def enrich_with_hydrofabric(df, nexus, fp):
         left_on="dn_fp_id",
         right_on="fp_id",
         how="left",
+        suffixes=("", "_drop"),
     )
+    df = df.drop(columns=["fp_id_drop"], errors="ignore")
     return df
 
 
@@ -451,10 +453,6 @@ def main():
     hf_crs = nexus.crs
     print(f"  {len(nexus)} nexus points loaded (CRS: {hf_crs})")
 
-    print("Reading hydrofabric flowpaths...")
-    fp = gpd.read_file(args.gpkg, layer="flowpaths")
-    print(f"  {len(fp)} flowpaths loaded")
-
     print("Reading SCHISM mesh (this may take a while for large grids)...")
     mesh = buffer_to_dict(args.grid)
     nodes_df = mesh["nodes"]
@@ -492,6 +490,16 @@ def main():
         print(f"  Mesh polygon built ({mesh_polygon.area:.0f} sq units in {hf_crs})")
     else:
         print("  WARNING: Could not build mesh polygon. Direction check will be skipped.")
+
+    # Load only flowpaths near the mesh boundary using a spatial mask
+    # Buffer the polygon boundary to capture flowpaths that cross it
+    print("Reading hydrofabric flowpaths near mesh boundary...")
+    if mesh_polygon is not None:
+        boundary_mask = mesh_polygon.boundary.buffer(args.max_distance_km * 1000)
+        fp = gpd.read_file(args.gpkg, layer="flowpaths", mask=boundary_mask)
+    else:
+        fp = gpd.read_file(args.gpkg, layer="flowpaths")
+    print(f"  {len(fp)} flowpaths loaded")
 
     print("\n=== Inlets (flowpaths crossing inland boundary downstream) ===")
     inlets_df = find_crossings(

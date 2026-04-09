@@ -123,38 +123,27 @@ def is_on_mesh_side(px, py, seg_start, seg_end, elem_centroid):
     return (sign_point > 0) == (sign_centroid > 0)
 
 
-def get_boundary_context(
-    cross_xy, bnd_ids, bnd_coords, node_to_elems, elements, nodes_df, crs_from, crs_to, centroid_cache
-):
+def get_boundary_context(cross_pt_4326, boundary_node_ids, nodes_df, node_to_elems, elements):
     """Get a local boundary segment and mesh element centroid near a crossing point.
 
     For the cross-product direction check, we need:
     1. Two adjacent boundary nodes forming the nearest segment
     2. A mesh element centroid on the interior side of that segment
 
-    Boundary coordinates (bnd_coords) must already be in the target CRS.
-    Element centroids are computed lazily and cached in centroid_cache.
+    All coordinates are in EPSG:4326 (the mesh CRS).
 
     Parameters
     ----------
-    cross_xy : tuple
-        (x, y) of the crossing point in the target CRS.
-    bnd_ids : ndarray
-        Array of boundary node IDs.
-    bnd_coords : ndarray
-        (N, 2) array of boundary node (x, y) coordinates in the target CRS.
+    cross_pt_4326 : tuple
+        (x, y) of the crossing point in EPSG:4326.
+    boundary_node_ids : list[int]
+        Ordered boundary node IDs.
+    nodes_df : DataFrame
+        Mesh nodes with x, y columns in EPSG:4326.
     node_to_elems : dict
         Mapping from node ID to list of element row indices.
     elements : DataFrame
         Mesh element table.
-    nodes_df : DataFrame
-        Mesh nodes with x, y columns (in source CRS).
-    crs_from : CRS
-        Source CRS of nodes_df (e.g., EPSG:4326).
-    crs_to : CRS
-        Target CRS for the centroid (e.g., EPSG:5070).
-    centroid_cache : dict
-        Mutable cache mapping element row_idx to (cx, cy) in target CRS.
 
     Returns
     -------
@@ -162,30 +151,25 @@ def get_boundary_context(
         ((seg_start_x, seg_start_y), (seg_end_x, seg_end_y), (cx, cy)) or None if
         no element centroid can be found.
     """
-    dists = np.sqrt((bnd_coords[:, 0] - cross_xy[0]) ** 2 + (bnd_coords[:, 1] - cross_xy[1]) ** 2)
+    bnd_arr = np.array(boundary_node_ids)
+    bnd_coords = nodes_df.loc[bnd_arr, ["x", "y"]].values
+    dists = np.sqrt((bnd_coords[:, 0] - cross_pt_4326[0]) ** 2 + (bnd_coords[:, 1] - cross_pt_4326[1]) ** 2)
     nearest_idx = np.argpartition(dists, 2)[:2]
-    n0, n1 = bnd_ids[nearest_idx[0]], bnd_ids[nearest_idx[1]]
-    seg_start = tuple(bnd_coords[nearest_idx[0]])
-    seg_end = tuple(bnd_coords[nearest_idx[1]])
+    n0, n1 = bnd_arr[nearest_idx[0]], bnd_arr[nearest_idx[1]]
+    seg_start = (nodes_df.loc[n0, "x"], nodes_df.loc[n0, "y"])
+    seg_end = (nodes_df.loc[n1, "x"], nodes_df.loc[n1, "y"])
 
     elem_rows = node_to_elems.get(n0, []) or node_to_elems.get(n1, [])
     if not elem_rows:
         return None
 
     row_idx = elem_rows[0]
-    if row_idx not in centroid_cache:
-        n_nodes = elements.values[row_idx, 0]
-        nids = elements.values[row_idx, 1 : n_nodes + 1]
-        cx_4326 = nodes_df.loc[nids, "x"].mean()
-        cy_4326 = nodes_df.loc[nids, "y"].mean()
-        pt = (
-            gpd.GeoDataFrame(geometry=gpd.points_from_xy([cx_4326], [cy_4326]), crs=crs_from)
-            .to_crs(crs_to)
-            .geometry.iloc[0]
-        )
-        centroid_cache[row_idx] = (pt.x, pt.y)
+    n_nodes = elements.values[row_idx, 0]
+    nids = elements.values[row_idx, 1 : n_nodes + 1]
+    cx = nodes_df.loc[nids, "x"].mean()
+    cy = nodes_df.loc[nids, "y"].mean()
 
-    return seg_start, seg_end, centroid_cache[row_idx]
+    return seg_start, seg_end, (cx, cy)
 
 
 def enrich_with_hydrofabric(df, nexus, fp):
@@ -283,19 +267,8 @@ def find_crossings(
 
     print(f"  {len(crossing_fps)} flowpaths cross the boundary line")
 
-    # Pre-compute boundary node coords and element centroids in hydrofabric CRS
-    # so that direction checks don't need per-flowpath reprojection
-    bnd_arr = np.array(boundary_node_ids)
-    bnd_pts_gdf = gpd.GeoDataFrame(
-        geometry=gpd.points_from_xy(nodes_df.loc[bnd_arr, "x"], nodes_df.loc[bnd_arr, "y"]),
-        crs="EPSG:4326",
-    ).to_crs(fp_gdf.crs)
-    bnd_coords_hf = np.column_stack([bnd_pts_gdf.geometry.x, bnd_pts_gdf.geometry.y])
-    centroid_cache = {}  # lazily populated by get_boundary_context
-
-    # For each crossing flowpath, verify straddle + flow direction, then get intersection point
-    results = []
-    skipped_direction = 0
+    # For each crossing flowpath, apply straddle check and collect direction-check inputs
+    straddle_rows = []  # (row, start_pt, end_pt, up_x, up_y, dn_x, dn_y) or None for no-check
     for _, row in crossing_fps.iterrows():
         # Step 1: Geometric straddle check — start/end of geometry on opposite sides
         line = row.geometry.geoms[0] if row.geometry.geom_type == "MultiLineString" else row.geometry
@@ -305,15 +278,14 @@ def find_crossings(
         if not nexus_line.intersects(boundary_line):
             continue
 
-        # Step 2: Direction check using nexus points + cross product
+        # Resolve upstream/downstream coordinates for direction check
+        up_x = up_y = dn_x = dn_y = None
         if nexus_lookup is not None:
             up_nex = row.up_nex_id if hasattr(row, "up_nex_id") else np.nan
             dn_nex = row.dn_nex_id if hasattr(row, "dn_nex_id") else np.nan
-
             up_pt = nexus_lookup.get(int(up_nex)) if pd.notna(up_nex) else None
             dn_pt = nexus_lookup.get(int(dn_nex)) if pd.notna(dn_nex) else None
 
-            # Resolve upstream/downstream coordinates for the direction check
             if up_pt is not None and dn_pt is not None:
                 up_x, up_y = up_pt.x, up_pt.y
                 dn_x, dn_y = dn_pt.x, dn_pt.y
@@ -323,42 +295,62 @@ def find_crossings(
                 d_start = (start_pt[0] - dn_x) ** 2 + (start_pt[1] - dn_y) ** 2
                 d_end = (end_pt[0] - dn_x) ** 2 + (end_pt[1] - dn_y) ** 2
                 up_x, up_y = (start_pt[0], start_pt[1]) if d_start >= d_end else (end_pt[0], end_pt[1])
-            else:
-                up_x = up_y = dn_x = dn_y = None
 
-            if up_x is not None:
-                mid_x = (start_pt[0] + end_pt[0]) / 2
-                mid_y = (start_pt[1] + end_pt[1]) / 2
+        straddle_rows.append((row, start_pt, end_pt, up_x, up_y, dn_x, dn_y))
 
-                ctx = get_boundary_context(
-                    (mid_x, mid_y),
-                    bnd_arr,
-                    bnd_coords_hf,
-                    node_to_elems,
-                    elements,
-                    nodes_df,
-                    "EPSG:4326",
-                    fp_gdf.crs,
-                    centroid_cache,
-                )
-                if ctx is not None:
-                    seg_start, seg_end, elem_centroid = ctx
+    # Step 2: Batch reproject all direction-check points to 4326
+    dir_indices = []  # indices into straddle_rows that need direction check
+    all_mid_x, all_mid_y = [], []
+    all_up_x, all_up_y = [], []
+    all_dn_x, all_dn_y = [], []
+    for i, (_, start_pt, end_pt, up_x, up_y, dn_x, dn_y) in enumerate(straddle_rows):
+        if up_x is not None:
+            dir_indices.append(i)
+            all_mid_x.append((start_pt[0] + end_pt[0]) / 2)
+            all_mid_y.append((start_pt[1] + end_pt[1]) / 2)
+            all_up_x.append(up_x)
+            all_up_y.append(up_y)
+            all_dn_x.append(dn_x)
+            all_dn_y.append(dn_y)
 
-                    up_mesh = is_on_mesh_side(up_x, up_y, seg_start, seg_end, elem_centroid)
-                    dn_mesh = is_on_mesh_side(dn_x, dn_y, seg_start, seg_end, elem_centroid)
+    # Single batch reprojection for all direction-check points
+    skip_set = set()
+    if dir_indices:
+        all_xs = all_mid_x + all_up_x + all_dn_x
+        all_ys = all_mid_y + all_up_y + all_dn_y
+        pts_4326 = (
+            gpd.GeoDataFrame(geometry=gpd.points_from_xy(all_xs, all_ys), crs=fp_gdf.crs)
+            .to_crs("EPSG:4326")
+            .geometry
+        )
+        n = len(dir_indices)
+        for j, i in enumerate(dir_indices):
+            mid_4326 = pts_4326.iloc[j]
+            up_4326 = pts_4326.iloc[n + j]
+            dn_4326 = pts_4326.iloc[2 * n + j]
 
-                    if boundary_type == "inlet":
-                        # Inlet: up_nex outside mesh (inland), dn_nex inside mesh (coastal)
-                        if up_mesh or not dn_mesh:
-                            skipped_direction += 1
-                            continue
-                    elif boundary_type == "seaward":
-                        # Seaward: up_nex inside mesh, dn_nex outside mesh
-                        if not up_mesh or dn_mesh:
-                            skipped_direction += 1
-                            continue
+            ctx = get_boundary_context(
+                (mid_4326.x, mid_4326.y), boundary_node_ids, nodes_df, node_to_elems, elements
+            )
+            if ctx is not None:
+                seg_start, seg_end, elem_centroid = ctx
+                up_mesh = is_on_mesh_side(up_4326.x, up_4326.y, seg_start, seg_end, elem_centroid)
+                dn_mesh = is_on_mesh_side(dn_4326.x, dn_4326.y, seg_start, seg_end, elem_centroid)
 
-        # Step 3: Compute intersection point
+                if boundary_type == "inlet" and (up_mesh or not dn_mesh):
+                    skip_set.add(i)
+                elif boundary_type == "seaward" and (not up_mesh or dn_mesh):
+                    skip_set.add(i)
+
+    if skip_set:
+        print(f"  Skipped {len(skip_set)} flowpaths with wrong flow direction")
+
+    # Step 3: Compute intersection points for non-skipped flowpaths
+    results = []
+    for i, (row, _, _, _, _, _, _) in enumerate(straddle_rows):
+        if i in skip_set:
+            continue
+
         intersection = row.geometry.intersection(boundary_line)
         if intersection.is_empty:
             continue
@@ -368,7 +360,6 @@ def find_crossings(
         elif intersection.geom_type == "MultiPoint":
             cross_pt = intersection.geoms[0]
         else:
-            # LineString overlap or GeometryCollection — take centroid
             cross_pt = intersection.centroid
 
         results.append(
@@ -382,9 +373,6 @@ def find_crossings(
 
     if not results:
         return pd.DataFrame()
-
-    if skipped_direction > 0:
-        print(f"  Skipped {skipped_direction} flowpaths with wrong flow direction")
 
     crossings_df = pd.DataFrame(results)
     print(f"  {len(crossings_df)} downstream crossings")

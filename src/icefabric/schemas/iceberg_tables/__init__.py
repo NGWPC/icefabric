@@ -1,10 +1,11 @@
 from .hydrofabric_update import (
+    NHD,
     Divides,
     Flowpaths,
     Gages,
     Hydrolocations,
+    Lakes,
     Nexus,
-    NHFLakes,
     ReferenceFlowpaths,
     VirtualFlowpaths,
     VirtualNexus,
@@ -21,5 +22,6 @@ nhf_layers = {
     "virtual_flowpaths": VirtualFlowpaths,
     "virtual_nexus": VirtualNexus,
     "hydrolocations": Hydrolocations,
-    "lakes": NHFLakes,
+    "lakes": Lakes,
+    "nhd": NHD,
 }

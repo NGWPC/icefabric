@@ -22,33 +22,33 @@ class Divides:
     type : str
         Divide Type (one of independent, aggregate, connectors)
     area_sqkm : float
-        Incremental Areas of Divide [square kilometers]
+        Catchment area in sqkm
     bexp_mode : float
-        beta exponent on Clapp-Hornberger (1978) soil water relations
+        Pore size distribution index (exponential term)
     isltyp_mode : float
         Dominent soil type category
     ivgtyp_mode : float
         Dominent vegetation type category
     dksat_geomean : float
-        Saturated hydraulic conductivity
+        Saturated soil connectivity
     psisat_geomean : float
-        Saturated capillary head
+        Saturated soil matric potential
     cwpvt_mean : float
         Empirical canopy wind parameter
     mp_mean : float
-        Slope of Conductance to photosynthesis relationship
+        Slope of conductance to photosynthesis relationship
     mfsno_mean : float
-        Melt factor for snow depletion curve
+        Snowmelt m parameter
     quartz_mean : float
         Mean soil quartz content
     refkdt_mean : float
-        Reference soil infiltration parameter
+        Surface runoff parameter, impacts surface infiltration
     slope1km_mean : float
-        Modifies the gradient of the hydraulic head at the soil bottom
+        Linear reservoir coefficient
     smcmax_mean : float
-        Saturated soil moisture content
+        Saturated value of soil moisture
     smcwlt_mean : float
-        Wilting point soil moisture content
+        Wilting point soil moisture
     vcmx_mean : float
         Maximum rate of carboxylation at 25 C
     imperv_mean : float
@@ -78,11 +78,11 @@ class Divides:
     twi_q90 : float
         Topographic wetness index 90th percentile
     elevation_mean : float
-        Terrain elevation
+        DEM derived mean divide elevation
     slope250m_mean : float
-        Terrain slope
+        DEM derived mean divide slope
     aspect_circmean : float
-        Terrain aspect
+        DEM derived mean divide aspect
     lzfpm_mean : float
         Maximum lower zone free water mean (primary)
     lzpk_mean : float
@@ -118,29 +118,29 @@ class Divides:
     x_xinanjiang_shape_parameter : float
         Secondary, modifier shape parameter for the Xinanjiang runoff generation model configuration
     temp_delta_jan_mean : float
-        The average temp change for the month of January
+        Temp min-max normals for the month of January
     temp_delta_feb_mean : float
-        The average temp change for the month of February
+        Temp min-max normals for the month of February
     temp_delta_mar_mean : float
-        The average temp change for the month of March
+        Temp min-max normals for the month of March
     temp_delta_apr_mean : float
-        The average temp change for the month of April
+        Temp min-max normals for the month of April
     temp_delta_may_mean : float
-        The average temp change for the month of May
+        Temp min-max normals for the month of May
     temp_delta_jun_mean : float
-        The average temp change for the month of June
+        Temp min-max normals for the month of June
     temp_delta_jul_mean : float
-        The average temp change for the month of July
+        Temp min-max normals for the month of July
     temp_delta_aug_mean : float
-        The average temp change for the month of August
+        Temp min-max normals for the month of August
     temp_delta_sep_mean : float
-        The average temp change for the month of September
+        Temp min-max normals for the month of September
     temp_delta_oct_mean : float
-        The average temp change for the month of October
+        Temp min-max normals for the month of October
     temp_delta_nov_mean : float
-        The average temp change for the month of November
+        Temp min-max normals for the month of November
     temp_delta_dec_mean : float
-        The average temp change for the month of December
+        Temp min-max normals for the month of December
     lat : float
         Latitude of the divide (in WGS84 degrees)
     lon : float
@@ -152,7 +152,7 @@ class Divides:
     expon : float
         Groundwater Exponent
     max_gw_storage : float
-        The total height of the baseflow "bucket"
+        The maximum storage capacity (or total height) of the conceptual groundwater bucket
     geometry : binary
         Spatial Geometry (MULTIPOLYGON format) - stored in WKB binary format
     """
@@ -254,20 +254,20 @@ class Divides:
             "Unique divide identifier",
             "Vector Processing Unit identifier",
             "Divide Type (one of independent, aggregate, connectors)",
-            "Incremental Areas of Divide [square kilometers]",
-            "beta exponent on Clapp-Hornberger (1978) soil water relations",
-            "Dominant soil type category",
-            "Dominant vegetation type category",
-            "Saturated hydraulic conductivity",
-            "Saturated capillary head",
+            "Catchment area in sqkm",
+            "Pore size distribution index (exponential term)",
+            "Dominent soil type category",
+            "Dominent vegetation type category",
+            "Saturated soil connectivity",
+            "Saturated soil matric potential",
             "Empirical canopy wind parameter",
-            "Slope of Conductance to photosynthesis relationship",
-            "Melt factor for snow depletion curve",
+            "Slope of conductance to photosynthesis relationship",
+            "Snowmelt m parameter",
             "Mean soil quartz content",
-            "Reference soil infiltration parameter",
-            "Modifies the gradient of the hydraulic head at the soil bottom",
-            "Saturated soil moisture content",
-            "Wilting point soil moisture content",
+            "Surface runoff parameter, impacts surface infiltration",
+            "Linear reservoir coefficient",
+            "Saturated value of soil moisture",
+            "Wilting point soil moisture",
             "Maximum rate of carboxylation at 25 C",
             "Percentage of catchment with an impervious surface",
             "Topographic wetness index 1st quartile",
@@ -282,9 +282,9 @@ class Divides:
             "Topographic wetness index 70th percentile",
             "Topographic wetness index 80th percentile",
             "Topographic wetness index 90th percentile",
-            "Terrain elevation",
-            "Terrain slope",
-            "Terrain aspect",
+            "DEM derived mean divide elevation",
+            "DEM derived mean divide slope",
+            "DEM derived mean divide aspect",
             "Maximum lower zone free water mean (primary)",
             "Lower zone recession coefficient mean (primary)",
             "Maximum lower zone tension water mean",
@@ -302,24 +302,24 @@ class Divides:
             "Inflection point parameter for the Xinanjiang runoff generation model configuration",
             "Main, exponential shape parameter for the Xinanjiang runoff generation model configuration",
             "Secondary, modifier shape parameter for the Xinanjiang runoff generation model configuration",
-            "The average temp change for the month of January",
-            "The average temp change for the month of February",
-            "The average temp change for the month of March",
-            "The average temp change for the month of April",
-            "The average temp change for the month of May",
-            "The average temp change for the month of June",
-            "The average temp change for the month of July",
-            "The average temp change for the month of August",
-            "The average temp change for the month of September",
-            "The average temp change for the month of October",
-            "The average temp change for the month of November",
-            "The average temp change for the month of December",
+            "Temp min-max normals for the month of January",
+            "Temp min-max normals for the month of February",
+            "Temp min-max normals for the month of March",
+            "Temp min-max normals for the month of April",
+            "Temp min-max normals for the month of May",
+            "Temp min-max normals for the month of June",
+            "Temp min-max normals for the month of July",
+            "Temp min-max normals for the month of August",
+            "Temp min-max normals for the month of September",
+            "Temp min-max normals for the month of October",
+            "Temp min-max normals for the month of November",
+            "Temp min-max normals for the month of December",
             "Latitude of the divide (in WGS84 degrees)",
             "Longitude of the divide (in WGS84 degrees)",
             "Percentage of glacier cover within the divide",
             "Groundwater Coefficient",
             "Groundwater Exponent",
-            'The total height of the baseflow "bucket"',
+            "The maximum storage capacity (or total height) of the conceptual groundwater bucket",
             "Spatial Geometry (MULTIPOLYGON format) - stored in WKB binary format",
         ]
         return Schema(
@@ -503,27 +503,27 @@ class Flowpaths:
     length_km : float
         Flowpath length [in kilometers]
     area_sqkm : float
-        Incremental areas of divide [in square kilometers]
+        Associated catchement area of divide [in square kilometers]
     total_da_sqkm : float
         Total upstream drainage area [in square kilometers]
     mainstem_lp : int
         Associated flowpath mainstem (primary downstream segment)
     path_length : float
-        Downstream path length (TODO - Get specification on this)
+        Distance to outlet [in kilometers]
     dn_hydroseq : int
         Downstream hydrologic sequence
     hydroseq : int
-        Hydrologic sequence
+        Hydrologic sequence number
     stream_order : int
-        Stream order of the mapped reference flowpath
+        Strahler stream order
     mean_elevation : float
-        Terrain elevation
+        DEM derived mean elevation
     slope : float
-        Terrain slope
+        DEM derived slope
     n : float
         Manning's in channel roughness
     r : float
-        Hydraulic radius
+        Estimated channel shape
     y : float
         Estimated depth associated with top width
     ncc : float
@@ -541,15 +541,15 @@ class Flowpaths:
     topwdthcc : float
         Compound channel top width
     topwdthcc_ml : float
-        Compound channel top width at maximum levee
+        Compound channel top width (derived from machine learning)
     topwdth_ml : float
-        Top width at maximum levee
+        Top width (derived from machine learning)
     y_ml : float
-        Estimated depth associated with top width at maximum levee
+        Estimated depth associated with top width (derived from machine learning)
     r_ml : float
-        Hydraulic radius at maximum levee
-    fp_to_id : float
-        Downstream flowpath identifier
+        Estimated channel shape (derived from machine learning)
+    fp_to_id : int
+        The flowpath ID that is downstream of the connected downstream nexus
     geometry : binary
         Spatial Geometry (MULTILINESTRING format) - stored in WKB binary format
 
@@ -615,17 +615,17 @@ class Flowpaths:
             "Associated divide identifier",
             "Associated Vector Processing Unit (VPU) identifier",
             "Flowpath length [in kilometers]",
-            "Incremental areas of divide [in square kilometers]",
+            "Associated catchement area of divide [in square kilometers]",
             "Total upstream drainage area [in square kilometers]",
             "Associated flowpath mainstem (primary downstream segment)",
-            "Downstream path length (TODO - Get specification on this)",
+            "Distance to outlet [in kilometers]",
             "Downstream hydrologic sequence",
-            "Hydrologic sequence",
-            "Stream order of the mapped reference flowpath",
-            "Terrain elevation",
-            "Terrain slope",
+            "Hydrologic sequence number",
+            "Strahler stream order",
+            "DEM derived mean elevation",
+            "DEM derived slope",
             "Manning's in channel roughness",
-            "Hydraulic radius",
+            "Estimated channel shape",
             "Estimated depth associated with top width",
             "Compound channel top width",
             "Bottom width of channel",
@@ -634,11 +634,11 @@ class Flowpaths:
             "Muskingum routing time",
             "Top width",
             "Compound channel top width",
-            "Compound channel top width at maximum levee",
-            "Top width at maximum levee",
-            "Estimated depth associated with top width at maximum levee",
-            "Hydraulic radius at maximum levee",
-            "Downstream flowpath identifier",
+            "Compound channel top width (derived from machine learning)",
+            "Top width (derived from machine learning)",
+            "Estimated depth associated with top width (derived from machine learning)",
+            "Estimated channel shape (derived from machine learning)",
+            "The flowpath ID that is downstream of the connected downstream nexus",
             "Spatial Geometry (MULTILINESTRING format) - stored in WKB binary format",
         ]
         return Schema(
@@ -671,7 +671,7 @@ class Flowpaths:
             NestedField(27, "topwdth_ml", DoubleType(), required=False, doc=desc[26]),
             NestedField(28, "y_ml", FloatType(), required=False, doc=desc[27]),
             NestedField(29, "r_ml", FloatType(), required=False, doc=desc[28]),
-            NestedField(30, "fp_to_id", DoubleType(), required=False, doc=desc[29]),
+            NestedField(30, "fp_to_id", LongType(), required=False, doc=desc[29]),
             NestedField(31, "geometry", BinaryType(), required=False, doc=desc[30]),
             identifier_field_ids=[1],
         )
@@ -717,7 +717,7 @@ class Flowpaths:
                 pa.field("topwdth_ml", pa.float64(), nullable=True),
                 pa.field("y_ml", pa.float32(), nullable=True),
                 pa.field("r_ml", pa.float32(), nullable=True),
-                pa.field("fp_to_id", pa.float64(), nullable=True),
+                pa.field("fp_to_id", pa.int64(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
             ]
         )
@@ -731,7 +731,7 @@ class Nexus:
     ----------
     nex_id : int
         Unique nexus identifier
-    dn_fp_id : float
+    dn_fp_id : int
         Associated downstream flowpath identifier
     vpu_id : str
         Vector Processing Unit identifier
@@ -774,7 +774,7 @@ class Nexus:
         ]
         return Schema(
             NestedField(1, "nex_id", LongType(), required=True, doc=desc[0]),
-            NestedField(2, "dn_fp_id", DoubleType(), required=False, doc=desc[1]),
+            NestedField(2, "dn_fp_id", LongType(), required=False, doc=desc[1]),
             NestedField(3, "vpu_id", StringType(), required=False, doc=desc[2]),
             NestedField(4, "geometry", BinaryType(), required=False, doc=desc[3]),
             identifier_field_ids=[1],
@@ -793,7 +793,7 @@ class Nexus:
         return pa.schema(
             [
                 pa.field("nex_id", pa.int64(), nullable=False),
-                pa.field("dn_fp_id", pa.float64(), nullable=True),
+                pa.field("dn_fp_id", pa.int64(), nullable=True),
                 pa.field("vpu_id", pa.string(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
             ]
@@ -1088,7 +1088,7 @@ class Gages:
         Hydrolocation Identifier
     USGS_basin_km2 : float
         USGS Basin Area in square kilometers
-    ref_fp_id : float
+    ref_fp_id : int
         Reference Flowpath Identifier
     method_fp_to_gage : str
         Method used to associate flowpath to gage
@@ -1168,7 +1168,7 @@ class Gages:
             NestedField(2, "status", StringType(), required=False, doc=desc[1]),
             NestedField(3, "hy_id", LongType(), required=False, doc=desc[2]),
             NestedField(4, "USGS_basin_km2", DoubleType(), required=False, doc=desc[3]),
-            NestedField(5, "ref_fp_id", DoubleType(), required=False, doc=desc[4]),
+            NestedField(5, "ref_fp_id", LongType(), required=False, doc=desc[4]),
             NestedField(6, "method_fp_to_gage", StringType(), required=False, doc=desc[5]),
             NestedField(7, "fp_id", DoubleType(), required=False, doc=desc[6]),
             NestedField(8, "virtual_fp_id", DoubleType(), required=False, doc=desc[7]),
@@ -1197,7 +1197,7 @@ class Gages:
                 pa.field("status", pa.string(), nullable=True),
                 pa.field("hy_id", pa.int64(), nullable=True),
                 pa.field("USGS_basin_km2", pa.float64(), nullable=True),
-                pa.field("ref_fp_id", pa.float64(), nullable=True),
+                pa.field("ref_fp_id", pa.int64(), nullable=True),
                 pa.field("method_fp_to_gage", pa.string(), nullable=True),
                 pa.field("fp_id", pa.float64(), nullable=True),
                 pa.field("virtual_fp_id", pa.float64(), nullable=True),
@@ -1326,7 +1326,7 @@ class VirtualNexus:
     ----------
     virtual_nex_id : int
         Virtual nexus identifier
-    dn_virtual_fp_id : float
+    dn_virtual_fp_id : int
         Downstream virtual flowpath identifier
     vpu_id : str
         Vector Processing Unit identifier
@@ -1369,7 +1369,7 @@ class VirtualNexus:
         ]
         return Schema(
             NestedField(1, "virtual_nex_id", LongType(), required=True, doc=desc[0]),
-            NestedField(2, "dn_virtual_fp_id", DoubleType(), required=False, doc=desc[1]),
+            NestedField(2, "dn_virtual_fp_id", LongType(), required=False, doc=desc[1]),
             NestedField(3, "vpu_id", StringType(), required=False, doc=desc[2]),
             NestedField(4, "geometry", BinaryType(), required=False, doc=desc[3]),
             identifier_field_ids=[1],
@@ -1388,14 +1388,14 @@ class VirtualNexus:
         return pa.schema(
             [
                 pa.field("virtual_nex_id", pa.int64(), nullable=False),
-                pa.field("dn_virtual_fp_id", pa.float64(), nullable=True),
+                pa.field("dn_virtual_fp_id", pa.int64(), nullable=True),
                 pa.field("vpu_id", pa.string(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
             ]
         )
 
 
-class NHFLakes:
+class Lakes:
     """
     The schema for the NHF lakes table
 
@@ -1650,5 +1650,76 @@ class Hydrolocations:
                 pa.field("hy_id", pa.int64(), nullable=False),
                 pa.field("dn_nex_id", pa.int64(), nullable=True),
                 pa.field("dn_virtual_nex_id", pa.float64(), nullable=True),
+            ]
+        )
+
+
+class NHD:
+    """
+    The schema for the NHD table
+
+    Attributes
+    ----------
+    nhd_feature_id : int
+        NHD flowpath ID
+    ref_id : int
+        Associated flowpath ID from the flowpath table
+    percent_inside : float
+        Percentage of the length of a flowpath segment that falls inside a buffer around a reference flowpath
+    """
+
+    @classmethod
+    def columns(cls) -> list[str]:
+        """
+        Returns the columns associated with this schema
+
+        Returns
+        -------
+        list[str]
+            The schema columns for the NHD table
+        """
+        return [
+            "nhd_feature_id",
+            "ref_id",
+            "percent_inside",
+        ]
+
+    @classmethod
+    def schema(cls) -> Schema:
+        """
+        Returns the PyIceberg Schema object.
+
+        Returns
+        -------
+        Schema
+            PyIceberg schema for the NHD table
+        """
+        desc = [
+            "NHD flowpath ID",
+            "Associated flowpath ID from the flowpath table",
+            "Percentage of the length of a flowpath segment that falls inside a buffer around the reference flowpath",
+        ]
+        return Schema(
+            NestedField(1, "nhd_feature_id", LongType(), required=True, doc=desc[0]),
+            NestedField(2, "ref_id", LongType(), required=False, doc=desc[1]),
+            NestedField(3, "percent_inside", DoubleType(), required=False, doc=desc[2]),
+            identifier_field_ids=[1],
+        )
+
+    @classmethod
+    def arrow_schema(cls) -> pa.Schema:
+        """
+        Returns the PyArrow Schema object.
+
+        Returns
+        -------
+        pa.Schema
+            PyArrow schema for the NHD table
+        """
+        return pa.schema(
+            [
+                pa.field("nhd_feature_id", pa.int64(), nullable=False),
+                pa.field("ref_id", pa.int64(), nullable=True),
+                pa.field("percent_inside", pa.float64(), nullable=True),
             ]
         )

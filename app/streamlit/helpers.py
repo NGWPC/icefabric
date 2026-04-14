@@ -315,7 +315,7 @@ def display_nhf_schemas():
     )
     with image_expander:
         st.image(
-            "app/streamlit/resources/hydrofabric_diagram.png",
+            "app/streamlit/resources/nhf_schema.png",
             width="content",
             caption="Entity Relationship Diagram (ERD) for the Iceberg NGWPC Hydrofabric Data Catalog.",
         )

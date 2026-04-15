@@ -888,7 +888,7 @@ async def get_calibratable_parameter_metadata(
             graph = network_graphs[namespace]
 
     # Use cache catalog if parameter_metadata namespace is cached
-    active_catalog = cache_catalog if "parameter_metadata" in cached_namespaces else catalog
+    active_catalog = cache_catalog if "parameter_metadata" in cached_namespaces and namespace in cached_namespaces else catalog
 
     parameter_metadata = get_parameter_metadata(
         modules=modules,

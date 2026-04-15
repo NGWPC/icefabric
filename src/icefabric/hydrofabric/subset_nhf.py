@@ -221,6 +221,7 @@ def generate_subset_from_ids(
             "gages": ex.submit(source.load_filtered, "gages", "fp_id", flowpath_ids),
             "ref_fp": ex.submit(source.load_filtered, "reference_flowpaths", "div_id", flowpath_ids),
             "lakes": ex.submit(source.load_filtered, "lakes", "fp_id", flowpath_ids),
+            "nhd": ex.submit(source.load_filtered, "nhd", "ref_id", flowpath_ids),
         }
         subset_fp = f["fp"].result()
         subset_div = f["div"].result()
@@ -228,6 +229,7 @@ def generate_subset_from_ids(
         subset_gages = f["gages"].result()
         subset_ref_fp = f["ref_fp"].result()
         subset_lakes = f["lakes"].result()
+        subset_nhd = f["nhd"].result()
 
     # Derive dependent IDs
     all_nex_ids = set(
@@ -293,6 +295,7 @@ def generate_subset_from_ids(
         "lakes": pl_to_gdf(subset_lakes, crs=crs) if len(subset_lakes) > 0 else subset_lakes.to_pandas(),
         "reference_flowpaths": subset_ref_fp.to_pandas(),
         "hydrolocations": subset_hydrolocations.to_pandas(),
+        "nhd": subset_nhd.to_pandas(),
     }
 
     if subset_file is not None:
@@ -315,7 +318,7 @@ def generate_subset_from_ids(
             if isinstance(df, gpd.GeoDataFrame) and len(df) > 0:
                 pyogrio.write_dataframe(df, subset_file, layer=name)
 
-        nonspatial_layers = ["reference_flowpaths", "hydrolocations"]
+        nonspatial_layers = ["reference_flowpaths", "hydrolocations", "nhd"]
         conn = sqlite3.connect(subset_file)
         for name in nonspatial_layers:
             logger.debug(f"  {name}: {len(output[name])} rows")

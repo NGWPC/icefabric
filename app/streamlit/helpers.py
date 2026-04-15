@@ -57,6 +57,9 @@ STYLE_MAP = {
         },
     },
     "virtual_nexus": {"marker_styling": folium.Marker(icon=folium.Icon(color="green", icon="filter"))},
+    "lakes": {
+        "marker_styling": folium.Marker(icon=folium.Icon(color="darkblue", prefix="fa", icon="sailboat"))
+    },
     "ras_xs": {
         "styling": {
             "color": "black",
@@ -297,11 +300,14 @@ def post_transient_success_msg(msg, length_s=1.5):
 def load_hf_gpkg(path):
     """Helper to load the subsetted GPKG and return a dictionary of GeoDataFrames for each layer."""
     hf_dict = {}
-    for t in list(nhf_layers.keys()):
-        if t == "reference_flowpaths" or t == "hydrolocations":
-            hf_dict[t] = pl.from_pandas(gpd.read_file(path, layer=t))
-        else:
-            hf_dict[t] = pl.from_pandas(gpd.read_file(path, layer=t).to_wkt())
+    layers = gpd.list_layers(path)
+    for _index, row in layers.iterrows():
+        layer_name, has_geom = row["name"], row["geometry_type"] is not None
+        if layer_name in nhf_layers.keys():
+            if has_geom:
+                hf_dict[layer_name] = pl.from_pandas(gpd.read_file(path, layer=layer_name).to_wkt())
+            else:
+                hf_dict[layer_name] = pl.from_pandas(gpd.read_file(path, layer=layer_name))
     return hf_dict
 
 

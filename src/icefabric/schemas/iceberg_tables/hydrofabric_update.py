@@ -118,29 +118,29 @@ class Divides:
     x_xinanjiang_shape_parameter : float
         Secondary, modifier shape parameter for the Xinanjiang runoff generation model configuration
     temp_delta_jan_mean : float
-        Temp min-max normals for the month of January
+        Difference between the normal high temp and the normal low temp for the month of January
     temp_delta_feb_mean : float
-        Temp min-max normals for the month of February
+        Difference between the normal high temp and the normal low temp for the month of February
     temp_delta_mar_mean : float
-        Temp min-max normals for the month of March
+        Difference between the normal high temp and the normal low temp for the month of March
     temp_delta_apr_mean : float
-        Temp min-max normals for the month of April
+        Difference between the normal high temp and the normal low temp for the month of April
     temp_delta_may_mean : float
-        Temp min-max normals for the month of May
+        Difference between the normal high temp and the normal low temp for the month of May
     temp_delta_jun_mean : float
-        Temp min-max normals for the month of June
+        Difference between the normal high temp and the normal low temp for the month of June
     temp_delta_jul_mean : float
-        Temp min-max normals for the month of July
+        Difference between the normal high temp and the normal low temp for the month of July
     temp_delta_aug_mean : float
-        Temp min-max normals for the month of August
+        Difference between the normal high temp and the normal low temp for the month of August
     temp_delta_sep_mean : float
-        Temp min-max normals for the month of September
+        Difference between the normal high temp and the normal low temp for the month of September
     temp_delta_oct_mean : float
-        Temp min-max normals for the month of October
+        Difference between the normal high temp and the normal low temp for the month of October
     temp_delta_nov_mean : float
-        Temp min-max normals for the month of November
+        Difference between the normal high temp and the normal low temp for the month of November
     temp_delta_dec_mean : float
-        Temp min-max normals for the month of December
+        Difference between the normal high temp and the normal low temp for the month of December
     lat : float
         Latitude of the divide (in WGS84 degrees)
     lon : float
@@ -302,18 +302,18 @@ class Divides:
             "Inflection point parameter for the Xinanjiang runoff generation model configuration",
             "Main, exponential shape parameter for the Xinanjiang runoff generation model configuration",
             "Secondary, modifier shape parameter for the Xinanjiang runoff generation model configuration",
-            "Temp min-max normals for the month of January",
-            "Temp min-max normals for the month of February",
-            "Temp min-max normals for the month of March",
-            "Temp min-max normals for the month of April",
-            "Temp min-max normals for the month of May",
-            "Temp min-max normals for the month of June",
-            "Temp min-max normals for the month of July",
-            "Temp min-max normals for the month of August",
-            "Temp min-max normals for the month of September",
-            "Temp min-max normals for the month of October",
-            "Temp min-max normals for the month of November",
-            "Temp min-max normals for the month of December",
+            "Difference between the normal high temp and the normal low temp for the month of January",
+            "Difference between the normal high temp and the normal low temp for the month of February",
+            "Difference between the normal high temp and the normal low temp for the month of March",
+            "Difference between the normal high temp and the normal low temp for the month of April",
+            "Difference between the normal high temp and the normal low temp for the month of May",
+            "Difference between the normal high temp and the normal low temp for the month of June",
+            "Difference between the normal high temp and the normal low temp for the month of July",
+            "Difference between the normal high temp and the normal low temp for the month of August",
+            "Difference between the normal high temp and the normal low temp for the month of September",
+            "Difference between the normal high temp and the normal low temp for the month of October",
+            "Difference between the normal high temp and the normal low temp for the month of November",
+            "Difference between the normal high temp and the normal low temp for the month of December",
             "Latitude of the divide (in WGS84 degrees)",
             "Longitude of the divide (in WGS84 degrees)",
             "Percentage of glacier cover within the divide",

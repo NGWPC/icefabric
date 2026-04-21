@@ -10,3 +10,7 @@ catalog:
     type: sql
     uri: sqlite:////tmp/warehouse/pyiceberg_catalog.db
     warehouse: file:///tmp/warehouse
+  inmem:
+    type: in-memory
+    uri: sqlite:////mnt/pyiceberg/warehouse/pyiceberg_catalog.db
+    warehouse: file:///mnt/pyiceberg/warehouse

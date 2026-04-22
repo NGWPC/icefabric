@@ -146,7 +146,7 @@ async def lifespan(app: FastAPI):
     app.state.cached_namespaces = {e.split(":")[0] for e in args.cached_namespaces}
     # Per-worker concurrency cap for the heavy gpkg endpoint. Tunable via env.
     gpkg_concurrency = int(os.environ.get("ICEFABRIC_HF_GPKG_CONCURRENCY", "1"))
-    gpkg_queue_timeout_s = float(os.environ.get("ICEFABRIC_HF_GPKG_QUEUE_TIMEOUT_S", "120"))
+    gpkg_queue_timeout_s = float(os.environ.get("ICEFABRIC_HF_GPKG_QUEUE_TIMEOUT_S", "300"))
     app.state.gpkg_limiter = GpkgLimiter(
         semaphore=threading.BoundedSemaphore(gpkg_concurrency),
         queue_timeout_s=gpkg_queue_timeout_s,
@@ -265,4 +265,16 @@ if __name__ == "__main__":
             "Hydrofabric namespaces not reachable at prewarm time; workers will attempt at startup."
         )
 
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, workers=2, log_level="info")
+    # Recycle each worker after this many requests. Resets per-process RSS
+    # that otherwise creeps from glibc/numpy fragmentation over time. The
+    # supervisor respawns the worker; new workers skip the heavy one-time
+    # setup (cache + graphs are already on disk), so churn is ~seconds.
+    max_requests_per_worker = int(os.environ.get("ICEFABRIC_MAX_REQUESTS_PER_WORKER", "500"))
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        workers=2,
+        log_level="info",
+        limit_max_requests=max_requests_per_worker,
+    )

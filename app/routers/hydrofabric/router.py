@@ -231,14 +231,14 @@ def get_hydrofabric_subset_gpkg(
 
         layers_written = 0
 
-        # Stream spatial layers one at a time: pop -> write -> del + gc so
-        # RSS stays flat across layers instead of accumulating.
+        # Stream spatial layers one at a time: pop -> write -> del. Refcounts
+        # hit zero immediately so numpy/geopandas memory is freed without
+        # needing gc.collect() between layers.
         for name in spatial_names:
             layer_data = output_layers.pop(name)
             n_rows = len(layer_data)
             pyogrio.write_dataframe(layer_data, tmp_path, layer=name)
             del layer_data
-            gc.collect()
             layers_written += 1
             logger.info(f"Written spatial layer '{name}' with {n_rows} records")
 
@@ -251,13 +251,12 @@ def get_hydrofabric_subset_gpkg(
                     n_rows = len(layer_data)
                     layer_data.to_sql(name, conn, if_exists="replace", index=False)
                     del layer_data
-                    gc.collect()
                     layers_written += 1
                     logger.info(f"Written non-spatial layer '{name}' with {n_rows} records")
             finally:
                 conn.close()
 
-        # Drop any layers skipped above (empty spatial frames etc.).
+        # Single sweep at the end for any pandas/geopandas reference cycles.
         output_layers.clear()
         gc.collect()
 

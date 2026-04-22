@@ -267,6 +267,25 @@ def generate_subset_from_ids(
         subset_lakes = f["lakes"].result()
         subset_nhd = f["nhd"].result()
 
+    # Virtual-only gages have fp_id=NULL so they were dropped by the Wave 1
+    # fp_id filter. Bridge through reference_flowpaths: every virtual_fp_id in
+    # the subset maps to exactly one div_id, and that div_id is in the subset.
+    # Collect all virtual_fp_ids and pull any gages tied to them.
+    virtual_fp_ids = set(
+        subset_ref_fp.filter(pl.col("virtual_fp_id").is_not_null())["virtual_fp_id"].cast(pl.Int64).to_list()
+    )
+    if virtual_fp_ids:
+        virtual_gages = source.load_filtered("gages", "virtual_fp_id", virtual_fp_ids)
+        if len(virtual_gages) > 0:
+            existing_ids = set(subset_gages["site_no"].to_list()) if len(subset_gages) > 0 else set()
+            new_ids = set(virtual_gages["site_no"].to_list())
+            to_add = new_ids - existing_ids
+            if to_add:
+                subset_gages = pl.concat(
+                    [subset_gages, virtual_gages.filter(pl.col("site_no").is_in(to_add))],
+                    how="vertical",
+                )
+
     # Derive dependent IDs
     all_nex_ids = set(
         subset_fp.filter(pl.col("up_nex_id").is_not_null())["up_nex_id"].cast(pl.Int64).to_list()

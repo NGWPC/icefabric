@@ -1,10 +1,18 @@
-from dataclasses import dataclass
+import hashlib
+import logging
+import os
+import threading
+from dataclasses import dataclass, field
 from logging import Logger
+from pathlib import Path
 from threading import BoundedSemaphore
+from typing import Any
 
 from fastapi import HTTPException, Request
 from pyiceberg.catalog import Catalog
 from rustworkx import PyDiGraph
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -13,6 +21,75 @@ class GpkgLimiter:
 
     semaphore: BoundedSemaphore
     queue_timeout_s: float
+
+
+@dataclass
+class StreamflowData:
+    """Icechunk repo + xarray Dataset for streamflow. Open once per worker."""
+
+    dataset: Any
+    repo: Any
+
+
+class GpkgCache:
+    """Disk-based result cache for hydrofabric gpkg responses.
+
+    Key: sha256 of (namespace, id_type, identifier, snapshot_id). Any table
+    snapshot change naturally invalidates keys. Eviction is an LRU-by-atime
+    cap on file count (simpler than tracking bytes and good enough here).
+    """
+
+    def __init__(self, cache_dir: Path, max_entries: int):
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.max_entries = max_entries
+        self._evict_lock = threading.Lock()
+
+    @staticmethod
+    def key(namespace: str, id_type: str, identifier: str, snapshot_id: str) -> str:
+        """Build the deterministic cache key for a subset request."""
+        raw = f"{namespace}:{id_type}:{identifier}:{snapshot_id}".encode()
+        return hashlib.sha256(raw).hexdigest()
+
+    def path(self, key: str) -> Path:
+        """Return the on-disk path for a given cache key."""
+        return self.cache_dir / f"{key}.gpkg"
+
+    def get(self, key: str) -> Path | None:
+        """Return cached path if present (and bump atime for LRU); else None."""
+        p = self.path(key)
+        if not p.exists():
+            return None
+        try:
+            os.utime(p, None)  # bump atime/mtime for LRU
+        except OSError:
+            pass
+        return p
+
+    def commit(self, key: str, built_path: Path) -> Path:
+        """Atomically install a freshly-built gpkg at the cache path.
+
+        Caller should write to a temp path first, then call commit() to move.
+        Safe under concurrent writers for the same key (last writer wins on
+        identical content).
+        """
+        dest = self.path(key)
+        os.replace(built_path, dest)
+        self._evict_if_needed()
+        return dest
+
+    def _evict_if_needed(self) -> None:
+        with self._evict_lock:
+            files = list(self.cache_dir.glob("*.gpkg"))
+            if len(files) <= self.max_entries:
+                return
+            files.sort(key=lambda p: p.stat().st_atime)
+            for old in files[: len(files) - self.max_entries]:
+                try:
+                    old.unlink()
+                    _log.info(f"gpkg cache evicted {old.name}")
+                except OSError:
+                    pass
 
 
 def get_catalog(request: Request) -> Catalog:
@@ -110,3 +187,16 @@ def get_gpkg_limiter(request: Request) -> GpkgLimiter:
     if limiter is None:
         raise HTTPException(status_code=500, detail="gpkg_limiter not loaded")
     return limiter
+
+
+def get_streamflow_data(request: Request) -> StreamflowData:
+    """Returns the cached StreamflowData opened in lifespan."""
+    data = getattr(request.app.state, "streamflow_data", None)
+    if data is None:
+        raise HTTPException(status_code=503, detail="streamflow_data not loaded")
+    return data
+
+
+def get_gpkg_cache(request: Request) -> GpkgCache | None:
+    """Returns the per-app GpkgCache; None if disabled (caching skipped)."""
+    return getattr(request.app.state, "gpkg_cache", None)

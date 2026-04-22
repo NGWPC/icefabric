@@ -1700,10 +1700,10 @@ class NHD:
             "Percentage of the length of a flowpath segment that falls inside a buffer around the reference flowpath",
         ]
         return Schema(
-            NestedField(1, "nhd_feature_id", LongType(), required=True, doc=desc[0]),
-            NestedField(2, "ref_id", LongType(), required=False, doc=desc[1]),
+            NestedField(1, "nhd_feature_id", LongType(), required=False, doc=desc[0]),
+            NestedField(2, "ref_id", LongType(), required=True, doc=desc[1]),
             NestedField(3, "percent_inside", DoubleType(), required=False, doc=desc[2]),
-            identifier_field_ids=[1],
+            identifier_field_ids=[2],
         )
 
     @classmethod
@@ -1718,8 +1718,8 @@ class NHD:
         """
         return pa.schema(
             [
-                pa.field("nhd_feature_id", pa.int64(), nullable=False),
-                pa.field("ref_id", pa.int64(), nullable=True),
+                pa.field("nhd_feature_id", pa.int64(), nullable=True),
+                pa.field("ref_id", pa.int64(), nullable=False),
                 pa.field("percent_inside", pa.float64(), nullable=True),
             ]
         )

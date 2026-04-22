@@ -298,7 +298,7 @@ services:
       - ICEFABRIC_HF_GPKG_QUEUE_TIMEOUT_S=300
       # Recycle each worker after N requests to reset memory creep
       # from glibc arena / numpy allocator fragmentation.
-      - ICEFABRIC_MAX_REQUESTS_PER_WORKER=500
+      - ICEFABRIC_MAX_REQUESTS_PER_WORKER=200
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "--head", "http://localhost:8000/health"]

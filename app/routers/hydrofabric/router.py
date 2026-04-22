@@ -42,7 +42,7 @@ api_router = APIRouter(prefix="/hydrofabric")
 
 
 @api_router.get("/{identifier}/gpkg", tags=["Hydrofabric Services"])
-async def get_hydrofabric_subset_gpkg(
+def get_hydrofabric_subset_gpkg(
     identifier: str = FastAPIPath(
         ...,
         description="Identifier to start tracing from (e.g., catchment ID, POI ID, HL_URI)",
@@ -261,7 +261,7 @@ async def get_hydrofabric_subset_gpkg(
 
 
 @api_router.get("/history", tags=["Hydrofabric Services"])
-async def get_hydrofabric_history(
+def get_hydrofabric_history(
     domain: str = Query("conus_hf", description="The iceberg namespace used to query the hydrofabric"),
     catalog=Depends(get_catalog),
 ):

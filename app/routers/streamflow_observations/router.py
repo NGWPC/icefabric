@@ -122,7 +122,7 @@ def validate_identifier(identifier: str):
 
 
 @api_router.get("/{identifier}/info", tags=["Streamflow Observations"])
-async def get_identifier_info(
+def get_identifier_info(
     identifier: str = Path(
         ...,
         description="Station/gauge ID",
@@ -167,7 +167,7 @@ async def get_identifier_info(
 
 
 @api_router.get("/{identifier}/{output_format}", tags=["Streamflow Observations"])
-async def get_data_time_range(
+def get_data_time_range(
     identifier: str = Path(
         ...,
         description="Station/gauge ID",
@@ -252,7 +252,7 @@ async def get_data_time_range(
 
 
 @api_router.get("/history", tags=["Streamflow Observations"])
-async def get_repo_history():
+def get_repo_history():
     """
     GET Repo History/Snapshots
 
@@ -285,7 +285,7 @@ async def get_repo_history():
 
 
 @api_router.get("/available", tags=["Streamflow Observations"])
-async def get_available_identifiers(
+def get_available_identifiers(
     limit: int = Query(100, description="Maximum number of IDs to return"),
 ):
     """

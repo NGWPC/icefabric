@@ -96,7 +96,7 @@ def filesystem_check(tmp_path: pathlib.PosixPath, temp_dir: pathlib.PosixPath):
 
 
 @api_router.get("/{identifier}/", tags=["HEC-RAS XS"])
-async def get_xs_subset_gpkg(
+def get_xs_subset_gpkg(
     identifier: str = Path(
         ...,
         description="The flowpath ID from the reference hydrofabric that the current RAS XS aligns is conflated to. Must be numeric.",
@@ -170,7 +170,7 @@ async def get_xs_subset_gpkg(
 
 
 @api_router.get("/within", tags=["HEC-RAS XS"])
-async def get_by_geospatial_query(
+def get_by_geospatial_query(
     bbox: BoundingBox = Depends(get_bbox_query_params),
     schema_type: XsType = Query(
         XsType.CONFLATED, description="The schema type used to query the cross-sections"

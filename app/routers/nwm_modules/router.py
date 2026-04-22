@@ -59,7 +59,7 @@ parameter_metadata_router = APIRouter(prefix="/modules/parameter_metadata")
 
 
 @sft_router.get("/", tags=["NWM Modules"])
-async def get_sft_ipes(
+def get_sft_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -119,7 +119,7 @@ async def get_sft_ipes(
 
 
 @snow17_router.get("/", tags=["NWM Modules"])
-async def get_snow17_ipes(
+def get_snow17_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -178,7 +178,7 @@ async def get_snow17_ipes(
 
 
 @smp_router.get("/", tags=["NWM Modules"])
-async def get_smp_ipes(
+def get_smp_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -237,7 +237,7 @@ async def get_smp_ipes(
 
 
 @lstm_router.get("/", tags=["NWM Modules"])
-async def get_lstm_ipes(
+def get_lstm_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -289,7 +289,7 @@ async def get_lstm_ipes(
 
 
 @lasam_router.get("/", tags=["NWM Modules"])
-async def get_lasam_ipes(
+def get_lasam_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -357,7 +357,7 @@ async def get_lasam_ipes(
 
 
 @noahowp_router.get("/", tags=["NWM Modules"])
-async def get_noahowp_ipes(
+def get_noahowp_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -409,7 +409,7 @@ async def get_noahowp_ipes(
 
 
 @sacsma_router.get("/", tags=["NWM Modules"])
-async def get_sacsma_ipes(
+def get_sacsma_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -468,7 +468,7 @@ async def get_sacsma_ipes(
 
 
 @troute_router.get("/", tags=["NWM Modules"])
-async def get_troute_ipes(
+def get_troute_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -520,7 +520,7 @@ async def get_troute_ipes(
 
 
 @topmodel_router.get("/", tags=["NWM Modules"])
-async def get_topmodel_ipes(
+def get_topmodel_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -572,7 +572,7 @@ async def get_topmodel_ipes(
 
 
 @topoflow_router.get("/", tags=["NWM Modules"])
-async def get_topoflow_ipes(
+def get_topoflow_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -625,7 +625,7 @@ async def get_topoflow_ipes(
 
 '''
 @topoflow_router.get("/albedo", tags=["NWM Modules"])
-async def get_albedo(
+def get_albedo(
     landcover_state: Albedo = Query(
         ...,
         description="The landcover state of a catchment for albedo classification",
@@ -649,7 +649,7 @@ async def get_albedo(
 
 
 @ueb_router.get("/", tags=["NWM Modules"])
-async def get_ueb_ipes(
+def get_ueb_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -708,7 +708,7 @@ async def get_ueb_ipes(
 
 
 @cfe_router.get("/", tags=["NWM Modules"])
-async def get_cfe_ipes(
+def get_cfe_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -781,7 +781,7 @@ async def get_cfe_ipes(
 
 
 @parameter_metadata_router.get("/", tags=["NWM Modules"])
-async def get_calibratable_parameter_metadata(
+def get_calibratable_parameter_metadata(
     modules: list[str] = Query(
         ...,
         description="module name",
@@ -791,6 +791,7 @@ async def get_calibratable_parameter_metadata(
             "LASAM": {"summary": "LASAM", "value": "LASAM"},
             "LSTM": {"summary": "LSTM", "value": "LSTM"},
             "Noah-OWP-Modular": {"summary": "Noah-OWP-Modular", "value": "Noah-OWP-Modular"},
+            "PET": {"summary": "PET", "value": "PET"},
             "Sac-SMA": {"summary": "Sac-SMA", "value": "Sac-SMA"},
             "SFT": {"summary": "SFT", "value": "SFT"},
             "SMP": {"summary": "SMP", "value": "SMP"},
@@ -841,6 +842,7 @@ async def get_calibratable_parameter_metadata(
         "LASAM": "lasam",
         "LSTM": "lstm",
         "Noah-OWP-Modular": "noahowp",
+        "PET": "pet",
         "Sac-SMA": "sacsma",
         "SFT": "sft",
         "SMP": "smp",
@@ -858,6 +860,7 @@ async def get_calibratable_parameter_metadata(
         "lasam": "LASAM",
         "lstm": "LSTM",
         "noahowp": "Noah-OWP-Modular",
+        "pet": "PET",
         "sacsma": "Sac-SMA",
         "sft": "SFT",
         "smp": "SMP",
@@ -888,7 +891,11 @@ async def get_calibratable_parameter_metadata(
             graph = network_graphs[namespace]
 
     # Use cache catalog if parameter_metadata namespace is cached
-    active_catalog = cache_catalog if "parameter_metadata" in cached_namespaces and namespace in cached_namespaces else catalog
+    active_catalog = (
+        cache_catalog
+        if "parameter_metadata" in cached_namespaces and namespace in cached_namespaces
+        else catalog
+    )
 
     parameter_metadata = get_parameter_metadata(
         modules=modules,

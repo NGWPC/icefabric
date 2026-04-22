@@ -225,16 +225,36 @@ else:
     print("INFO: Documentation directory 'static/docs' not found. Docs will not be served.")
 
 if __name__ == "__main__":
-    # Build the local SQL cache exactly once in the parent process, before
-    # uvicorn forks any workers. Workers inherit ICEFABRIC_CACHE_BUILT=1 via
-    # the environment and skip the build in their lifespan.
+    # One-time startup work in the parent process, before uvicorn forks
+    # workers. This avoids two real problems with workers>1:
+    #   1) Concurrent SQL cache builds writing the same warehouse.
+    #   2) Concurrent load_upstream_json() racing on the graph JSON files
+    #      (one worker writes, another reads a partial file -> JSON EOF).
+    # Workers then only hit the read-existing branch of load_upstream_json,
+    # which is safe under concurrency.
+    _deploy_env = (
+        os.environ.get("ICEFABRIC_DEPLOY_ENV") or os.environ.get("ENVIRONMENT") or args.deploy_env
+    ).lower()
+    load_creds(_deploy_env)
+
     if args.cache_catalog == "sql":
-        _deploy_env = (
-            os.environ.get("ICEFABRIC_DEPLOY_ENV") or os.environ.get("ENVIRONMENT") or args.deploy_env
-        ).lower()
-        load_creds(_deploy_env)
         main_logger.info("Building local SQL cache (parent process, one-time)...")
         build_cache(set(args.cached_namespaces), _deploy_env)
         os.environ["ICEFABRIC_CACHE_BUILT"] = "1"
+
+    # Prewarm hydrofabric graph JSON files so workers only read, never write.
+    _hf_namespaces = ["conus_hf", "ak_hf", "hi_hf", "prvi_hf"]
+    try:
+        main_logger.info("Prewarming hydrofabric network graphs (parent process)...")
+        _prewarm_catalog = load_catalog(args.catalog)
+        load_upstream_json(
+            catalog=_prewarm_catalog,
+            namespaces=_hf_namespaces,
+            output_path=here() / "data",
+        )
+    except NoSuchTableError:
+        main_logger.warning(
+            "Hydrofabric namespaces not reachable at prewarm time; workers will attempt at startup."
+        )
 
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, workers=2, log_level="info")

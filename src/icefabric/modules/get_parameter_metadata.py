@@ -105,7 +105,7 @@ def get_parameter_metadata(
             check_module_name = module
 
         # Modules that are valid but don't have parameter metadata yet
-        modules_without_metadata = {"troute", "lstm"}
+        modules_without_metadata = {"troute", "lstm", "pet"}
 
         if check_module_name in modules_without_metadata:
             output = {"module_name": module, "calibratable_parameters": []}

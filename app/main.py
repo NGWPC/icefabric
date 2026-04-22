@@ -4,6 +4,7 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import anyio
 import uvicorn
 from fastapi import FastAPI, status
 from fastapi.staticfiles import StaticFiles
@@ -118,12 +119,25 @@ async def lifespan(app: FastAPI):
     """
     app.state.main_logger = main_logger
     app.state.main_logger.info("Application starting up.")
+    # Tune the AnyIO threadpool for this worker. Sync endpoints (hydrofabric,
+    # ras_xs, nwm_modules) run heavy pyiceberg scans + pandas/geopandas work
+    # that can spike memory to hundreds of MB per in-flight request. With 2
+    # workers on a t3.large (8 GB RAM) and a frequently-used hydrofabric
+    # endpoint, keep the per-worker limit low to avoid OOM.
+    # Effective per-instance concurrency = workers * total_tokens.
+    thread_limiter = anyio.to_thread.current_default_thread_limiter()
+    thread_limiter.total_tokens = 20
+    app.state.main_logger.info(f"AnyIO threadpool limit set to {thread_limiter.total_tokens}")
     deploy_env = os.environ.get("ICEFABRIC_DEPLOY_ENV") or os.environ.get("ENVIRONMENT") or args.deploy_env
     deploy_env = deploy_env.lower()
     load_creds(deploy_env)
-    if args.cache_catalog == "sql":
+    if args.cache_catalog == "sql" and not os.environ.get("ICEFABRIC_CACHE_BUILT"):
         app.state.main_logger.info("Building local SQL cache...")
         build_cache(set(args.cached_namespaces), deploy_env)
+    else:
+        app.state.main_logger.info(
+            "Skipping local SQL cache build (already built by parent process or disabled)."
+        )
     catalog = load_catalog(args.catalog)
     cache_catalog = load_catalog(args.cache_catalog)
     hydrofabric_namespaces = ["conus_hf", "ak_hf", "hi_hf", "prvi_hf"]
@@ -211,4 +225,16 @@ else:
     print("INFO: Documentation directory 'static/docs' not found. Docs will not be served.")
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
+    # Build the local SQL cache exactly once in the parent process, before
+    # uvicorn forks any workers. Workers inherit ICEFABRIC_CACHE_BUILT=1 via
+    # the environment and skip the build in their lifespan.
+    if args.cache_catalog == "sql":
+        _deploy_env = (
+            os.environ.get("ICEFABRIC_DEPLOY_ENV") or os.environ.get("ENVIRONMENT") or args.deploy_env
+        ).lower()
+        load_creds(_deploy_env)
+        main_logger.info("Building local SQL cache (parent process, one-time)...")
+        build_cache(set(args.cached_namespaces), _deploy_env)
+        os.environ["ICEFABRIC_CACHE_BUILT"] = "1"
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, workers=2, log_level="info")

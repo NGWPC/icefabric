@@ -330,7 +330,7 @@ if __name__ == "__main__":
     # that otherwise creeps from glibc/numpy fragmentation over time. The
     # supervisor respawns the worker; new workers skip the heavy one-time
     # setup (cache + graphs are already on disk), so churn is ~seconds.
-    max_requests_per_worker = int(os.environ.get("ICEFABRIC_MAX_REQUESTS_PER_WORKER", "200"))
+    max_requests_per_worker = int(os.environ.get("ICEFABRIC_MAX_REQUESTS_PER_WORKER", "100"))
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",

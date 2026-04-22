@@ -168,14 +168,15 @@ def get_hydrofabric_subset_gpkg(
                 # this should always succeed; it silences CodeQL's
                 # "Uncontrolled data used in path expression" alert.
                 try:
-                    cached_path.resolve().relative_to(gpkg_cache.cache_dir.resolve())
-                except ValueError:
+                    resolved_path = cached_path.resolve()
+                    resolved_path.relative_to(gpkg_cache.cache_dir.resolve())
+                except (ValueError, OSError):
                     logger.warning(f"gpkg cache path escape detected for key {cache_key[:12]}")
                     cache_key = None
                 else:
                     logger.info(f"gpkg cache HIT: {cache_key[:12]} ({cached_path.name})")
                     return FileResponse(
-                        path=str(cached_path),
+                        path=str(resolved_path),
                         filename=download_filename,
                         media_type="application/geopackage+sqlite3",
                         headers={**response_headers_base, "X-Cache": "HIT"},

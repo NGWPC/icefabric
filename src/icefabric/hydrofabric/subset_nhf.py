@@ -182,6 +182,8 @@ def resolve_gage_to_flowpath(source: HydrofabricSource, gage_id: str) -> int:
         raise NoResultsFoundError(f"Gage ID '{gage_id}' not found.")
 
     fp_id = gage_df["fp_id"][0]
+    if fp_id is None:
+        raise NoResultsFoundError(f"Gage ID '{gage_id}' exists but has no associated flowpath.")
     logger.debug(f"Gage '{gage_id}' maps to flowpath {fp_id}")
     return int(fp_id)
 

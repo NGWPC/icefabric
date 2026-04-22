@@ -17,10 +17,20 @@ _log = logging.getLogger(__name__)
 
 @dataclass
 class GpkgLimiter:
-    """Per-app concurrency guard for the hydrofabric gpkg endpoint."""
+    """Per-app concurrency + admission guard for the hydrofabric gpkg endpoint.
+
+    ``semaphore`` caps concurrent heavy builds per worker. ``max_queue_depth``
+    caps how many additional requests may be *waiting* on that semaphore
+    before we shed load with a 429 instead of letting clients sit through
+    ``queue_timeout_s`` of silence. ``waiting`` is the live waiter count,
+    guarded by ``queue_lock``.
+    """
 
     semaphore: BoundedSemaphore
     queue_timeout_s: float
+    max_queue_depth: int = 15
+    queue_lock: threading.Lock = field(default_factory=threading.Lock)
+    waiting: int = 0
 
 
 @dataclass

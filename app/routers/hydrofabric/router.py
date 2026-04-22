@@ -179,10 +179,33 @@ def get_hydrofabric_subset_gpkg(
 
     # Cap concurrent heavy builds per worker. Each CONUS VPU subset peaks
     # at hundreds of MB of pandas/geopandas memory, so uncapped concurrency
-    # can OOM the instance. Queue timeouts surface as 503 rather than a
-    # silently stalled client.
+    # can OOM the instance. Two admission gates:
+    #   1) Queue-depth: if too many requests are already waiting, fail
+    #      fast with 429 instead of letting the client sit through the
+    #      full queue_timeout_s. Prevents pathological backlogs under
+    #      sustained overload.
+    #   2) Queue-timeout: a 5xx-equivalent 503 for requests that did get
+    #      admitted to the queue but still couldn't acquire in time.
+    with gpkg_limiter.queue_lock:
+        if gpkg_limiter.waiting >= gpkg_limiter.max_queue_depth:
+            current = gpkg_limiter.waiting
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "Hydrofabric service is over capacity "
+                    f"({current} requests already queued, max "
+                    f"{gpkg_limiter.max_queue_depth}). Please retry shortly."
+                ),
+                headers={"Retry-After": "30"},
+            )
+        gpkg_limiter.waiting += 1
     sem_wait_start = time.monotonic()
-    if not gpkg_limiter.semaphore.acquire(timeout=gpkg_limiter.queue_timeout_s):
+    try:
+        acquired = gpkg_limiter.semaphore.acquire(timeout=gpkg_limiter.queue_timeout_s)
+    finally:
+        with gpkg_limiter.queue_lock:
+            gpkg_limiter.waiting -= 1
+    if not acquired:
         raise HTTPException(
             status_code=503,
             detail=(

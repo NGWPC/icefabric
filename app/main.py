@@ -168,12 +168,18 @@ async def lifespan(app: FastAPI):
     # Per-worker concurrency cap for the heavy gpkg endpoint. Tunable via env.
     gpkg_concurrency = int(os.environ.get("ICEFABRIC_HF_GPKG_CONCURRENCY", "1"))
     gpkg_queue_timeout_s = float(os.environ.get("ICEFABRIC_HF_GPKG_QUEUE_TIMEOUT_S", "300"))
+    # Queue-depth admission: reject with 429 once this many requests are
+    # already waiting for a semaphore slot. Chosen so the worst-case wait
+    # (max_queue_depth * expected build time) stays under queue_timeout_s.
+    gpkg_max_queue_depth = int(os.environ.get("ICEFABRIC_HF_GPKG_MAX_QUEUE_DEPTH", "15"))
     app.state.gpkg_limiter = GpkgLimiter(
         semaphore=threading.BoundedSemaphore(gpkg_concurrency),
         queue_timeout_s=gpkg_queue_timeout_s,
+        max_queue_depth=gpkg_max_queue_depth,
     )
     app.state.main_logger.info(
-        f"gpkg concurrency cap per worker = {gpkg_concurrency} (queue timeout {gpkg_queue_timeout_s:.0f}s)"
+        f"gpkg concurrency cap per worker = {gpkg_concurrency} "
+        f"(queue timeout {gpkg_queue_timeout_s:.0f}s, max queue depth {gpkg_max_queue_depth})"
     )
 
     # Disk-based result cache for hydrofabric gpkg. A given (namespace,

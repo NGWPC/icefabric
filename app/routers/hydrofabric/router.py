@@ -327,6 +327,17 @@ def get_hydrofabric_subset_gpkg(
                 status_code=404, detail=f"No non-empty layers found for identifier '{identifier}'"
             )
 
+        # Validate the freshly-built file BEFORE committing to cache — we
+        # never want to cache garbage, and after os.replace() tmp_path no
+        # longer exists so these checks must happen first.
+        if not tmp_path.exists():
+            raise HTTPException(status_code=500, detail="Failed to create geopackage file")
+        if not tmp_path.is_file():
+            raise HTTPException(status_code=500, detail="Expected file but got directory")
+        if tmp_path.stat().st_size == 0:
+            tmp_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=500, detail="Created geopackage file is empty")
+
         # Install into the gpkg cache if available. os.replace() is atomic;
         # after commit, tmp_path no longer exists so BackgroundTask.unlink is
         # a no-op (safe via missing_ok=True).
@@ -339,18 +350,6 @@ def get_hydrofabric_subset_gpkg(
                 logger.info(f"gpkg cache STORE: {cache_key[:12]}")
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"gpkg cache store failed: {e}")
-
-        # Verify the file was created successfully
-        if not tmp_path.exists():
-            raise HTTPException(status_code=500, detail="Failed to create geopackage file")
-
-        if tmp_path.stat().st_size == 0:
-            tmp_path.unlink(missing_ok=True)
-            raise HTTPException(status_code=500, detail="Created geopackage file is empty")
-
-        # Verify it's actually a file, not a directory
-        if not tmp_path.is_file():
-            raise HTTPException(status_code=500, detail="Expected file but got directory")
 
         logger.info(
             f"Successfully created geopackage: {served_path} (size: {served_path.stat().st_size} bytes)"

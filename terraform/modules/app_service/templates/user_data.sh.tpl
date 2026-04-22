@@ -298,9 +298,17 @@ services:
       # after a fresh RPM=60 load test confirms headroom at the new value.
       - ICEFABRIC_HF_GPKG_CONCURRENCY=1
       - ICEFABRIC_HF_GPKG_QUEUE_TIMEOUT_S=300
+      # Queue-depth admission. Once this many requests are already waiting
+      # for a semaphore slot, new requests get a 429 immediately instead of
+      # blocking for queue_timeout_s. 15 * ~15s per gpkg-limited request =
+      # ~225s worst-case wait, comfortably under the 300s queue timeout.
+      - ICEFABRIC_HF_GPKG_MAX_QUEUE_DEPTH=15
       # Recycle each worker after N requests to reset memory creep
-      # from glibc arena / numpy allocator fragmentation.
-      - ICEFABRIC_MAX_REQUESTS_PER_WORKER=200
+      # from glibc arena / numpy allocator fragmentation. 100 gives a
+      # ~6-7 min recycle interval at RPM=15 (sustainable load), keeping
+      # RSS well under the 16 GiB ceiling even with the observed +46%
+      # mem creep over 20 min.
+      - ICEFABRIC_MAX_REQUESTS_PER_WORKER=100
       # Disk-only result cache for hydrofabric gpkg subsets. Both workers
       # share /tmp/hf_gpkg_cache; keys include the flowpaths snapshot id
       # so deploys / table rewrites invalidate naturally. 250 entries fits

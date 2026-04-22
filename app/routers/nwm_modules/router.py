@@ -1,5 +1,5 @@
+import contextlib
 import logging
-import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic.json_schema import SkipJsonSchema
@@ -910,26 +910,17 @@ def get_calibratable_parameter_metadata(
         else catalog
     )
 
-    # With gage_id, runs same hydrofabric subset as /gpkg -> share the limiter.
+    # With gage_id, runs same hydrofabric subset as /gpkg -> share the
+    # limiter (concurrency cap + queue-depth admission + timeout) so a
+    # burst of param_metadata requests can't starve the /gpkg endpoint
+    # (or vice versa). Cheap metadata-only calls (no gage_id) skip admission.
     needs_subset = formatted_gage_id is not None
-    sem_held = False
-    if needs_subset:
-        sem_wait_start = time.monotonic()
-        if not gpkg_limiter.semaphore.acquire(timeout=gpkg_limiter.queue_timeout_s):
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "Hydrofabric subset service is at capacity. Please retry shortly. "
-                    f"(waited {gpkg_limiter.queue_timeout_s:.0f}s for a slot)"
-                ),
-                headers={"Retry-After": "30"},
-            )
-        sem_held = True
-        sem_wait_ms = (time.monotonic() - sem_wait_start) * 1000
-        if sem_wait_ms > 250:
-            logger.info(f"param_metadata semaphore wait: {sem_wait_ms:.0f} ms for gage {gage_id}")
-
-    try:
+    admission = (
+        gpkg_limiter.admit(logger=logger, context=f"for gage {gage_id}")
+        if needs_subset
+        else contextlib.nullcontext()
+    )
+    with admission:
         parameter_metadata = get_parameter_metadata(
             modules=modules,
             catalog=active_catalog,
@@ -937,9 +928,6 @@ def get_calibratable_parameter_metadata(
             domain=namespace,
             graph=graph,
         )
-    finally:
-        if sem_held:
-            gpkg_limiter.semaphore.release()
 
     for module in parameter_metadata:
         module_name = module["module_name"]

@@ -1,0 +1,35 @@
+version: "2.4"
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.api
+    image: icefabric-api:loadtest
+    container_name: icefabric-api-loadtest
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - ../../.env
+    environment:
+      - ICEFABRIC_DEPLOY_ENV=test
+      # Curb glibc per-thread arena fragmentation on heavy numpy/pandas use.
+      - MALLOC_ARENA_MAX=2
+      # Stop numerical libs and polars from spawning 1 thread per core;
+      # we only have ~2 vCPU of budget and already fan out via asyncio
+      # threadpool + subset_nhf's ThreadPoolExecutor.
+      - OMP_NUM_THREADS=2
+      - OPENBLAS_NUM_THREADS=2
+      - MKL_NUM_THREADS=2
+      - POLARS_MAX_THREADS=2
+    # Emulating m6i.xlarge (4 vCPU, 16 GB) for this run.
+    cpus: 4.0
+    mem_limit: 16g
+    memswap_limit: 16g
+    oom_kill_disable: false
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "--head", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 300s

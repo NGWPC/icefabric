@@ -164,6 +164,7 @@ convention = "numpy"
 [tool.ruff.lint.per-file-ignores]
 "docs/*" = ["I"]
 "tests/*" = ["D"]
+"scripts/*" = ["D", "BLE001"]
 "*/__init__.py" = ["F401"]
 
 [tool.mypy]

@@ -163,14 +163,24 @@ def get_hydrofabric_subset_gpkg(
             cache_key = gpkg_cache.key(str(namespace), id_type.value, str(identifier), snapshot_id)
             cached_path = gpkg_cache.get(cache_key)
             if cached_path is not None:
-                logger.info(f"gpkg cache HIT: {cache_key[:12]} ({cached_path.name})")
-                return FileResponse(
-                    path=str(cached_path),
-                    filename=download_filename,
-                    media_type="application/geopackage+sqlite3",
-                    headers={**response_headers_base, "X-Cache": "HIT"},
-                    # No background delete: this file IS the cache entry.
-                )
+                # Defense-in-depth: verify the resolved path stays inside the
+                # cache directory. The key is already a sha256 hex digest, so
+                # this should always succeed; it silences CodeQL's
+                # "Uncontrolled data used in path expression" alert.
+                try:
+                    cached_path.resolve().relative_to(gpkg_cache.cache_dir.resolve())
+                except ValueError:
+                    logger.warning(f"gpkg cache path escape detected for key {cache_key[:12]}")
+                    cache_key = None
+                else:
+                    logger.info(f"gpkg cache HIT: {cache_key[:12]} ({cached_path.name})")
+                    return FileResponse(
+                        path=str(cached_path),
+                        filename=download_filename,
+                        media_type="application/geopackage+sqlite3",
+                        headers={**response_headers_base, "X-Cache": "HIT"},
+                        # No background delete: this file IS the cache entry.
+                    )
         except Exception as e:  # noqa: BLE001
             # Cache-lookup failures must never prevent serving the request.
             logger.warning(f"gpkg cache lookup skipped: {e}")

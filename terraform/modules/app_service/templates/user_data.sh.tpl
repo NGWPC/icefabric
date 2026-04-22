@@ -285,20 +285,28 @@ services:
     environment:
       # Curb glibc per-thread arena fragmentation (heavy numpy/pandas use).
       - MALLOC_ARENA_MAX=2
-      # Stop numerical libs and polars from spawning 1 thread per core;
-      # we only have ~2 vCPU of budget per worker on t3.large.
+      # Pin numerical libs + polars at 2 threads per worker. With 2 workers
+      # on a 4 vCPU box that's 4 active compute threads, matching vCPU
+      # count. Bump to 3 only if we reduce workers.
       - OMP_NUM_THREADS=2
       - OPENBLAS_NUM_THREADS=2
       - MKL_NUM_THREADS=2
       - POLARS_MAX_THREADS=2
       # Hydrofabric subset concurrency guard. 1 per worker * 2 workers = 2
-      # concurrent heavy builds per EC2. Tune up if you move to a larger
-      # instance type with more RAM headroom.
+      # concurrent heavy builds per EC2. This matches what our load test
+      # has validated safe on 16 GiB (peak 13.9 GiB / 87%). Bump to 2 only
+      # after a fresh RPM=60 load test confirms headroom at the new value.
       - ICEFABRIC_HF_GPKG_CONCURRENCY=1
       - ICEFABRIC_HF_GPKG_QUEUE_TIMEOUT_S=300
       # Recycle each worker after N requests to reset memory creep
       # from glibc arena / numpy allocator fragmentation.
       - ICEFABRIC_MAX_REQUESTS_PER_WORKER=200
+      # Disk-only result cache for hydrofabric gpkg subsets. Both workers
+      # share /tmp/hf_gpkg_cache; keys include the flowpaths snapshot id
+      # so deploys / table rewrites invalidate naturally. 250 entries fits
+      # 18 CONUS VPUs (~200 MB each, ~3.6 GiB) + ~230 gage slots (<5 MB
+      # each, ~1 GiB) with plenty of /tmp headroom on the root volume.
+      - ICEFABRIC_GPKG_CACHE_MAX_ENTRIES=250
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "--head", "http://localhost:8000/health"]

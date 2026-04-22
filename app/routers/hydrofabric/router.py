@@ -23,6 +23,7 @@ from app import (
     get_gpkg_limiter,
     get_graphs,
 )
+from icefabric.cli.streamflow import NoResultsFoundError
 from icefabric.hydrofabric import subset_hydrofabric, subset_nhf
 from icefabric.schemas import (
     DivideAttributes,
@@ -306,6 +307,9 @@ def get_hydrofabric_subset_gpkg(
     except FileNotFoundError as e:
         _cleanup_tmp(tmp_path)
         raise HTTPException(status_code=404, detail=f"Required file not found: {str(e)}") from None
+    except NoResultsFoundError as e:
+        _cleanup_tmp(tmp_path)
+        raise HTTPException(status_code=404, detail=str(e)) from None
     except ValueError as e:
         _cleanup_tmp(tmp_path)
         if "No origin found" in str(e):

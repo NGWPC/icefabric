@@ -175,17 +175,51 @@ def pl_to_gdf(pl_df: pl.DataFrame, crs: str = "EPSG:5070") -> gpd.GeoDataFrame:
 
 
 def resolve_gage_to_flowpath(source: HydrofabricSource, gage_id: str) -> int:
-    """Resolve a gage ID to its associated flowpath ID."""
+    """Resolve a gage ID to its associated flowpath ID.
+
+    First tries the direct ``fp_id`` on the gages record. If that is ``None``
+    (virtual-only gage), bridges through ``reference_flowpaths``:
+    ``virtual_fp_id → div_id → flowpaths.fp_id``. Every virtual flowpath maps
+    to exactly one divide, and every divide has exactly one flowpath, so this
+    is deterministic.
+    """
     gage_df = source.load_filtered_eq("gages", "site_no", gage_id)
 
     if len(gage_df) == 0:
         raise NoResultsFoundError(f"Gage ID '{gage_id}' not found.")
 
     fp_id = gage_df["fp_id"][0]
-    if fp_id is None:
-        raise NoResultsFoundError(f"Gage ID '{gage_id}' exists but has no associated flowpath.")
-    logger.debug(f"Gage '{gage_id}' maps to flowpath {fp_id}")
-    return int(fp_id)
+    if fp_id is not None:
+        logger.debug(f"Gage '{gage_id}' maps to flowpath {fp_id}")
+        return int(fp_id)
+
+    # Virtual-only gage: bridge virtual_fp_id → reference_flowpaths.div_id → flowpaths.fp_id
+    virtual_fp_id = gage_df["virtual_fp_id"][0]
+    if virtual_fp_id is None:
+        raise NoResultsFoundError(
+            f"Gage ID '{gage_id}' exists but has no associated flowpath or virtual flowpath."
+        )
+
+    ref_df = source.load_filtered("reference_flowpaths", "virtual_fp_id", {int(virtual_fp_id)})
+    if len(ref_df) == 0:
+        raise NoResultsFoundError(
+            f"Gage ID '{gage_id}' has virtual_fp_id {virtual_fp_id} but no reference_flowpaths entry."
+        )
+
+    div_id = ref_df["div_id"][0]
+    fp_df = source.load_filtered("flowpaths", "div_id", {int(div_id)})
+    if len(fp_df) == 0:
+        raise NoResultsFoundError(
+            f"Gage ID '{gage_id}' (virtual_fp_id {virtual_fp_id}, div_id {div_id}) "
+            "has no corresponding flowpath."
+        )
+
+    bridged_fp_id = fp_df["fp_id"][0]
+    logger.debug(
+        f"Gage '{gage_id}' (virtual {int(virtual_fp_id)}) bridges to flowpath "
+        f"{bridged_fp_id} via div_id {div_id}"
+    )
+    return int(bridged_fp_id)
 
 
 def resolve_vpu_to_flowpath_ids(source: HydrofabricSource, vpu_id: str) -> set[int]:

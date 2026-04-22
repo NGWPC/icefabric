@@ -19,6 +19,7 @@ from pyiceberg.catalog import Catalog, load_catalog
 from pyiceberg.expressions import And, EqualTo, GreaterThanOrEqual, In, LessThanOrEqual
 from pyprojroot import here
 
+from app import GpkgLimiter
 from app.main import app
 from icefabric.builds.graph_connectivity import read_edge_attrs, read_node_attrs
 from icefabric.schemas.icechunk import NGWPCTestLocations
@@ -997,9 +998,16 @@ def testing_dir() -> Path:
 @pytest.fixture(scope="session")
 def client():
     """Create a test client for the FastAPI app with mock catalog."""
+    import threading
+
     app.state.catalog = MockCatalog()  # defaulting to use the mock catalog
     app.state.cached_namespaces = {"conus_hf", "ak_hf", "hi_hf", "prvi_hf"}
     app.state.cache_catalog = MockCatalog()  # defaulting to use the mock catalog
+    # Tests skip lifespan; seed app.state manually.
+    app.state.gpkg_limiter = GpkgLimiter(
+        semaphore=threading.BoundedSemaphore(16),
+        queue_timeout_s=60.0,
+    )
     return TestClient(app)
 
 

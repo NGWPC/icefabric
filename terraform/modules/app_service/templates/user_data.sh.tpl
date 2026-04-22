@@ -282,6 +282,23 @@ services:
       - "127.0.0.1:8000:8000"
     env_file:
       - ./.env
+    environment:
+      # Curb glibc per-thread arena fragmentation (heavy numpy/pandas use).
+      - MALLOC_ARENA_MAX=2
+      # Stop numerical libs and polars from spawning 1 thread per core;
+      # we only have ~2 vCPU of budget per worker on t3.large.
+      - OMP_NUM_THREADS=2
+      - OPENBLAS_NUM_THREADS=2
+      - MKL_NUM_THREADS=2
+      - POLARS_MAX_THREADS=2
+      # Hydrofabric subset concurrency guard. 1 per worker * 2 workers = 2
+      # concurrent heavy builds per EC2. Tune up if you move to a larger
+      # instance type with more RAM headroom.
+      - ICEFABRIC_HF_GPKG_CONCURRENCY=1
+      - ICEFABRIC_HF_GPKG_QUEUE_TIMEOUT_S=300
+      # Recycle each worker after N requests to reset memory creep
+      # from glibc arena / numpy allocator fragmentation.
+      - ICEFABRIC_MAX_REQUESTS_PER_WORKER=500
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "--head", "http://localhost:8000/health"]

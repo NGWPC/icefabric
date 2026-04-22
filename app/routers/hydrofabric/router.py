@@ -140,7 +140,10 @@ def get_hydrofabric_subset_gpkg(
     # swap catalog for cached catalog if appropriate
     catalog = cache_catalog if namespace in cached_namespaces else catalog
 
-    # Bound concurrent heavy gpkg builds; queue timeouts surface as 503.
+    # Cap concurrent heavy builds per worker. Each CONUS VPU subset peaks
+    # at hundreds of MB of pandas/geopandas memory, so uncapped concurrency
+    # can OOM the instance. Queue timeouts surface as 503 rather than a
+    # silently stalled client.
     sem_wait_start = time.monotonic()
     if not gpkg_limiter.semaphore.acquire(timeout=gpkg_limiter.queue_timeout_s):
         raise HTTPException(
@@ -215,7 +218,8 @@ def get_hydrofabric_subset_gpkg(
 
         tmp_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Partition layers: pyogrio for spatial, sqlite direct-write for tabular.
+        # Partition layers up front so we can pop + free as we write.
+        # pyogrio handles spatial, sqlite handles tabular (incl. empty ones).
         spatial_names: list[str] = []
         nonspatial_names: list[str] = []
         for name, data in output_layers.items():
@@ -226,7 +230,8 @@ def get_hydrofabric_subset_gpkg(
 
         layers_written = 0
 
-        # Stream layers one at a time, freeing each frame to keep RSS low.
+        # Stream spatial layers one at a time: pop -> write -> del + gc so
+        # RSS stays flat across layers instead of accumulating.
         for name in spatial_names:
             layer_data = output_layers.pop(name)
             n_rows = len(layer_data)

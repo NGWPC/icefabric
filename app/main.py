@@ -121,12 +121,10 @@ async def lifespan(app: FastAPI):
     """
     app.state.main_logger = main_logger
     app.state.main_logger.info("Application starting up.")
-    # Tune the AnyIO threadpool for this worker. Sync endpoints (hydrofabric,
-    # ras_xs, nwm_modules) run heavy pyiceberg scans + pandas/geopandas work
-    # that can spike memory to hundreds of MB per in-flight request. With 2
-    # workers on a t3.large (8 GB RAM) and a frequently-used hydrofabric
-    # endpoint, keep the per-worker limit low to avoid OOM.
-    # Effective per-instance concurrency = workers * total_tokens.
+    # Cap per-worker sync-handler concurrency. Hydrofabric/ras_xs/nwm handlers
+    # can spike to hundreds of MB of pandas/geopandas memory per in-flight
+    # request, so on a t3.large (8 GB / 2 workers) we keep this low to avoid
+    # OOM. Effective per-instance concurrency = workers * total_tokens.
     thread_limiter = anyio.to_thread.current_default_thread_limiter()
     thread_limiter.total_tokens = 20
     app.state.main_logger.info(f"AnyIO threadpool limit set to {thread_limiter.total_tokens}")
@@ -147,7 +145,7 @@ async def lifespan(app: FastAPI):
     app.state.cache_catalog = cache_catalog
     app.state.cached_namespaces = {e.split(":")[0] for e in args.cached_namespaces}
     # Per-worker concurrency cap for the heavy gpkg endpoint. Tunable via env.
-    gpkg_concurrency = int(os.environ.get("ICEFABRIC_HF_GPKG_CONCURRENCY", "2"))
+    gpkg_concurrency = int(os.environ.get("ICEFABRIC_HF_GPKG_CONCURRENCY", "1"))
     gpkg_queue_timeout_s = float(os.environ.get("ICEFABRIC_HF_GPKG_QUEUE_TIMEOUT_S", "120"))
     app.state.gpkg_limiter = GpkgLimiter(
         semaphore=threading.BoundedSemaphore(gpkg_concurrency),
@@ -237,13 +235,11 @@ else:
     print("INFO: Documentation directory 'static/docs' not found. Docs will not be served.")
 
 if __name__ == "__main__":
-    # One-time startup work in the parent process, before uvicorn forks
-    # workers. This avoids two real problems with workers>1:
-    #   1) Concurrent SQL cache builds writing the same warehouse.
-    #   2) Concurrent load_upstream_json() racing on the graph JSON files
-    #      (one worker writes, another reads a partial file -> JSON EOF).
-    # Workers then only hit the read-existing branch of load_upstream_json,
-    # which is safe under concurrency.
+    # One-time setup in the parent before forking workers. With workers>1,
+    # doing this in lifespan races: concurrent SQL cache builds clobber the
+    # warehouse, and concurrent load_upstream_json() calls have one worker
+    # reading a partially-written graph JSON (-> EOF). Pre-building here
+    # means workers only hit the safe "read existing" paths.
     _deploy_env = (
         os.environ.get("ICEFABRIC_DEPLOY_ENV") or os.environ.get("ENVIRONMENT") or args.deploy_env
     ).lower()

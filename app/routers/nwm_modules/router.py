@@ -910,12 +910,7 @@ def get_calibratable_parameter_metadata(
         else catalog
     )
 
-    # When gage_id is set, get_parameter_metadata() performs the same
-    # hydrofabric subset that the /gpkg endpoint does (via get_subset ->
-    # subset_nhf / subset_hydrofabric) and peaks at hundreds of MB of
-    # pandas/geopandas memory. Share the per-worker GpkgLimiter semaphore
-    # so the combined in-flight "heavy subset" work across both endpoints
-    # stays bounded. The cheap no-gage-id path skips the semaphore entirely.
+    # With gage_id, runs same hydrofabric subset as /gpkg -> share the limiter.
     needs_subset = formatted_gage_id is not None
     sem_held = False
     if needs_subset:

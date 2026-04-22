@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from pyiceberg.catalog import load_catalog
 from pyiceberg.exceptions import NoSuchTableError
 from pyprojroot import here
 
+from app import GpkgLimiter
 from app.routers.hydrofabric.router import api_router as hydrofabric_api_router
 from app.routers.nwm_modules.router import (
     cfe_router,
@@ -144,6 +146,16 @@ async def lifespan(app: FastAPI):
     app.state.catalog = catalog
     app.state.cache_catalog = cache_catalog
     app.state.cached_namespaces = {e.split(":")[0] for e in args.cached_namespaces}
+    # Per-worker concurrency cap for the heavy gpkg endpoint. Tunable via env.
+    gpkg_concurrency = int(os.environ.get("ICEFABRIC_HF_GPKG_CONCURRENCY", "2"))
+    gpkg_queue_timeout_s = float(os.environ.get("ICEFABRIC_HF_GPKG_QUEUE_TIMEOUT_S", "120"))
+    app.state.gpkg_limiter = GpkgLimiter(
+        semaphore=threading.BoundedSemaphore(gpkg_concurrency),
+        queue_timeout_s=gpkg_queue_timeout_s,
+    )
+    app.state.main_logger.info(
+        f"gpkg concurrency cap per worker = {gpkg_concurrency} (queue timeout {gpkg_queue_timeout_s:.0f}s)"
+    )
     try:
         app.state.network_graphs = load_upstream_json(
             catalog=catalog,

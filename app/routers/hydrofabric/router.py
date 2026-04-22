@@ -1,7 +1,9 @@
+import gc
 import logging
 import pathlib
 import sqlite3
 import tempfile
+import time
 import uuid
 
 import geopandas as gpd
@@ -13,7 +15,14 @@ from pydantic.json_schema import SkipJsonSchema
 from pyiceberg.expressions import EqualTo
 from starlette.background import BackgroundTask
 
-from app import get_cache_catalog, get_cached_namespaces, get_catalog, get_graphs
+from app import (
+    GpkgLimiter,
+    get_cache_catalog,
+    get_cached_namespaces,
+    get_catalog,
+    get_gpkg_limiter,
+    get_graphs,
+)
 from icefabric.hydrofabric import subset_hydrofabric, subset_nhf
 from icefabric.schemas import (
     DivideAttributes,
@@ -39,6 +48,14 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 api_router = APIRouter(prefix="/hydrofabric")
+
+
+def _cleanup_tmp(path: pathlib.Path) -> None:
+    """Delete a temp file; safe to call multiple times."""
+    try:
+        path.unlink(missing_ok=True)
+    except OSError as e:  # pragma: no cover - defensive
+        logger.warning(f"cleanup: failed to delete {path}: {e}")
 
 
 @api_router.get("/{identifier}/gpkg", tags=["Hydrofabric Services"])
@@ -81,6 +98,7 @@ def get_hydrofabric_subset_gpkg(
     cache_catalog=Depends(get_cache_catalog),
     cached_namespaces=Depends(get_cached_namespaces),
     network_graphs=Depends(get_graphs),
+    gpkg_limiter: GpkgLimiter = Depends(get_gpkg_limiter),
 ):
     """
     Get hydrofabric subset as a geopackage file (.gpkg)
@@ -121,6 +139,28 @@ def get_hydrofabric_subset_gpkg(
 
     # swap catalog for cached catalog if appropriate
     catalog = cache_catalog if namespace in cached_namespaces else catalog
+
+    # Bound concurrent heavy gpkg builds; queue timeouts surface as 503.
+    sem_wait_start = time.monotonic()
+    if not gpkg_limiter.semaphore.acquire(timeout=gpkg_limiter.queue_timeout_s):
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Hydrofabric service is at capacity. Please retry shortly. "
+                f"(waited {gpkg_limiter.queue_timeout_s:.0f}s for a slot)"
+            ),
+            headers={"Retry-After": "30"},
+        )
+    sem_held = True
+    sem_wait_ms = (time.monotonic() - sem_wait_start) * 1000
+    if sem_wait_ms > 250:
+        logger.info(f"gpkg semaphore wait: {sem_wait_ms:.0f} ms for {identifier}")
+
+    def _release_sem() -> None:
+        nonlocal sem_held
+        if sem_held:
+            sem_held = False
+            gpkg_limiter.semaphore.release()
 
     try:
         if namespace.is_nhf:
@@ -175,30 +215,48 @@ def get_hydrofabric_subset_gpkg(
 
         tmp_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Partition layers: pyogrio for spatial, sqlite direct-write for tabular.
+        spatial_names: list[str] = []
+        nonspatial_names: list[str] = []
+        for name, data in output_layers.items():
+            if isinstance(data, gpd.GeoDataFrame) and len(data) > 0:
+                spatial_names.append(name)
+            elif not isinstance(data, gpd.GeoDataFrame):
+                nonspatial_names.append(name)
+
         layers_written = 0
-        spatial_layers = {}
-        nonspatial_layers = {}
 
-        # Separate spatial vs non-spatial
-        for table_name, layer_data in output_layers.items():
-            if isinstance(layer_data, gpd.GeoDataFrame) and len(layer_data) > 0:
-                spatial_layers[table_name] = layer_data
-            elif not isinstance(layer_data, gpd.GeoDataFrame):
-                nonspatial_layers[table_name] = layer_data
-
-        # Write spatial layers first with pyogrio
-        for table_name, layer_data in spatial_layers.items():
-            pyogrio.write_dataframe(layer_data, tmp_path, layer=table_name)
+        # Stream layers one at a time, freeing each frame to keep RSS low.
+        for name in spatial_names:
+            layer_data = output_layers.pop(name)
+            n_rows = len(layer_data)
+            pyogrio.write_dataframe(layer_data, tmp_path, layer=name)
+            del layer_data
+            gc.collect()
             layers_written += 1
-            logger.info(f"Written spatial layer '{table_name}' with {len(layer_data)} records")
+            logger.info(f"Written spatial layer '{name}' with {n_rows} records")
 
-        # Then write non-spatial layers with sqlite3 (includes empty layers)
-        conn = sqlite3.connect(tmp_path)
-        for table_name, layer_data in nonspatial_layers.items():
-            layer_data.to_sql(table_name, conn, if_exists="replace", index=False)
-            layers_written += 1
-            logger.info(f"Written non-spatial layer '{table_name}' with {len(layer_data)} records")
-        conn.close()
+        # Share one sqlite connection across tabular layers.
+        if nonspatial_names:
+            conn = sqlite3.connect(tmp_path)
+            try:
+                for name in nonspatial_names:
+                    layer_data = output_layers.pop(name)
+                    n_rows = len(layer_data)
+                    layer_data.to_sql(name, conn, if_exists="replace", index=False)
+                    del layer_data
+                    gc.collect()
+                    layers_written += 1
+                    logger.info(f"Written non-spatial layer '{name}' with {n_rows} records")
+            finally:
+                conn.close()
+
+        # Drop any layers skipped above (empty spatial frames etc.).
+        output_layers.clear()
+        gc.collect()
+
+        # Heavy work is done; release the slot before streaming to the client.
+        _release_sem()
 
         if layers_written == 0:
             raise HTTPException(
@@ -234,23 +292,17 @@ def get_hydrofabric_subset_gpkg(
                 "X-Domain": namespace,
                 "X-Layers-Count": str(layers_written),
             },
-            background=BackgroundTask(lambda: tmp_path.unlink(missing_ok=True)),
+            background=BackgroundTask(_cleanup_tmp, tmp_path),
         )
 
     except HTTPException:
-        # Clean up temp file if it exists and re-raise HTTP exceptions
-        if tmp_path.exists():
-            tmp_path.unlink(missing_ok=True)
+        _cleanup_tmp(tmp_path)
         raise
     except FileNotFoundError as e:
-        # Clean up temp file if it exists
-        if tmp_path.exists():
-            tmp_path.unlink(missing_ok=True)
+        _cleanup_tmp(tmp_path)
         raise HTTPException(status_code=404, detail=f"Required file not found: {str(e)}") from None
     except ValueError as e:
-        # Clean up temp file if it exists
-        if tmp_path.exists():
-            tmp_path.unlink(missing_ok=True)
+        _cleanup_tmp(tmp_path)
         if "No origin found" in str(e):
             raise HTTPException(
                 status_code=404,
@@ -258,6 +310,9 @@ def get_hydrofabric_subset_gpkg(
             ) from None
         else:
             raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}") from None
+    finally:
+        # Idempotent: no-op if already released on the happy path.
+        _release_sem()
 
 
 @api_router.get("/history", tags=["Hydrofabric Services"])

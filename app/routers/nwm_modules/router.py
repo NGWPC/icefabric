@@ -1,8 +1,18 @@
+import logging
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic.json_schema import SkipJsonSchema
 from pyiceberg.catalog import Catalog
 
-from app import get_cache_catalog, get_cached_namespaces, get_catalog, get_graphs
+from app import (
+    GpkgLimiter,
+    get_cache_catalog,
+    get_cached_namespaces,
+    get_catalog,
+    get_gpkg_limiter,
+    get_graphs,
+)
 from icefabric.modules import SmpModules, config_mapper, get_parameter_metadata
 from icefabric.schemas import GeographicDomain, HydrofabricNamespace, HydrofabricSource
 from icefabric.schemas.modules import (
@@ -19,6 +29,8 @@ from icefabric.schemas.modules import (
     Topoflow,
     TRoute,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_module_namespace(
@@ -822,6 +834,7 @@ def get_calibratable_parameter_metadata(
     cache_catalog: Catalog = Depends(get_cache_catalog),
     cached_namespaces=Depends(get_cached_namespaces),
     network_graphs=Depends(get_graphs),
+    gpkg_limiter: GpkgLimiter = Depends(get_gpkg_limiter),
 ):
     """
     An endpoint to return calibratable parameter metadata for a module.
@@ -897,13 +910,41 @@ def get_calibratable_parameter_metadata(
         else catalog
     )
 
-    parameter_metadata = get_parameter_metadata(
-        modules=modules,
-        catalog=active_catalog,
-        gage_id=formatted_gage_id,
-        domain=namespace,
-        graph=graph,
-    )
+    # When gage_id is set, get_parameter_metadata() performs the same
+    # hydrofabric subset that the /gpkg endpoint does (via get_subset ->
+    # subset_nhf / subset_hydrofabric) and peaks at hundreds of MB of
+    # pandas/geopandas memory. Share the per-worker GpkgLimiter semaphore
+    # so the combined in-flight "heavy subset" work across both endpoints
+    # stays bounded. The cheap no-gage-id path skips the semaphore entirely.
+    needs_subset = formatted_gage_id is not None
+    sem_held = False
+    if needs_subset:
+        sem_wait_start = time.monotonic()
+        if not gpkg_limiter.semaphore.acquire(timeout=gpkg_limiter.queue_timeout_s):
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Hydrofabric subset service is at capacity. Please retry shortly. "
+                    f"(waited {gpkg_limiter.queue_timeout_s:.0f}s for a slot)"
+                ),
+                headers={"Retry-After": "30"},
+            )
+        sem_held = True
+        sem_wait_ms = (time.monotonic() - sem_wait_start) * 1000
+        if sem_wait_ms > 250:
+            logger.info(f"param_metadata semaphore wait: {sem_wait_ms:.0f} ms for gage {gage_id}")
+
+    try:
+        parameter_metadata = get_parameter_metadata(
+            modules=modules,
+            catalog=active_catalog,
+            gage_id=formatted_gage_id,
+            domain=namespace,
+            graph=graph,
+        )
+    finally:
+        if sem_held:
+            gpkg_limiter.semaphore.release()
 
     for module in parameter_metadata:
         module_name = module["module_name"]

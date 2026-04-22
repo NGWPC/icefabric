@@ -1,8 +1,18 @@
+from dataclasses import dataclass
 from logging import Logger
+from threading import BoundedSemaphore
 
 from fastapi import HTTPException, Request
 from pyiceberg.catalog import Catalog
 from rustworkx import PyDiGraph
+
+
+@dataclass
+class GpkgLimiter:
+    """Per-app concurrency guard for the hydrofabric gpkg endpoint."""
+
+    semaphore: BoundedSemaphore
+    queue_timeout_s: float
 
 
 def get_catalog(request: Request) -> Catalog:
@@ -92,3 +102,11 @@ def get_graphs(request: Request) -> PyDiGraph:
     if not hasattr(request.app.state, "network_graphs") or request.app.state.network_graphs is None:
         raise HTTPException(status_code=500, detail="network_graphs not loaded")
     return request.app.state.network_graphs
+
+
+def get_gpkg_limiter(request: Request) -> GpkgLimiter:
+    """Returns the per-app GpkgLimiter; 500 if not configured in lifespan."""
+    limiter = getattr(request.app.state, "gpkg_limiter", None)
+    if limiter is None:
+        raise HTTPException(status_code=500, detail="gpkg_limiter not loaded")
+    return limiter

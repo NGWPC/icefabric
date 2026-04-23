@@ -1,8 +1,18 @@
+import contextlib
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic.json_schema import SkipJsonSchema
 from pyiceberg.catalog import Catalog
 
-from app import get_cache_catalog, get_cached_namespaces, get_catalog, get_graphs
+from app import (
+    GpkgLimiter,
+    get_cache_catalog,
+    get_cached_namespaces,
+    get_catalog,
+    get_gpkg_limiter,
+    get_graphs,
+)
 from icefabric.modules import SmpModules, config_mapper, get_parameter_metadata
 from icefabric.schemas import GeographicDomain, HydrofabricNamespace, HydrofabricSource
 from icefabric.schemas.modules import (
@@ -19,6 +29,8 @@ from icefabric.schemas.modules import (
     Topoflow,
     TRoute,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_module_namespace(
@@ -59,7 +71,7 @@ parameter_metadata_router = APIRouter(prefix="/modules/parameter_metadata")
 
 
 @sft_router.get("/", tags=["NWM Modules"])
-async def get_sft_ipes(
+def get_sft_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -119,7 +131,7 @@ async def get_sft_ipes(
 
 
 @snow17_router.get("/", tags=["NWM Modules"])
-async def get_snow17_ipes(
+def get_snow17_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -178,7 +190,7 @@ async def get_snow17_ipes(
 
 
 @smp_router.get("/", tags=["NWM Modules"])
-async def get_smp_ipes(
+def get_smp_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -237,7 +249,7 @@ async def get_smp_ipes(
 
 
 @lstm_router.get("/", tags=["NWM Modules"])
-async def get_lstm_ipes(
+def get_lstm_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -289,7 +301,7 @@ async def get_lstm_ipes(
 
 
 @lasam_router.get("/", tags=["NWM Modules"])
-async def get_lasam_ipes(
+def get_lasam_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -357,7 +369,7 @@ async def get_lasam_ipes(
 
 
 @noahowp_router.get("/", tags=["NWM Modules"])
-async def get_noahowp_ipes(
+def get_noahowp_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -409,7 +421,7 @@ async def get_noahowp_ipes(
 
 
 @sacsma_router.get("/", tags=["NWM Modules"])
-async def get_sacsma_ipes(
+def get_sacsma_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -468,7 +480,7 @@ async def get_sacsma_ipes(
 
 
 @troute_router.get("/", tags=["NWM Modules"])
-async def get_troute_ipes(
+def get_troute_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -520,7 +532,7 @@ async def get_troute_ipes(
 
 
 @topmodel_router.get("/", tags=["NWM Modules"])
-async def get_topmodel_ipes(
+def get_topmodel_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -572,7 +584,7 @@ async def get_topmodel_ipes(
 
 
 @topoflow_router.get("/", tags=["NWM Modules"])
-async def get_topoflow_ipes(
+def get_topoflow_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -625,7 +637,7 @@ async def get_topoflow_ipes(
 
 '''
 @topoflow_router.get("/albedo", tags=["NWM Modules"])
-async def get_albedo(
+def get_albedo(
     landcover_state: Albedo = Query(
         ...,
         description="The landcover state of a catchment for albedo classification",
@@ -649,7 +661,7 @@ async def get_albedo(
 
 
 @ueb_router.get("/", tags=["NWM Modules"])
-async def get_ueb_ipes(
+def get_ueb_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -708,7 +720,7 @@ async def get_ueb_ipes(
 
 
 @cfe_router.get("/", tags=["NWM Modules"])
-async def get_cfe_ipes(
+def get_cfe_ipes(
     identifier: str = Query(
         ...,
         description="Gage ID from which to trace upstream catchments.",
@@ -781,7 +793,7 @@ async def get_cfe_ipes(
 
 
 @parameter_metadata_router.get("/", tags=["NWM Modules"])
-async def get_calibratable_parameter_metadata(
+def get_calibratable_parameter_metadata(
     modules: list[str] = Query(
         ...,
         description="module name",
@@ -791,6 +803,7 @@ async def get_calibratable_parameter_metadata(
             "LASAM": {"summary": "LASAM", "value": "LASAM"},
             "LSTM": {"summary": "LSTM", "value": "LSTM"},
             "Noah-OWP-Modular": {"summary": "Noah-OWP-Modular", "value": "Noah-OWP-Modular"},
+            "PET": {"summary": "PET", "value": "PET"},
             "Sac-SMA": {"summary": "Sac-SMA", "value": "Sac-SMA"},
             "SFT": {"summary": "SFT", "value": "SFT"},
             "SMP": {"summary": "SMP", "value": "SMP"},
@@ -821,6 +834,7 @@ async def get_calibratable_parameter_metadata(
     cache_catalog: Catalog = Depends(get_cache_catalog),
     cached_namespaces=Depends(get_cached_namespaces),
     network_graphs=Depends(get_graphs),
+    gpkg_limiter: GpkgLimiter = Depends(get_gpkg_limiter),
 ):
     """
     An endpoint to return calibratable parameter metadata for a module.
@@ -841,6 +855,7 @@ async def get_calibratable_parameter_metadata(
         "LASAM": "lasam",
         "LSTM": "lstm",
         "Noah-OWP-Modular": "noahowp",
+        "PET": "pet",
         "Sac-SMA": "sacsma",
         "SFT": "sft",
         "SMP": "smp",
@@ -858,6 +873,7 @@ async def get_calibratable_parameter_metadata(
         "lasam": "LASAM",
         "lstm": "LSTM",
         "noahowp": "Noah-OWP-Modular",
+        "pet": "PET",
         "sacsma": "Sac-SMA",
         "sft": "SFT",
         "smp": "SMP",
@@ -888,15 +904,30 @@ async def get_calibratable_parameter_metadata(
             graph = network_graphs[namespace]
 
     # Use cache catalog if parameter_metadata namespace is cached
-    active_catalog = cache_catalog if "parameter_metadata" in cached_namespaces and namespace in cached_namespaces else catalog
-
-    parameter_metadata = get_parameter_metadata(
-        modules=modules,
-        catalog=active_catalog,
-        gage_id=formatted_gage_id,
-        domain=namespace,
-        graph=graph,
+    active_catalog = (
+        cache_catalog
+        if "parameter_metadata" in cached_namespaces and namespace in cached_namespaces
+        else catalog
     )
+
+    # With gage_id, runs same hydrofabric subset as /gpkg -> share the
+    # limiter (concurrency cap + queue-depth admission + timeout) so a
+    # burst of param_metadata requests can't starve the /gpkg endpoint
+    # (or vice versa). Cheap metadata-only calls (no gage_id) skip admission.
+    needs_subset = formatted_gage_id is not None
+    admission = (
+        gpkg_limiter.admit(logger=logger, context=f"for gage {gage_id}")
+        if needs_subset
+        else contextlib.nullcontext()
+    )
+    with admission:
+        parameter_metadata = get_parameter_metadata(
+            modules=modules,
+            catalog=active_catalog,
+            gage_id=formatted_gage_id,
+            domain=namespace,
+            graph=graph,
+        )
 
     for module in parameter_metadata:
         module_name = module["module_name"]

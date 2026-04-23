@@ -224,3 +224,4 @@ data/*
 .Rdata
 .Rhistory
 icefabric.Rproj
+docs/api_schema.json

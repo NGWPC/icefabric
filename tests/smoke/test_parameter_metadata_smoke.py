@@ -16,6 +16,7 @@ ALL_MODULES = [
     "LASAM",
     "LSTM",
     "Noah-OWP-Modular",
+    "PET",
     "Sac-SMA",
     "SFT",
     "SMP",

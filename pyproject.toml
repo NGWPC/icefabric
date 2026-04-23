@@ -88,6 +88,7 @@ dev = [
   "nbstripout==0.8.1",
 ]
 tests = [
+  "dask==2025.9.1",
   "moto==5.1.8",
   "python-dotenv==1.1.0",
   "pytest==8.4.1",

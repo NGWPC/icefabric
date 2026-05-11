@@ -79,7 +79,7 @@ domain_tooltip = textwrap.dedent("""\
 """)
 
 hf_subset_options_explanation = textwrap.dedent("""\
-    - **Flowpath ID**: traces upstream from an origin flowpath - *e.g., 3490271*
+    - **Flowpath ID**: traces upstream from an origin flowpath - *e.g., 3764560*
     - **Gage ID**: traces upstream from a USGS gage ID (maps to a flowpath) - *e.g., 01099500*
     - **VPU ID**: includes all HF features within a vector processing unit (VPU) - *e.g., 08*
 """)

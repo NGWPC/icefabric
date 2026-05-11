@@ -95,7 +95,6 @@ def get_parameter_metadata(
 
     if "lasam" in modules:
         divide_attrs = pd.merge(divide_attrs, lasam_params, on="isltyp_mode", how="outer")
-        print(divide_attrs)
 
     output_list = []
 

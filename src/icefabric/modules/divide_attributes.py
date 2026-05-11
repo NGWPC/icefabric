@@ -125,6 +125,11 @@ class DivideAttributesNHF(enum.Enum):
     NOV = "temp_delta_nov_mean"
     DEC = "temp_delta_dec_mean"
     QUARTZ = "quartz_mean"
+    THETA_R = "theta_r"
+    THETA_E = "theta_e"
+    ALPHA = "alpha"
+    N = "n"
+    KS = "Ks"
 
 
 class ParametersToDivideAttributesNHF:
@@ -157,6 +162,11 @@ class ParametersToDivideAttributesNHF:
         "max_gw_storage": DivideAttributesNHF.ZMAX.value,
         "Cgw": DivideAttributesNHF.COEFF.value,
         "expon": DivideAttributesNHF.EXPON.value,
+        "theta_r": DivideAttributesNHF.THETA_R.value,
+        "theta_e": DivideAttributesNHF.THETA_E.value,
+        "alpha": DivideAttributesNHF.ALPHA.value,
+        "n": DivideAttributesNHF.N.value,
+        "Ks": DivideAttributesNHF.KS.value,
     }
 
 
@@ -190,4 +200,17 @@ class ParametersToDivideAttributesHF:
         "max_gw_storage": DivideAttributesHF.ZMAX.value,
         "Cgw": DivideAttributesHF.COEFF.value,
         "expon": DivideAttributesHF.EXPON.value,
+    }
+
+
+class LASAMParameters:
+    """LASAM paramters based on soil type (ISLTYP) from https://github.com/NOAA-OWP/LGAR-C/blob/master/data/README.md"""
+
+    lasam_params = {
+        "isltyp_mode": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        "theta_r": [0.045, 0.057, 0.065, 0.067, 0.034, 0.078, 0.1, 0.089, 0.095, 0.1, 0.07, 0.068],
+        "theta_e": [0.43, 0.41, 0.41, 0.45, 0.46, 0.43, 0.39, 0.43, 0.41, 0.38, 0.36, 0.38],
+        "alpha": [0.145, 0.124, 0.075, 0.02, 0.016, 0.036, 0.059, 0.01, 0.019, 0.027, 0.005, 0.008],
+        "n": [2.68, 2.28, 1.89, 1.41, 1.37, 1.56, 1.48, 1.23, 1.31, 1.23, 1.09, 1.09],
+        "Ks": [29.7, 14.59166667, 4.420833333, 0.45, 0.25, 1.04, 1.31, 0.07, 0.26, 0.12, 0.02, 0.2],
     }

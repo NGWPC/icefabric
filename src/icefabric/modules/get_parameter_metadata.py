@@ -7,6 +7,7 @@ from pyiceberg.catalog import Catalog
 
 from icefabric.modules.create_ipes import get_subset
 from icefabric.modules.divide_attributes import (
+    LASAMParameters,
     ParametersToDivideAttributesHF,
     ParametersToDivideAttributesNHF,
 )
@@ -89,6 +90,12 @@ def get_parameter_metadata(
             divide_attrs = divide_attrs.rename(columns={"areasqkm": "area_sqkm"})
         else:
             divide_attrs = pd.DataFrame(gauge["divides"])
+
+    lasam_params = pd.DataFrame(LASAMParameters.lasam_params)
+
+    if "lasam" in modules:
+        divide_attrs = pd.merge(divide_attrs, lasam_params, on="isltyp_mode", how="outer")
+        print(divide_attrs)
 
     output_list = []
 

@@ -204,7 +204,7 @@ class ParametersToDivideAttributesHF:
 
 
 class LASAMParameters:
-    """LASAM paramters based on soil type (ISLTYP) from https://github.com/NOAA-OWP/LGAR-C/blob/master/data/README.md"""
+    """LASAM paramters based on soil type (ISLTYP) from https://github.com/NOAA-OWP/LGAR-C/blob/master/data/vG_default_params.dat"""
 
     lasam_params = {
         "isltyp_mode": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],

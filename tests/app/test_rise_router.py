@@ -33,6 +33,8 @@ async def test_get_item_by_id_good(client: TestClient, resource_type: str, id: s
     _skip_if_rise_unavailable(response)
     assert response.status_code == 200
     rise_direct_response = await make_get_req_to_rise(f"{EXT_RISE_BASE_URL}/{resource_type}/{id}")
+    if rise_direct_response["status_code"] in (RISE_TIMEOUT_CODE, RISE_UNAVAILABLE_CODE):
+        pytest.skip(f"RISE API direct request unavailable (status {rise_direct_response['status_code']})")
     assert json.loads(response.text) == rise_direct_response["detail"]
 
 
@@ -45,6 +47,8 @@ async def test_get_item_by_id_bad(client: TestClient, resource_type: str, id: st
     _skip_if_rise_unavailable(response)
     assert response.status_code == 404
     rise_direct_response = await make_get_req_to_rise(f"{EXT_RISE_BASE_URL}/{resource_type}/{id}")
+    if rise_direct_response["status_code"] in (RISE_TIMEOUT_CODE, RISE_UNAVAILABLE_CODE):
+        pytest.skip(f"RISE API direct request unavailable (status {rise_direct_response['status_code']})")
     assert json.loads(response.text)["detail"] == rise_direct_response["detail"]
 
 
@@ -60,6 +64,8 @@ async def test_get_collection(client: TestClient, resource_type: str) -> None:
     _skip_if_rise_unavailable(response)
     assert response.status_code == 200
     rise_direct_response = await make_get_req_to_rise(f"{EXT_RISE_BASE_URL}/{resource_type}")
+    if rise_direct_response["status_code"] != 200:
+        pytest.skip(f"RISE API direct request failed with status {rise_direct_response['status_code']}")
     assert json.loads(response.text)["data"] == rise_direct_response["detail"]["data"]
 
 
@@ -77,4 +83,6 @@ async def test_get_collection_set_of_ids(client: TestClient, resource_type: str)
     rise_direct_response = await make_get_req_to_rise(
         f"{EXT_RISE_BASE_URL}/{resource_type}?id=3672,4462,10835"
     )
+    if rise_direct_response["status_code"] != 200:
+        pytest.skip(f"RISE API direct request failed with status {rise_direct_response['status_code']}")
     assert json.loads(response.text)["data"] == rise_direct_response["detail"]["data"]

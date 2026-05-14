@@ -1,6 +1,8 @@
 import json
 
+import httpx
 import pytest
+from starlette.testclient import TestClient
 
 from app.routers.rise_wrappers.router import EXT_RISE_BASE_URL, make_get_req_to_rise
 
@@ -11,18 +13,21 @@ good_ids = ["10835", "4462", "3672", "3672"]
 bad_ids = ["0", "0", "0", "0"]
 
 RISE_TIMEOUT_CODE = 504
+RISE_UNAVAILABLE_CODE = 503
 
 
-def _skip_if_rise_unavailable(response):
+def _skip_if_rise_unavailable(response: httpx.Response) -> None:
     """Skip the test if RISE API is down or timing out."""
     if response.status_code == RISE_TIMEOUT_CODE:
         pytest.skip("RISE API is unavailable (timeout)")
+    if response.status_code == RISE_UNAVAILABLE_CODE:
+        pytest.skip("RISE API is unavailable (service unavailable)")
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize("resource_type,id", list(zip(resources, good_ids, strict=False)))
-async def test_get_item_by_id_good(client, resource_type, id):
+async def test_get_item_by_id_good(client: TestClient, resource_type: str, id: str) -> None:
     """Test all per-ID endpoints for IDs that exist"""
     response = client.get(f"/v1/rise/{resource_type}/{id}")
     _skip_if_rise_unavailable(response)
@@ -34,7 +39,7 @@ async def test_get_item_by_id_good(client, resource_type, id):
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize("resource_type,id", list(zip(resources, bad_ids, strict=False)))
-async def test_get_item_by_id_bad(client, resource_type, id):
+async def test_get_item_by_id_bad(client: TestClient, resource_type: str, id: str) -> None:
     """Test all per-ID endpoints for IDs that do not exist"""
     response = client.get(f"/v1/rise/{resource_type}/{id}")
     _skip_if_rise_unavailable(response)
@@ -46,7 +51,7 @@ async def test_get_item_by_id_bad(client, resource_type, id):
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize("resource_type", resources)
-async def test_get_collection(client, resource_type):
+async def test_get_collection(client: TestClient, resource_type: str) -> None:
     """Test every resource collection endpoint - all default parameters"""
     # TODO - remove skip once the RISE api/result endpoint is no longer timing out
     if resource_type == "result":
@@ -61,7 +66,7 @@ async def test_get_collection(client, resource_type):
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize("resource_type", resources)
-async def test_get_collection_set_of_ids(client, resource_type):
+async def test_get_collection_set_of_ids(client: TestClient, resource_type: str) -> None:
     """Test every resource collection endpoint with a set of three IDs"""
     # TODO - remove skip once the RISE api/result endpoint is no longer timing out
     if resource_type == "result":

@@ -91,9 +91,13 @@ def get_parameter_metadata(
         else:
             divide_attrs = pd.DataFrame(gauge["divides"])
 
-    lasam_params = pd.DataFrame(LASAMParameters.lasam_params)
+    if gage_id is not None and "lasam" in modules:
+        lasam_params = pd.DataFrame(LASAMParameters.lasam_params)
 
-    if "lasam" in modules:
+        # For HF 2.2, the ISLTYP column name differs from NHF's "isltyp_mode"
+        if not domain.is_nhf and "mode.ISLTYP" in divide_attrs.columns:
+            divide_attrs = divide_attrs.rename(columns={"mode.ISLTYP": "isltyp_mode"})
+
         divide_attrs = pd.merge(divide_attrs, lasam_params, on="isltyp_mode", how="outer")
 
     output_list = []

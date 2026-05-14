@@ -200,6 +200,11 @@ class ParametersToDivideAttributesHF:
         "max_gw_storage": DivideAttributesHF.ZMAX.value,
         "Cgw": DivideAttributesHF.COEFF.value,
         "expon": DivideAttributesHF.EXPON.value,
+        "theta_r": "theta_r",
+        "theta_e": "theta_e",
+        "alpha": "alpha",
+        "n": "n",
+        "Ks": "Ks",
     }
 
 

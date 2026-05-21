@@ -166,15 +166,17 @@ elif top_layer_control == "Subset Data":
                                 marker=marker_style,
                             )
                             if layer_name == "divides" or layer_name == "flowpaths":
-                                gdf_fig = folium.FeatureGroup(name=layer_name)
+                                gdf_fig = folium.FeatureGroup(name=layer_name.title().replace("_", " "))
                             else:
-                                gdf_fig = folium.FeatureGroup(name=layer_name, show=False)
+                                gdf_fig = folium.FeatureGroup(
+                                    name=layer_name.title().replace("_", " "), show=False
+                                )
                             gdf_fig.add_child(gdf_poly)
                             m.add_child(gdf_fig)
 
                     fp_popup_fields = [c for c in fp_data.columns if c != "geometry"]
                     fp_styling = STYLE_MAP["flowpaths"].get("styling", {})
-                    fp_hl_style = STYLE_MAP["flowpaths"].get("highlight_styling", {})
+                    three_dim_fp_hl = STYLE_MAP["channel_geometries"].get("highlight_styling", {})
 
                     # Project flowpath line geometry to a metric CRS for buffering (to visualize width as a buffer around the line)
                     fp_data = fp_data.to_crs(epsg=5070)
@@ -200,12 +202,7 @@ elif top_layer_control == "Subset Data":
                             "fillOpacity": 1,
                             "dashArray": [5, 5] if not x["properties"]["topwdth"] else {},
                         },
-                        highlight_function=lambda x: fp_hl_style
-                        | {
-                            "stroke": True,
-                            "color": "black",
-                            "weight": 2,
-                        },
+                        highlight_function=lambda x: three_dim_fp_hl,
                         popup_keep_highlighted=True,
                     )
                     m.add_child(

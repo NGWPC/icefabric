@@ -43,6 +43,13 @@ STYLE_MAP = {
             "weight": 6,
         },
     },
+    "channel_geometries": {
+        "highlight_styling": {
+            "stroke": True,
+            "color": "black",
+            "weight": 2,
+        },
+    },
     "nexus": {"marker_styling": folium.Marker(icon=folium.Icon(color="orange", icon="filter"))},
     "waterbodies": {"marker_styling": folium.Marker(icon=folium.Icon(color="blue", icon="tint"))},
     "gages": {"marker_styling": folium.Marker(icon=folium.Icon(color="darkred", icon="record"))},
@@ -216,6 +223,7 @@ def format_xs_map(_catalog, xs_gdf, domain):
     # Scale factor for better visualization; may need to adjust as needed
     three_dim_fp_data["topwdth_half"] = (three_dim_fp_data["width"] / 2) / 3
     three_dim_fp_data["geometry"] = three_dim_fp_data.geometry.buffer(three_dim_fp_data["topwdth_half"])
+    three_dim_fp_hl = STYLE_MAP["channel_geometries"].get("highlight_styling", {})
     three_dim_fp_poly = folium.GeoJson(
         data=three_dim_fp_data,
         popup=folium.GeoJsonPopup(fields=list(fp_popup_fields[:25])),
@@ -226,17 +234,13 @@ def format_xs_map(_catalog, xs_gdf, domain):
         ),
         style_function=lambda x: fp_style
         | {
-            "stroke": False,
+            "stroke": False if x["properties"]["depth"] else True,
+            "color": "black" if x["properties"]["depth"] else {},
             "fillColor": depth_to_gradient(x["properties"]["depth"], domain="XS"),
             "fillOpacity": 1,
-            "dashArray": [5, 5] if not x["properties"]["width"] else {},
+            "dashArray": [5, 5] if not x["properties"]["depth"] else {},
         },
-        highlight_function=lambda x: fp_hl_style
-        | {
-            "stroke": True,
-            "color": "black",
-            "weight": 2,
-        },
+        highlight_function=lambda x: three_dim_fp_hl,
         popup_keep_highlighted=True,
     )
 

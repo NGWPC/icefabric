@@ -115,24 +115,28 @@ def get_ras_xs_user_input():
                     ).add_to(m)
                     output = st_folium(m, use_container_width=True, height=500)
                     if output["last_active_drawing"]:
-                        sw_corner = output["last_active_drawing"]["geometry"]["coordinates"][0][0]
-                        ne_corner = output["last_active_drawing"]["geometry"]["coordinates"][0][2]
-                        min_lat, min_lon = sw_corner[1], sw_corner[0]
-                        max_lat, max_lon = ne_corner[1], ne_corner[0]
-                        box_area = box(min_lon, min_lat, max_lon, max_lat).area
-                        coord_disp = f"""\
-                            ##### Selected Coordinates:
-                            - **Min. Latitude:** {sw_corner[1]:.4f}°
-                            - **Min. Longitude:** {sw_corner[0]:.4f}°
-                            - **Max. Latitude:** {ne_corner[1]:.4f}°
-                            - **Max. Longitude:** {ne_corner[0]:.4f}°
-                        """
-                        st.markdown(coord_disp)
-                        if box_area >= 140:
-                            st.warning(
-                                "The selected bounding box is quite large and may take a long time to process. Please select a smaller area.",
-                                icon=":material/warning:",
-                            )
+                        if (
+                            output["all_drawings"] != []
+                            and output["last_active_drawing"]["geometry"]["type"] == "Polygon"
+                        ):
+                            sw_corner = output["last_active_drawing"]["geometry"]["coordinates"][0][0]
+                            ne_corner = output["last_active_drawing"]["geometry"]["coordinates"][0][2]
+                            min_lat, min_lon = sw_corner[1], sw_corner[0]
+                            max_lat, max_lon = ne_corner[1], ne_corner[0]
+                            box_area = box(min_lon, min_lat, max_lon, max_lat).area
+                            coord_disp = f"""\
+                                ##### Selected Coordinates:
+                                - **Min. Latitude:** {sw_corner[1]:.4f}°
+                                - **Min. Longitude:** {sw_corner[0]:.4f}°
+                                - **Max. Latitude:** {ne_corner[1]:.4f}°
+                                - **Max. Longitude:** {ne_corner[0]:.4f}°
+                            """
+                            st.markdown(coord_disp)
+                            if box_area >= 140:
+                                st.warning(
+                                    "The selected bounding box is quite large and may take a long time to process. Please select a smaller area.",
+                                    icon=":material/warning:",
+                                )
             elif xs_query == "Bounding Box (manual entry)":
                 st.markdown("#### __Manually Enter Bounding Box Coordinates__")
                 with st.container(border=True):

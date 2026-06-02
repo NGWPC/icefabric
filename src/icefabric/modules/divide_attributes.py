@@ -60,6 +60,11 @@ class DivideAttributesHF(enum.Enum):
     OCT = "oct_temp_range"
     NOV = "nov_temp_range"
     DEC = "dec_temp_range"
+    SMCMIN = "smcmin"
+    SMCMAX_LASAM = "smcmax"
+    VAN_GENUCHTEN_ALPHA = "van_genuchten_alpha"
+    VAN_GENUCHTEN_N = "van_genuchten_n"
+    HYDRAULIC_CONDUCTIVITY = "hydraulic_conductivity"
 
 
 class DivideAttributesNHF(enum.Enum):
@@ -125,11 +130,11 @@ class DivideAttributesNHF(enum.Enum):
     NOV = "temp_delta_nov_mean"
     DEC = "temp_delta_dec_mean"
     QUARTZ = "quartz_mean"
-    THETA_R = "theta_r"
-    THETA_E = "theta_e"
-    ALPHA = "alpha"
-    N = "n"
-    KS = "Ks"
+    SMCMIN = "smcmin"
+    SMCMAX_LASAM = "smcmax"
+    VAN_GENUCHTEN_ALPHA = "van_genuchten_alpha"
+    VAN_GENUCHTEN_N = "van_genuchten_n"
+    HYDRAULIC_CONDUCTIVITY = "hydraulic_conductivity"
 
 
 class ParametersToDivideAttributesNHF:
@@ -162,11 +167,11 @@ class ParametersToDivideAttributesNHF:
         "max_gw_storage": DivideAttributesNHF.ZMAX.value,
         "Cgw": DivideAttributesNHF.COEFF.value,
         "expon": DivideAttributesNHF.EXPON.value,
-        "theta_r": DivideAttributesNHF.THETA_R.value,
-        "theta_e": DivideAttributesNHF.THETA_E.value,
-        "alpha": DivideAttributesNHF.ALPHA.value,
-        "n": DivideAttributesNHF.N.value,
-        "Ks": DivideAttributesNHF.KS.value,
+        "smcmin": DivideAttributesNHF.SMCMIN.value,
+        "smcmax": DivideAttributesNHF.SMCMAX_LASAM.value,
+        "van_genuchten_alpha": DivideAttributesNHF.VAN_GENUCHTEN_ALPHA.value,
+        "van_genuchten_n": DivideAttributesNHF.VAN_GENUCHTEN_N.value,
+        "hydraulic_conductivity": DivideAttributesNHF.HYDRAULIC_CONDUCTIVITY.value,
     }
 
 
@@ -200,11 +205,11 @@ class ParametersToDivideAttributesHF:
         "max_gw_storage": DivideAttributesHF.ZMAX.value,
         "Cgw": DivideAttributesHF.COEFF.value,
         "expon": DivideAttributesHF.EXPON.value,
-        "theta_r": "theta_r",
-        "theta_e": "theta_e",
-        "alpha": "alpha",
-        "n": "n",
-        "Ks": "Ks",
+        "smcmin": DivideAttributesHF.SMCMIN.value,
+        "smcmax": DivideAttributesHF.SMCMAX_LASAM.value,
+        "van_genuchten_alpha": DivideAttributesHF.VAN_GENUCHTEN_ALPHA.value,
+        "van_genuchten_n": DivideAttributesHF.VAN_GENUCHTEN_N.value,
+        "hydraulic_conductivity": DivideAttributesHF.HYDRAULIC_CONDUCTIVITY.value,
     }
 
 
@@ -213,9 +218,22 @@ class LASAMParameters:
 
     lasam_params = {
         "isltyp_mode": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-        "theta_r": [0.05, 0.05, 0.04, 0.07, 0.05, 0.06, 0.06, 0.09, 0.08, 0.12, 0.11, 0.1],
-        "theta_e": [0.38, 0.39, 0.39, 0.44, 0.49, 0.4, 0.38, 0.48, 0.44, 0.39, 0.48, 0.46],
-        "alpha": [0.04, 0.03, 0.03, 0.01, 0.01, 0.01, 0.02, 0.01, 0.02, 0.03, 0.02, 0.01],
-        "n": [3.18, 1.75, 1.45, 1.66, 1.68, 1.47, 1.33, 1.52, 1.42, 1.21, 1.32, 1.25],
-        "Ks": [26.64, 4.32, 1.584, 0.756, 1.836, 0.504, 0.54, 0.468, 0.3348, 0.468, 0.432, 0.612],
+        "smcmin": [0.05, 0.05, 0.04, 0.07, 0.05, 0.06, 0.06, 0.09, 0.08, 0.12, 0.11, 0.1],
+        "smcmax": [0.38, 0.39, 0.39, 0.44, 0.49, 0.4, 0.38, 0.48, 0.44, 0.39, 0.48, 0.46],
+        "van_genuchten_alpha": [0.04, 0.03, 0.03, 0.01, 0.01, 0.01, 0.02, 0.01, 0.02, 0.03, 0.02, 0.01],
+        "van_genuchten_n": [3.18, 1.75, 1.45, 1.66, 1.68, 1.47, 1.33, 1.52, 1.42, 1.21, 1.32, 1.25],
+        "hydraulic_conductivity": [
+            26.64,
+            4.32,
+            1.584,
+            0.756,
+            1.836,
+            0.504,
+            0.54,
+            0.468,
+            0.3348,
+            0.468,
+            0.432,
+            0.612,
+        ],
     }

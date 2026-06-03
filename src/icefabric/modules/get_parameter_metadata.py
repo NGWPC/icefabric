@@ -137,7 +137,10 @@ def get_parameter_metadata(
                 for index, row in module_params.iterrows():
                     param_name = row["name"]
                     if param_name in parameter_lookup.keys():
-                        attr_name = parameter_lookup[param_name]
+                        if param_name == "smcmax":
+                            attr_name = parameter_lookup[param_name][0 if module == "lasam" else 1]
+                        else:
+                            attr_name = parameter_lookup[param_name]
                         if attr_name in divide_attrs.columns:
                             attr = divide_attrs[[attr_name, "area_sqkm"]]
                             attr = attr[attr[attr_name].notna()]

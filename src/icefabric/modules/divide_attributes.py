@@ -164,6 +164,7 @@ class ParametersToDivideAttributesNHF:
         "slope": DivideAttributesNHF.SLOPE_1KM.value,
         "maxsmc": DivideAttributesNHF.SMCMAX.value,
         "wltsmc": DivideAttributesNHF.SMCWLT.value,
+        "quartz": DivideAttributesNHF.QUARTZ.value,
         "max_gw_storage": DivideAttributesNHF.ZMAX.value,
         "Cgw": DivideAttributesNHF.COEFF.value,
         "expon": DivideAttributesNHF.EXPON.value,

@@ -1451,6 +1451,10 @@ class Lakes:
         Reservoir index for Medium Range configuration
     reservoir_index_Short_Range : float
         Reservoir index for Short Range configuration
+    dam_id : str
+        Dam identifier
+    nidid : str
+        National Inventory of Dams identifier
     geometry : binary
         Spatial Geometry (POINT format) - stored in WKB binary format
     """
@@ -1484,6 +1488,8 @@ class Lakes:
             "reservoir_index_GDL_AK",
             "reservoir_index_Medium_Range",
             "reservoir_index_Short_Range",
+            "dam_id",
+            "nidid",
             "geometry",
         ]
 
@@ -1516,6 +1522,8 @@ class Lakes:
             "Reservoir index for GDL AK configuration",
             "Reservoir index for Medium Range configuration",
             "Reservoir index for Short Range configuration",
+            "Dam identifier",
+            "National Inventory of Dams identifier",
             "Spatial Geometry (POINT format) - stored in WKB binary format",
         ]
         return Schema(
@@ -1544,7 +1552,9 @@ class Lakes:
             NestedField(23, "reservoir_index_GDL_AK", DoubleType(), required=False, doc=desc[22]),
             NestedField(24, "reservoir_index_Medium_Range", DoubleType(), required=False, doc=desc[23]),
             NestedField(25, "reservoir_index_Short_Range", DoubleType(), required=False, doc=desc[24]),
-            NestedField(26, "geometry", BinaryType(), required=False, doc=desc[25]),
+            NestedField(26, "dam_id", StringType(), required=False, doc=desc[25]),
+            NestedField(27, "nidid", StringType(), required=False, doc=desc[26]),
+            NestedField(28, "geometry", BinaryType(), required=False, doc=desc[27]),
             identifier_field_ids=[1],
         )
 
@@ -1578,6 +1588,8 @@ class Lakes:
                 pa.field("reservoir_index_GDL_AK", pa.float64(), nullable=True),
                 pa.field("reservoir_index_Medium_Range", pa.float64(), nullable=True),
                 pa.field("reservoir_index_Short_Range", pa.float64(), nullable=True),
+                pa.field("dam_id", pa.string(), nullable=True),
+                pa.field("nidid", pa.string(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
             ]
         )

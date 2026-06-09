@@ -238,6 +238,7 @@ class Divides:
             "expon",
             "max_gw_storage",
             "geometry",
+            "gid",
         ]
 
     @classmethod
@@ -395,6 +396,7 @@ class Divides:
             NestedField(68, "expon", DoubleType(), required=False, doc=desc[67]),
             NestedField(69, "max_gw_storage", DoubleType(), required=False, doc=desc[68]),
             NestedField(70, "geometry", BinaryType(), required=False, doc=desc[69]),
+            NestedField(71, "gid", StringType(), required=False, doc="Geolocation Plus Code identifier"),
             identifier_field_ids=[1],
         )
 
@@ -480,6 +482,7 @@ class Divides:
                 pa.field("expon", pa.float64(), nullable=True),
                 pa.field("max_gw_storage", pa.float64(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
+                pa.field("gid", pa.string(), nullable=True),
             ]
         )
 
@@ -596,6 +599,7 @@ class Flowpaths:
             "r_ml",
             "fp_to_id",
             "geometry",
+            "gid",
         ]
 
     @classmethod
@@ -673,6 +677,7 @@ class Flowpaths:
             NestedField(29, "r_ml", FloatType(), required=False, doc=desc[28]),
             NestedField(30, "fp_to_id", LongType(), required=False, doc=desc[29]),
             NestedField(31, "geometry", BinaryType(), required=False, doc=desc[30]),
+            NestedField(32, "gid", StringType(), required=False, doc="Geolocation Plus Code identifier"),
             identifier_field_ids=[1],
         )
 
@@ -719,6 +724,7 @@ class Flowpaths:
                 pa.field("r_ml", pa.float32(), nullable=True),
                 pa.field("fp_to_id", pa.int64(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
+                pa.field("gid", pa.string(), nullable=True),
             ]
         )
 
@@ -754,6 +760,7 @@ class Nexus:
             "dn_fp_id",
             "vpu_id",
             "geometry",
+            "gid",
         ]
 
     @classmethod
@@ -777,6 +784,7 @@ class Nexus:
             NestedField(2, "dn_fp_id", LongType(), required=False, doc=desc[1]),
             NestedField(3, "vpu_id", StringType(), required=False, doc=desc[2]),
             NestedField(4, "geometry", BinaryType(), required=False, doc=desc[3]),
+            NestedField(5, "gid", StringType(), required=False, doc="Geolocation Plus Code identifier"),
             identifier_field_ids=[1],
         )
 
@@ -796,6 +804,7 @@ class Nexus:
                 pa.field("dn_fp_id", pa.int64(), nullable=True),
                 pa.field("vpu_id", pa.string(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
+                pa.field("gid", pa.string(), nullable=True),
             ]
         )
 
@@ -837,6 +846,7 @@ class ReferenceFlowpaths:
             "div_id",
             "mainstem_virtual_fp_id",
             "segment_order",
+            "gid",
         ]
 
     @classmethod
@@ -864,6 +874,7 @@ class ReferenceFlowpaths:
             NestedField(4, "div_id", LongType(), required=False, doc=desc[3]),
             NestedField(5, "mainstem_virtual_fp_id", LongType(), required=False, doc=desc[4]),
             NestedField(6, "segment_order", LongType(), required=False, doc=desc[5]),
+            NestedField(7, "gid", StringType(), required=False, doc="Geolocation Plus Code identifier"),
             identifier_field_ids=[1],
         )
 
@@ -885,6 +896,7 @@ class ReferenceFlowpaths:
                 pa.field("div_id", pa.int64(), nullable=True),
                 pa.field("mainstem_virtual_fp_id", pa.int64(), nullable=True),
                 pa.field("segment_order", pa.int64(), nullable=True),
+                pa.field("gid", pa.string(), nullable=True),
             ]
         )
 
@@ -974,6 +986,7 @@ class Waterbodies:
             "dn_virtual_nex_id",
             "virtual_fp_id",
             "geometry",
+            "gid",
         ]
 
     @classmethod
@@ -1070,6 +1083,7 @@ class Waterbodies:
                 pa.field("dn_virtual_nex_id", pa.float64(), nullable=True),
                 pa.field("virtual_fp_id", pa.float64(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
+                pa.field("gid", pa.string(), nullable=True),
             ]
         )
 
@@ -1135,6 +1149,7 @@ class Gages:
             "mainstem_virtual_fp_id",
             "segment_order",
             "geometry",
+            "gid",
         ]
 
     @classmethod
@@ -1178,6 +1193,7 @@ class Gages:
             NestedField(12, "mainstem_virtual_fp_id", DoubleType(), required=False, doc=desc[11]),
             NestedField(13, "segment_order", DoubleType(), required=False, doc=desc[12]),
             NestedField(14, "geometry", BinaryType(), required=False, doc=desc[13]),
+            NestedField(15, "gid", StringType(), required=False, doc="Geolocation Plus Code identifier"),
             identifier_field_ids=[1],
         )
 
@@ -1207,6 +1223,7 @@ class Gages:
                 pa.field("mainstem_virtual_fp_id", pa.float64(), nullable=True),
                 pa.field("segment_order", pa.float64(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
+                pa.field("gid", pa.string(), nullable=True),
             ]
         )
 
@@ -1257,6 +1274,7 @@ class VirtualFlowpaths:
             "percentage_area_contribution",
             "vpu_id",
             "geometry",
+            "gid",
         ]
 
     @classmethod
@@ -1290,6 +1308,7 @@ class VirtualFlowpaths:
             NestedField(7, "percentage_area_contribution", DoubleType(), required=False, doc=desc[6]),
             NestedField(8, "vpu_id", StringType(), required=False, doc=desc[7]),
             NestedField(9, "geometry", BinaryType(), required=False, doc=desc[8]),
+            NestedField(10, "gid", StringType(), required=False, doc="Geolocation Plus Code identifier"),
             identifier_field_ids=[1],
         )
 
@@ -1314,6 +1333,7 @@ class VirtualFlowpaths:
                 pa.field("percentage_area_contribution", pa.float64(), nullable=True),
                 pa.field("vpu_id", pa.string(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
+                pa.field("gid", pa.string(), nullable=True),
             ]
         )
 
@@ -1349,6 +1369,7 @@ class VirtualNexus:
             "dn_virtual_fp_id",
             "vpu_id",
             "geometry",
+            "gid",
         ]
 
     @classmethod
@@ -1372,6 +1393,7 @@ class VirtualNexus:
             NestedField(2, "dn_virtual_fp_id", LongType(), required=False, doc=desc[1]),
             NestedField(3, "vpu_id", StringType(), required=False, doc=desc[2]),
             NestedField(4, "geometry", BinaryType(), required=False, doc=desc[3]),
+            NestedField(5, "gid", StringType(), required=False, doc="Geolocation Plus Code identifier"),
             identifier_field_ids=[1],
         )
 
@@ -1391,6 +1413,7 @@ class VirtualNexus:
                 pa.field("dn_virtual_fp_id", pa.int64(), nullable=True),
                 pa.field("vpu_id", pa.string(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
+                pa.field("gid", pa.string(), nullable=True),
             ]
         )
 

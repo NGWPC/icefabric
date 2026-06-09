@@ -35,7 +35,6 @@ class NHFSnapshot:
             "flowpaths",
             "nexus",
             "reference_flowpaths",
-            "waterbodies",
             "gages",
             "virtual_flowpaths",
             "virtual_nexus",
@@ -57,12 +56,11 @@ class NHFSnapshot:
             NestedField(2, "flowpaths", LongType(), required=False),
             NestedField(3, "nexus", LongType(), required=False),
             NestedField(4, "reference_flowpaths", LongType(), required=False),
-            NestedField(5, "waterbodies", LongType(), required=False),
-            NestedField(6, "gages", LongType(), required=False),
-            NestedField(7, "virtual_flowpaths", LongType(), required=False),
-            NestedField(8, "virtual_nexus", LongType(), required=False),
-            NestedField(9, "hydrolocations", LongType(), required=False),
-            NestedField(10, "lakes", LongType(), required=False),
+            NestedField(5, "gages", LongType(), required=False),
+            NestedField(6, "virtual_flowpaths", LongType(), required=False),
+            NestedField(7, "virtual_nexus", LongType(), required=False),
+            NestedField(8, "hydrolocations", LongType(), required=False),
+            NestedField(9, "lakes", LongType(), required=False),
         )
 
     @classmethod
@@ -80,7 +78,6 @@ class NHFSnapshot:
                 pa.field("flowpaths", pa.int64(), nullable=True),
                 pa.field("nexus", pa.int64(), nullable=True),
                 pa.field("reference_flowpaths", pa.int64(), nullable=True),
-                pa.field("waterbodies", pa.int64(), nullable=True),
                 pa.field("gages", pa.int64(), nullable=True),
                 pa.field("virtual_flowpaths", pa.int64(), nullable=True),
                 pa.field("virtual_nexus", pa.int64(), nullable=True),

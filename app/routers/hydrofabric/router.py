@@ -255,7 +255,7 @@ def get_hydrofabric_subset_gpkg(
         spatial_names: list[str] = []
         nonspatial_names: list[str] = []
         for name, data in output_layers.items():
-            if isinstance(data, gpd.GeoDataFrame) and len(data) > 0:
+            if isinstance(data, gpd.GeoDataFrame):
                 spatial_names.append(name)
             elif not isinstance(data, gpd.GeoDataFrame):
                 nonspatial_names.append(name)

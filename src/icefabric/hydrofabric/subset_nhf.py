@@ -253,7 +253,6 @@ def generate_subset_from_ids(
         f = {
             "fp": ex.submit(source.load_filtered, "flowpaths", "fp_id", flowpath_ids),
             "div": ex.submit(source.load_filtered, "divides", "div_id", flowpath_ids),
-            "wb": ex.submit(source.load_filtered, "waterbodies", "fp_id", flowpath_ids),
             "gages": ex.submit(source.load_filtered, "gages", "fp_id", flowpath_ids),
             "ref_fp": ex.submit(source.load_filtered, "reference_flowpaths", "div_id", flowpath_ids),
             "lakes": ex.submit(source.load_filtered, "lakes", "fp_id", flowpath_ids),
@@ -261,7 +260,6 @@ def generate_subset_from_ids(
         }
         subset_fp = f["fp"].result()
         subset_div = f["div"].result()
-        subset_wb = f["wb"].result()
         subset_gages = f["gages"].result()
         subset_ref_fp = f["ref_fp"].result()
         subset_lakes = f["lakes"].result()
@@ -292,9 +290,9 @@ def generate_subset_from_ids(
         + subset_fp.filter(pl.col("dn_nex_id").is_not_null())["dn_nex_id"].cast(pl.Int64).to_list()
     )
     all_v_fp_ids = set(subset_ref_fp["virtual_fp_id"].to_list())
-    wb_hy_ids = subset_wb["hy_id"].to_list() if "hy_id" in subset_wb.columns else []
+    lakes_hy_ids = subset_lakes["hy_id"].to_list() if "hy_id" in subset_lakes.columns else []
     gage_hy_ids = subset_gages["hy_id"].to_list() if "hy_id" in subset_gages.columns else []
-    all_hy_ids = set(wb_hy_ids + gage_hy_ids)
+    all_hy_ids = set(lakes_hy_ids + gage_hy_ids)
 
     # Wave 2: nex_id/virtual_fp_id filtered (parallel)
     with ThreadPoolExecutor(max_workers=2) as ex:
@@ -345,7 +343,6 @@ def generate_subset_from_ids(
         "divides": pl_to_gdf(subset_div, crs=crs),
         "virtual_nexus": pl_to_gdf(subset_v_nex, crs=crs),
         "virtual_flowpaths": pl_to_gdf(subset_v_fp, crs=crs),
-        "waterbodies": pl_to_gdf(subset_wb, crs=crs) if len(subset_wb) > 0 else subset_wb.to_pandas(),
         "gages": pl_to_gdf(subset_gages, crs=crs) if len(subset_gages) > 0 else subset_gages.to_pandas(),
         "lakes": pl_to_gdf(subset_lakes, crs=crs) if len(subset_lakes) > 0 else subset_lakes.to_pandas(),
         "reference_flowpaths": subset_ref_fp.to_pandas(),
@@ -363,7 +360,6 @@ def generate_subset_from_ids(
             "divides",
             "virtual_nexus",
             "virtual_flowpaths",
-            "waterbodies",
             "gages",
             "lakes",
         ]
@@ -425,14 +421,12 @@ def generate_subset_virtual_only(
         f = {
             "fp": ex.submit(source.load_filtered, "flowpaths", "div_id", div_ids),
             "div": ex.submit(source.load_filtered, "divides", "div_id", div_ids),
-            "wb": ex.submit(source.load_filtered, "waterbodies", "div_id", div_ids),
             "gages": ex.submit(source.load_filtered, "gages", "div_id", div_ids),
             "ref_fp": ex.submit(source.load_filtered, "reference_flowpaths", "div_id", div_ids),
             "lakes": ex.submit(source.load_filtered, "lakes", "div_id", div_ids),
         }
         subset_fp = f["fp"].result()
         subset_div = f["div"].result()
-        subset_wb = f["wb"].result()
         subset_gages = f["gages"].result()
         subset_ref_fp = f["ref_fp"].result()
         subset_lakes = f["lakes"].result()
@@ -463,10 +457,10 @@ def generate_subset_virtual_only(
             .to_list()
         )
 
-    # Derive hydrolocation IDs from gages / waterbodies in this divide
-    wb_hy_ids = subset_wb["hy_id"].to_list() if "hy_id" in subset_wb.columns else []
+    # Derive hydrolocation IDs from gages and lakes in this divide
+    lakes_hy_ids = subset_lakes["hy_id"].to_list() if "hy_id" in subset_lakes.columns else []
     gage_hy_ids = subset_gages["hy_id"].to_list() if "hy_id" in subset_gages.columns else []
-    all_hy_ids = set(wb_hy_ids + gage_hy_ids)
+    all_hy_ids = set(lakes_hy_ids + gage_hy_ids)
 
     # Wave 2: nexus / virtual_nexus / hydrolocations
     with ThreadPoolExecutor(max_workers=2) as ex:
@@ -503,7 +497,6 @@ def generate_subset_virtual_only(
         "divides": pl_to_gdf(subset_div, crs=crs),
         "virtual_nexus": pl_to_gdf(subset_v_nex, crs=crs),
         "virtual_flowpaths": pl_to_gdf(subset_v_fp, crs=crs),
-        "waterbodies": (pl_to_gdf(subset_wb, crs=crs) if len(subset_wb) > 0 else subset_wb.to_pandas()),
         "gages": (pl_to_gdf(subset_gages, crs=crs) if len(subset_gages) > 0 else subset_gages.to_pandas()),
         "lakes": (pl_to_gdf(subset_lakes, crs=crs) if len(subset_lakes) > 0 else subset_lakes.to_pandas()),
         "reference_flowpaths": subset_ref_fp.to_pandas(),
@@ -521,7 +514,6 @@ def generate_subset_virtual_only(
             "divides",
             "virtual_nexus",
             "virtual_flowpaths",
-            "waterbodies",
             "gages",
             "lakes",
         ]

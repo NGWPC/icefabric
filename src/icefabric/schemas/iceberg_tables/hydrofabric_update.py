@@ -600,6 +600,7 @@ class Flowpaths:
             "fp_to_id",
             "geometry",
             "gid",
+            "terminalpa",
         ]
 
     @classmethod
@@ -678,6 +679,9 @@ class Flowpaths:
             NestedField(30, "fp_to_id", LongType(), required=False, doc=desc[29]),
             NestedField(31, "geometry", BinaryType(), required=False, doc=desc[30]),
             NestedField(32, "gid", StringType(), required=False, doc="Geolocation Plus Code identifier"),
+            NestedField(
+                33, "terminalpa", LongType(), required=False, doc="Terminal path grouping identifier"
+            ),
             identifier_field_ids=[1],
         )
 
@@ -725,6 +729,7 @@ class Flowpaths:
                 pa.field("fp_to_id", pa.int64(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
                 pa.field("gid", pa.string(), nullable=True),
+                pa.field("terminalpa", pa.int64(), nullable=True),
             ]
         )
 

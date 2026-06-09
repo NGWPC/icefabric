@@ -39,7 +39,7 @@ def _init(deploy_env: str = "test"):
 
 
 DOMAIN_TO_NAMESPACE = {
-    "conus": "nhf",
+    "conus": "conus_nhf",
     "ak": "ak_nhf",
     "hi": "hi_nhf",
     "prvi": "prvi_nhf",

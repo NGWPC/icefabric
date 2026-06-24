@@ -137,7 +137,7 @@ def get_identifier_info(
     identifier: str = Path(
         ...,
         description="Station/gauge ID",
-        max_length=10,
+        max_length=15,
         pattern=r"^[a-zA-Z0-9]+$",
         examples=["01010000"],
         openapi_examples={"station_example": {"summary": "USGS Gauge", "value": "01010000"}},
@@ -182,7 +182,7 @@ def get_data_time_range(
     identifier: str = Path(
         ...,
         description="Station/gauge ID",
-        max_length=10,
+        max_length=15,
         pattern=r"^[a-zA-Z0-9]+$",
         examples=["01010000"],
         openapi_examples={"station_example": {"summary": "USGS Gauge", "value": "01010000"}},

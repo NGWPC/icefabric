@@ -39,17 +39,14 @@ def _build_upstream_dict_from_nexus(
     nexus_to_downstream = fp_pl.select(
         [pl.col(f"up_{node_id}").alias(node_id), pl.col(edge_id).alias(f"dn_{edge_id}")]
     ).filter(pl.col(node_id).is_not_null())
-    nexus_to_downstream.write_csv("down_conus.csv")
 
     nexus_to_upstream = fp_pl.select(
         [pl.col(f"dn_{node_id}").alias(node_id), pl.col(edge_id).alias(f"up_{edge_id}")]
     ).filter(pl.col(node_id).is_not_null())
-    nexus_to_upstream.write_csv("up_conus.csv")
 
     connections = nexus_to_upstream.join(nexus_to_downstream, on=node_id, how="inner").select(
         [pl.col(f"dn_{edge_id}"), pl.col(f"up_{edge_id}")]
     )
-    connections.write_csv("conn_conus.csv")
 
     upstream_dict_df = connections.group_by(f"dn_{edge_id}").agg(
         pl.col(f"up_{edge_id}").sort().alias("upstream_list")

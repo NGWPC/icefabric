@@ -651,7 +651,8 @@ def subset_nhf(
     logger.debug(f"  Graph: {graph.num_nodes()} nodes, {graph.num_edges()} edges")
 
     if flowpath_id not in node_indices:
-        # check if this is a gage on a flowpath with no up or downstream flowpath
+        # if the flowpath is not in the graph, it could be a single flowpath
+        # with no up or downstream flowpaths.  If so, just subset for the single flowpath.
         if fp_pl.select((pl.col("fp_id") == flowpath_id).any()).item():
             if (fp_pl.filter(pl.col("fp_id") == flowpath_id).select("dn_hydroseq").item() == 0) and (
                 fp_pl.filter(pl.col("fp_id") == flowpath_id).select("up_nex_id").item() is None

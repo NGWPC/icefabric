@@ -640,7 +640,7 @@ def subset_nhf(
 
     # Build graph for upstream traversal
     logger.debug("Building network graph...")
-    fp_pl = source.load_columns("flowpaths", ["fp_id", "up_nex_id", "dn_nex_id"])
+    fp_pl = source.load_columns("flowpaths", ["fp_id", "up_nex_id", "dn_nex_id", "dn_hydroseq"])
     logger.debug(f"  {len(fp_pl)} flowpaths loaded")
 
     upstream_dict = _build_upstream_dict_from_nexus(fp_pl)
@@ -648,7 +648,21 @@ def subset_nhf(
     logger.debug(f"  Graph: {graph.num_nodes()} nodes, {graph.num_edges()} edges")
 
     if flowpath_id not in node_indices:
-        raise NoResultsFoundError(f"Flowpath {flowpath_id} not found in network.")
+        # if the flowpath is not in the graph, it could be a single flowpath
+        # with no up or downstream flowpaths.  If so, just subset for the single flowpath.
+        if fp_pl.select((pl.col("fp_id") == flowpath_id).any()).item():
+            if (fp_pl.filter(pl.col("fp_id") == flowpath_id).select("dn_hydroseq").item() == 0) and (
+                fp_pl.filter(pl.col("fp_id") == flowpath_id).select("up_nex_id").item() is None
+            ):
+                return generate_subset_from_ids(
+                    source=source,
+                    flowpath_ids={flowpath_id},
+                    subset_file=output,
+                )
+            else:
+                raise NoResultsFoundError(f"Flowpath {flowpath_id} not found in flowpath layer.")
+        else:
+            raise NoResultsFoundError(f"Flowpath {flowpath_id} not found in network.")
 
     output_layers = generate_subset_upstream(
         source=source,

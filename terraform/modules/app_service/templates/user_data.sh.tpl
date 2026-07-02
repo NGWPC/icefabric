@@ -253,11 +253,11 @@ cat > /opt/icefabric/.env <<EOF
 APP_HOST=0.0.0.0
 APP_PORT=8000
 RELOAD=false
-CATALOG_PATH=glue
 LOG_DIR=/opt/icefabric/logs/
 AWS_DEFAULT_REGION=${aws_region}
 AWS_REGION=${aws_region}
 ENVIRONMENT=${environment}
+ICEFABRIC_ICECHUNK_PATH=${icechunk_path}
 EOF
 
 # === Docker Compose Application Stack ===

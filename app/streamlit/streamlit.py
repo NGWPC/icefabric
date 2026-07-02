@@ -27,8 +27,11 @@ deploy_env = os.environ.get("ICEFABRIC_DEPLOY_ENV") or os.environ.get("ENVIRONME
 # Set catalog type based on deploy environment
 catalog_type = "sql" if deploy_env in ["l", "local"] else "glue"
 
-# Load credentials
-load_creds(deploy_env)
+# Skip AWS credential loading when fully local (SQL catalog + local icechunk)
+_local_catalog = catalog_type == "sql"
+_local_icechunk = os.environ.get("ICEFABRIC_ICECHUNK_PATH") is not None
+if not (_local_catalog and _local_icechunk):
+    load_creds(deploy_env)
 
 # Load catalog and store in session state
 if "catalog" not in st.session_state:

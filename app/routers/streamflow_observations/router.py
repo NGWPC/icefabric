@@ -99,15 +99,21 @@ def get_data_and_repo_hist(request: Request | None = None):
     once per worker in lifespan) to avoid re-opening the icechunk session
     on every request. Falls back to opening fresh if no cache exists (e.g.
     in tests where the fixture bypasses lifespan).
+
+    Supports local filesystem stores via ICEFABRIC_ICECHUNK_PATH env var.
     """
     if request is not None:
         cached = getattr(request.app.state, "streamflow_data", None)
         if cached is not None:
             return cached.dataset, cached.repo
     try:
-        storage_config = icechunk.s3_storage(
-            bucket=get_bucket(), prefix=PREFIX, region="us-east-1", from_env=True
-        )
+        icechunk_path = os.environ.get("ICEFABRIC_ICECHUNK_PATH")
+        if icechunk_path:
+            storage_config = icechunk.local_filesystem_storage(icechunk_path)
+        else:
+            storage_config = icechunk.s3_storage(
+                bucket=get_bucket(), prefix=PREFIX, region="us-east-1", from_env=True
+            )
         repo = icechunk.Repository.open(storage_config)
         session = repo.writable_session("main")
         ds = xr.open_zarr(session.store, consolidated=False)

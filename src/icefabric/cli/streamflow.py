@@ -50,11 +50,19 @@ def validate_file_extension(ctx, param, value):
 
 
 def get_dataset():
-    """Get repo/data from icechunk for a given data source"""
+    """Get repo/data from icechunk for a given data source.
+
+    Supports local filesystem stores via ICEFABRIC_ICECHUNK_PATH env var.
+    Falls back to S3 when not set.
+    """
+    icechunk_path = os.environ.get("ICEFABRIC_ICECHUNK_PATH")
     try:
-        storage_config = icechunk.s3_storage(
-            bucket=get_bucket(), prefix=PREFIX, region="us-east-1", from_env=True
-        )
+        if icechunk_path:
+            storage_config = icechunk.local_filesystem_storage(icechunk_path)
+        else:
+            storage_config = icechunk.s3_storage(
+                bucket=get_bucket(), prefix=PREFIX, region="us-east-1", from_env=True
+            )
         repo = icechunk.Repository.open(storage_config)
         session = repo.writable_session("main")
         ds = xr.open_zarr(session.store, consolidated=False)

@@ -250,3 +250,9 @@ variable "deployment_timestamp" {
   type        = string
   default     = null
 }
+
+variable "icechunk_path" {
+  description = "Path to a local icechunk store. Set to null to use S3-backed icechunk."
+  type        = string
+  default     = null
+}

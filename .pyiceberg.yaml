@@ -10,3 +10,9 @@ catalog:
     type: sql
     uri: sqlite:////tmp/warehouse/pyiceberg_catalog.db
     warehouse: file:///tmp/warehouse
+
+# icefabric runtime configuration
+icefabric:
+  # Set to false to skip refreshing SQL from Glue on startup.
+  # Useful when the local catalog is already populated.
+  build_cache: true

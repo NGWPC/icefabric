@@ -168,7 +168,7 @@ log_info "Local icechunk: $LOCAL_ICECHUNK ($(du -sh "$LOCAL_ICECHUNK" | cut -f1)
 log_info "Creating .pyiceberg.yaml for local catalog..."
 cat > .pyiceberg.yaml << EOF
 catalog:
-  local:
+  sql:
     type: sql
     uri: sqlite:///${LOCAL_CATALOG}/pyiceberg_catalog.db
     warehouse: ${LOCAL_CATALOG}/warehouse

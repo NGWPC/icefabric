@@ -26,6 +26,10 @@ services:
       - OPENBLAS_NUM_THREADS=2
       - MKL_NUM_THREADS=2
       - POLARS_MAX_THREADS=2
+    volumes:
+      - ../.pyiceberg.yaml:/app/.pyiceberg.yaml:ro
+      - /tmp/icefabric_local_catalog:/tmp/icefabric_local_catalog:ro
+      - /tmp/icefabric_streamflow_obs:/tmp/icefabric_streamflow_obs:ro
     command: ["python", "-m", "app.main", "--catalog", "sql", "--build-cache", "false"]
     restart: always
     healthcheck:
@@ -44,4 +48,8 @@ services:
       - "127.0.0.1:8501:8501"
     env_file:
       - ../.env
+    volumes:
+      - ../.pyiceberg.yaml:/app/.pyiceberg.yaml:ro
+      - /tmp/icefabric_local_catalog:/tmp/icefabric_local_catalog:ro
+      - /tmp/icefabric_streamflow_obs:/tmp/icefabric_streamflow_obs:ro
     restart: always

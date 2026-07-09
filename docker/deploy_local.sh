@@ -94,10 +94,11 @@ echo "[INFO] Branch: $(git branch --show-current 2>/dev/null || echo 'not a git 
 echo "[INFO] Commit: $(git rev-parse --short HEAD 2>/dev/null || echo 'N/A')"
 
 # --- Extract archive ---
-LOCAL_CATALOG="/tmp/icefabric_local_catalog"
+WAREHOUSE_DIR="/tmp/warehouse"
 LOCAL_ICECHUNK="/tmp/icefabric_streamflow_obs"
+ARCHIVE_DIR="/tmp/icefabric_local_catalog"
 
-if [[ -d "$LOCAL_CATALOG" && -d "$LOCAL_ICECHUNK" ]]; then
+if [[ -f "$WAREHOUSE_DIR/pyiceberg_catalog.db" && -d "$LOCAL_ICECHUNK" ]]; then
     echo "[INFO] Archive already extracted, skipping download"
 else
     echo "[INFO] Downloading and extracting archive from: $S3_ARCHIVE_PATH"
@@ -109,10 +110,20 @@ else
     rm -f "/tmp/$ARCHIVE_FILENAME"
 fi
 
+# --- Move extracted files to expected locations ---
+mkdir -p "$WAREHOUSE_DIR"
+if [[ ! -f "$WAREHOUSE_DIR/pyiceberg_catalog.db" && -f "$ARCHIVE_DIR/pyiceberg_catalog.db" ]]; then
+    echo "[INFO] Moving catalog to $WAREHOUSE_DIR..."
+    mv "$ARCHIVE_DIR/pyiceberg_catalog.db" "$WAREHOUSE_DIR/"
+    if [[ -d "$ARCHIVE_DIR/warehouse" ]]; then
+        cp -r "$ARCHIVE_DIR/warehouse/"* "$WAREHOUSE_DIR/"
+    fi
+    rm -rf "$ARCHIVE_DIR"
+fi
+
 # --- Verify extracted files ---
-if [[ ! -d "$LOCAL_CATALOG" ]]; then
-    echo "[ERROR] Local catalog directory not found: $LOCAL_CATALOG" >&2
-    echo "[ERROR]   Archive may not contain the expected structure." >&2
+if [[ ! -f "$WAREHOUSE_DIR/pyiceberg_catalog.db" ]]; then
+    echo "[ERROR] SQLite catalog not found at $WAREHOUSE_DIR/pyiceberg_catalog.db" >&2
     exit 1
 fi
 
@@ -122,20 +133,11 @@ if [[ ! -d "$LOCAL_ICECHUNK" ]]; then
     exit 1
 fi
 
-echo "[INFO] Local catalog: $LOCAL_CATALOG ($(du -sh "$LOCAL_CATALOG" | cut -f1))"
+echo "[INFO] Local catalog: $WAREHOUSE_DIR ($(du -sh "$WAREHOUSE_DIR" | cut -f1))"
 echo "[INFO] Local icechunk: $LOCAL_ICECHUNK ($(du -sh "$LOCAL_ICECHUNK" | cut -f1))"
 
-# --- Create .pyiceberg.yaml for local catalog ---
-echo "[INFO] Creating .pyiceberg.yaml for local catalog..."
-cat > .pyiceberg.yaml << EOF
-catalog:
-  sql:
-    type: sql
-    uri: sqlite:///${LOCAL_CATALOG}/pyiceberg_catalog.db
-    warehouse: ${LOCAL_CATALOG}/warehouse
-EOF
-
 # --- Create .env for docker compose ---
+# .pyiceberg.yaml is already in the repo root pointing to /tmp/warehouse/
 echo "[INFO] Creating .env for docker compose..."
 cat > .env << EOF
 ICEFABRIC_DEPLOY_ENV=local
@@ -174,7 +176,7 @@ echo "  API:       http://localhost:8000"
 echo "  Dashboard: http://localhost:8501"
 echo "  Nginx:     http://localhost:80"
 echo ""
-echo "  Catalog:   $LOCAL_CATALOG"
+echo "  Catalog:   $WAREHOUSE_DIR"
 echo "  Icechunk:  $LOCAL_ICECHUNK"
 echo ""
 echo "  Logs:"

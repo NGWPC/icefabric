@@ -28,7 +28,7 @@ services:
       - POLARS_MAX_THREADS=2
     volumes:
       - ../.pyiceberg.yaml:/app/.pyiceberg.yaml:ro
-      - /tmp/icefabric_local_catalog:/tmp/icefabric_local_catalog:ro
+      - /tmp/warehouse:/tmp/warehouse:ro
       - /tmp/icefabric_streamflow_obs:/tmp/icefabric_streamflow_obs:ro
     command: ["python", "-m", "app.main", "--catalog", "sql", "--build-cache", "false"]
     restart: always
@@ -50,6 +50,6 @@ services:
       - ../.env
     volumes:
       - ../.pyiceberg.yaml:/app/.pyiceberg.yaml:ro
-      - /tmp/icefabric_local_catalog:/tmp/icefabric_local_catalog:ro
+      - /tmp/warehouse:/tmp/warehouse:ro
       - /tmp/icefabric_streamflow_obs:/tmp/icefabric_streamflow_obs:ro
     restart: always

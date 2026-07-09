@@ -120,7 +120,7 @@ def get_glue_table_schema(table_info: dict) -> pa.Schema:
 
 def main() -> None:
     """Sync all Glue catalog namespaces/snapshots to a local SQLite + Parquet catalog."""
-    local_catalog = load_catalog("local")
+    local_catalog = load_catalog("sql")
     databases = glue.get_databases()["DatabaseList"]
     databases.sort(key=lambda d: d["Name"])
 

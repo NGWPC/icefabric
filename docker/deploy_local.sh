@@ -8,31 +8,26 @@ set -euo pipefail
 # store extracted from an S3 archive.
 #
 # Usage:
-#   ./deploy_local.sh <s3_archive_path> <github_repo_url> <branch> [aws_profile]
+#   Run from the repo root on the correct branch:
+#   ./docker/deploy_local.sh <s3_archive_path> [aws_profile]
 #
 # Example:
-#   ./deploy_local.sh s3://edfs-data/tmp/icefabric_full_backup.tar \
-#     https://github.com/NGWPC/icefabric.git main myprofile
+#   ./docker/deploy_local.sh s3://edfs-data/tmp/icefabric_full_backup.tar myprofile
 # =============================================================================
 
 # --- Parse arguments ---
-if [[ $# -lt 3 ]]; then
-    echo "Usage: $0 <s3_archive_path> <github_repo_url> <branch> [aws_profile]"
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 <s3_archive_path> [aws_profile]"
     echo ""
     echo "Arguments:"
     echo "  s3_archive_path   S3 path to the icefabric backup tar file"
     echo "                    (e.g., s3://edfs-data/tmp/icefabric_full_backup.tar)"
-    echo "  github_repo_url   GitHub repository URL"
-    echo "                    (e.g., https://github.com/NGWPC/icefabric.git)"
-    echo "  branch            Git branch to checkout"
     echo "  aws_profile       AWS profile name (optional, uses default if not set)"
     exit 1
 fi
 
 S3_ARCHIVE_PATH="$1"
-GITHUB_REPO_URL="$2"
-BRANCH="$3"
-AWS_PROFILE="${4:-}"
+AWS_PROFILE="${2:-}"
 
 # --- Validate inputs ---
 if [[ ! "$S3_ARCHIVE_PATH" =~ ^s3:// ]]; then
@@ -100,19 +95,13 @@ fi
 ACCOUNT_ID=$($AWS_CMD sts get-caller-identity --query Account --output text)
 echo "[INFO] AWS Account: $ACCOUNT_ID"
 
-# --- Create working directory ---
-DEPLOY_DIR="./icefabric_deploy_$(date +%Y%m%d_%H%M%S)"
-echo "[INFO] Creating deployment directory: $DEPLOY_DIR"
-mkdir -p "$DEPLOY_DIR"
-cd "$DEPLOY_DIR"
-
-# --- Clone repository ---
-echo "[INFO] Cloning repository: $GITHUB_REPO_URL"
-git clone --branch "$BRANCH" "$GITHUB_REPO_URL" repo
-cd repo
-
-echo "[INFO] Checked out branch: $(git branch --show-current)"
-echo "[INFO] Commit: $(git rev-parse --short HEAD)"
+# --- Verify we're in a repo with the compose file ---
+if [[ ! -f "docker/compose.local.yaml" ]]; then
+    echo "[ERROR] docker/compose.local.yaml not found. Are you in the repo root on the correct branch?" >&2
+    exit 1
+fi
+echo "[INFO] Branch: $(git branch --show-current 2>/dev/null || echo 'not a git repo')"
+echo "[INFO] Commit: $(git rev-parse --short HEAD 2>/dev/null || echo 'N/A')"
 
 # --- Extract archive ---
 LOCAL_CATALOG="/tmp/icefabric_local_catalog"

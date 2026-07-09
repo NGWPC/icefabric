@@ -35,16 +35,6 @@ if [[ ! "$S3_ARCHIVE_PATH" =~ ^s3:// ]]; then
     exit 1
 fi
 
-if [[ -z "$GITHUB_REPO_URL" ]]; then
-    echo "[ERROR] GitHub repo URL cannot be empty" >&2
-    exit 1
-fi
-
-if [[ -z "$BRANCH" ]]; then
-    echo "[ERROR] Branch cannot be empty" >&2
-    exit 1
-fi
-
 # --- Check prerequisites ---
 echo "[INFO] Checking prerequisites..."
 

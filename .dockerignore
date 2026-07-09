@@ -4,3 +4,5 @@ data/**/*.json
 .venv/
 .env
 .prod.env
+scratch/
+output/

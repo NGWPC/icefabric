@@ -136,12 +136,12 @@ To specify the deploy environment/iceberg catalog used (test or production (OE))
 
 To run the api and dashboard together connected to a local iceberg catalog and icechunk data that has been extracted from an archive file synced from S3 please:
 
-1. authenticate into an AWS profile that has access to the `ngwpc-data` S3 bucket using the command:
+1\. authenticate into an AWS profile that has access to the `ngwpc-data` S3 bucket using the command:
 `aws sso login --profile your-profile-name`
 
 If you haven't created a profile linked to the NGWPC Data AWS account please use the `aws configure sso` command using information associated with the NGWPC Data AWS account. Further instructions can be found at: https://d-90678ba0c3.awsapps.com/start/#/
 
-2. Run the following shell script to download the archived catalog, extract it, build the api, dashboard, and nginx docker images, and run docker compose up:
+2\. Run the following shell script to download the archived catalog, extract it, build the api, dashboard, and nginx docker images, and run docker compose up:
 
 ```sh
 docker/deploy_local.sh s3://ngwpc-data/icefabric_catalog_archive.tar {aws_profile}

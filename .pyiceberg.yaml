@@ -8,8 +8,12 @@ catalog:
     glue_region: us-east-1
   sql:
     type: sql
-    uri: sqlite:////tmp/warehouse/pyiceberg_catalog.db
-    warehouse: file:///tmp/warehouse
+    # location for pre-existing local catalog
+    uri: sqlite://///tmp/icefabric_local_catalog/pyiceberg_catalog.db
+    warehouse: file:///tmp/icefabric_local_catalog/warehouse
+    # For a glue catalog that will be cached use:
+    # uri: sqlite:////tmp/warehouse/pyiceberg_catalog.db
+    # warehouse: file:///tmp/warehouse
 
 # icefabric runtime configuration
 icefabric:

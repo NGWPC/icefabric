@@ -91,6 +91,17 @@ def get_parameter_metadata(
         else:
             divide_attrs = pd.DataFrame(gauge["divides"])
 
+        # Normalize URL-encoded column names from the SQL catalog back to dot notation
+        # (_x2E → ., _x3D → =) so lookups match the dot-notation names in DivideAttributesHF.
+        # Normalization might be needed depending on how local catalog was created.
+        col_rename = {}
+        for col in divide_attrs.columns:
+            decoded = col.replace("_x2E", ".").replace("_x3D", "=")
+            if decoded != col:
+                col_rename[col] = decoded
+        if col_rename:
+            divide_attrs = divide_attrs.rename(columns=col_rename)
+
     if gage_id is not None and "lasam" in modules:
         lasam_params = pd.DataFrame(LASAMParameters.lasam_params)
 

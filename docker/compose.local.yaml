@@ -24,7 +24,7 @@ services:
       - ../.pyiceberg.yaml:/app/.pyiceberg.yaml:ro
       - /tmp/icefabric_local_catalog:/tmp/icefabric_local_catalog:ro
       - /tmp/icefabric_streamflow_obs:/tmp/icefabric_streamflow_obs:ro
-    command: ["python", "-m", "app.main", "--catalog", "sql", "--build-cache", "false"]
+    command: ["python", "-m", "app.main", "--catalog", "sql"]
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "--head", "http://localhost:8000/health"]

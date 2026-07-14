@@ -3,7 +3,7 @@ import sqlite3
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import geopandas as gpd
 import polars as pl
@@ -116,7 +116,7 @@ class HydrofabricSource:
                 logger.warning(f"Could not access table {table_id}, treating as missing")
                 return None
         else:
-            path = self.parquet_dir / f"{layer}.parquet"
+            path = cast(Path, self.parquet_dir) / f"{layer}.parquet"
             if not path.exists():
                 return None
             return pl.scan_parquet(path)
@@ -127,7 +127,7 @@ class HydrofabricSource:
         from icefabric.schemas.iceberg_tables import nhf_layers
 
         if layer in nhf_layers:
-            return pl.from_arrow(nhf_layers[layer].arrow_schema().empty_table())
+            return cast(pl.DataFrame, pl.from_arrow(nhf_layers[layer].arrow_schema().empty_table()))
         return pl.DataFrame()
 
     def load_filtered(self, layer: str, col: str, ids: set[int]) -> pl.DataFrame:
@@ -190,8 +190,12 @@ def resolve_gage_to_flowpath(source: HydrofabricSource, gage_id: str) -> int:
 
     fp_id = gage_df["fp_id"][0]
     if fp_id is not None:
+        try:
+            fp_id = int(fp_id)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"Invalid fp_id for gage {gage_id}: {fp_id!r}") from exc
         logger.debug(f"Gage '{gage_id}' maps to flowpath {fp_id}")
-        return int(fp_id)
+        return fp_id
 
     # Virtual-only gage: bridge virtual_fp_id → reference_flowpaths.div_id → flowpaths.fp_id
     virtual_fp_id = gage_df["virtual_fp_id"][0]
@@ -199,15 +203,23 @@ def resolve_gage_to_flowpath(source: HydrofabricSource, gage_id: str) -> int:
         raise NoResultsFoundError(
             f"Gage ID '{gage_id}' exists but has no associated flowpath or virtual flowpath."
         )
+    try:
+        virtual_fp_id = int(virtual_fp_id)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"Invalid virtual_fp_id for gage {gage_id}: {virtual_fp_id!r}") from exc
 
-    ref_df = source.load_filtered("reference_flowpaths", "virtual_fp_id", {int(virtual_fp_id)})
+    ref_df = source.load_filtered("reference_flowpaths", "virtual_fp_id", {virtual_fp_id})
     if len(ref_df) == 0:
         raise NoResultsFoundError(
             f"Gage ID '{gage_id}' has virtual_fp_id {virtual_fp_id} but no reference_flowpaths entry."
         )
 
     div_id = ref_df["div_id"][0]
-    fp_df = source.load_filtered("flowpaths", "div_id", {int(div_id)})
+    try:
+        div_id = int(div_id)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"Invalid div_id for gage {gage_id}: {div_id!r}") from exc
+    fp_df = source.load_filtered("flowpaths", "div_id", {div_id})
     if len(fp_df) == 0:
         raise NoResultsFoundError(
             f"Gage ID '{gage_id}' (virtual_fp_id {virtual_fp_id}, div_id {div_id}) "
@@ -215,11 +227,14 @@ def resolve_gage_to_flowpath(source: HydrofabricSource, gage_id: str) -> int:
         )
 
     bridged_fp_id = fp_df["fp_id"][0]
+    try:
+        bridged_fp_id = int(bridged_fp_id)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"Invalid bridged fp_id for gage {gage_id}: {bridged_fp_id!r}") from exc
     logger.debug(
-        f"Gage '{gage_id}' (virtual {int(virtual_fp_id)}) bridges to flowpath "
-        f"{bridged_fp_id} via div_id {div_id}"
+        f"Gage '{gage_id}' (virtual {virtual_fp_id}) bridges to flowpath {bridged_fp_id} via div_id {div_id}"
     )
-    return int(bridged_fp_id)
+    return bridged_fp_id
 
 
 def resolve_vpu_to_flowpath_ids(source: HydrofabricSource, vpu_id: str) -> set[int]:
@@ -290,18 +305,25 @@ def generate_subset_from_ids(
         + subset_fp.filter(pl.col("dn_nex_id").is_not_null())["dn_nex_id"].cast(pl.Int64).to_list()
     )
     all_v_fp_ids = set(subset_ref_fp["virtual_fp_id"].to_list())
+    all_nhf_lake_ids = set(subset_lakes["nhf_lake_id"].to_list())
     lakes_hy_ids = subset_lakes["hy_id"].to_list() if "hy_id" in subset_lakes.columns else []
     gage_hy_ids = subset_gages["hy_id"].to_list() if "hy_id" in subset_gages.columns else []
     all_hy_ids = set(lakes_hy_ids + gage_hy_ids)
 
-    # Wave 2: nex_id/virtual_fp_id filtered (parallel)
-    with ThreadPoolExecutor(max_workers=2) as ex:
+    # Wave 2: dependent network, hydrolocation, and lake-detail layers
+    with ThreadPoolExecutor(max_workers=6) as ex:
         nex_f = ex.submit(source.load_filtered, "nexus", "nex_id", all_nex_ids)
         v_fp_f = ex.submit(source.load_filtered, "virtual_flowpaths", "virtual_fp_id", all_v_fp_ids)
         hy_id_f = ex.submit(source.load_filtered, "hydrolocations", "hy_id", all_hy_ids)
+        lake_polygon_f = ex.submit(source.load_filtered, "lakes_polygons", "nhf_lake_id", all_nhf_lake_ids)
+        reservoir_da_f = ex.submit(source.load_filtered, "reservoir_da", "nhf_lake_id", all_nhf_lake_ids)
+        lake_vfp_f = ex.submit(source.load_filtered, "lake_vfp_crosswalk", "nhf_lake_id", all_nhf_lake_ids)
         subset_nex = nex_f.result()
         subset_v_fp = v_fp_f.result()
         subset_hydrolocations = hy_id_f.result()
+        subset_lake_polygons = lake_polygon_f.result()
+        subset_reservoir_da = reservoir_da_f.result()
+        subset_lake_vfp = lake_vfp_f.result()
 
     # Wave 3: virtual_nex_id filtered
     all_v_nex_ids = set(
@@ -344,10 +366,13 @@ def generate_subset_from_ids(
         "virtual_nexus": pl_to_gdf(subset_v_nex, crs=crs),
         "virtual_flowpaths": pl_to_gdf(subset_v_fp, crs=crs),
         "gages": pl_to_gdf(subset_gages, crs=crs) if len(subset_gages) > 0 else subset_gages.to_pandas(),
-        "lakes": pl_to_gdf(subset_lakes, crs=crs) if len(subset_lakes) > 0 else subset_lakes.to_pandas(),
+        "lakes": pl_to_gdf(subset_lakes, crs=crs),
+        "lakes_polygons": pl_to_gdf(subset_lake_polygons, crs=crs),
         "reference_flowpaths": subset_ref_fp.to_pandas(),
         "hydrolocations": subset_hydrolocations.to_pandas(),
         "nhd": subset_nhd.to_pandas(),
+        "reservoir_da": subset_reservoir_da.to_pandas(),
+        "lake_vfp_crosswalk": subset_lake_vfp.to_pandas(),
     }
 
     if subset_file is not None:
@@ -362,14 +387,28 @@ def generate_subset_from_ids(
             "virtual_flowpaths",
             "gages",
             "lakes",
+            "lakes_polygons",
         ]
+        empty_geometry_types = {"lakes": "Point", "lakes_polygons": "MultiPolygon"}
         for name in spatial_layers:
             df = output[name]
             logger.debug(f"  {name}: {len(df)} rows")
-            if isinstance(df, gpd.GeoDataFrame) and len(df) > 0:
-                pyogrio.write_dataframe(df, subset_file, layer=name)
+            if isinstance(df, gpd.GeoDataFrame):
+                geometry_type = empty_geometry_types.get(name) if len(df) == 0 else None
+                pyogrio.write_dataframe(
+                    df,
+                    subset_file,
+                    layer=name,
+                    geometry_type=geometry_type,
+                )
 
-        nonspatial_layers = ["reference_flowpaths", "hydrolocations", "nhd"]
+        nonspatial_layers = [
+            "reference_flowpaths",
+            "hydrolocations",
+            "nhd",
+            "reservoir_da",
+            "lake_vfp_crosswalk",
+        ]
         conn = sqlite3.connect(subset_file)
         for name in nonspatial_layers:
             logger.debug(f"  {name}: {len(output[name])} rows")
@@ -414,7 +453,10 @@ def generate_subset_virtual_only(
     """
     logger.debug(f"Virtual-only subset: virtual_fp_id={virtual_fp_id}, div_id={div_id}")
     crs = source.namespace.crs
-    div_ids = {int(div_id)}
+    try:
+        div_ids = {int(div_id)}
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"Invalid div_id: {div_id!r}") from exc
 
     # Wave 1: direct div_id filters (parallel)
     with ThreadPoolExecutor(max_workers=6) as ex:
@@ -434,7 +476,10 @@ def generate_subset_virtual_only(
     # Collect ALL virtual_fp_ids from reference_flowpaths for this divide
     # (not just the originating one), plus the originating vfp itself to
     # ensure it's always included.
-    all_v_fp_ids = set(subset_ref_fp["virtual_fp_id"].to_list()) | {int(virtual_fp_id)}
+    try:
+        all_v_fp_ids = set(subset_ref_fp["virtual_fp_id"].to_list()) | {int(virtual_fp_id)}
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"Invalid virtual_fp_id: {virtual_fp_id!r}") from exc
     subset_v_fp = source.load_filtered("virtual_flowpaths", "virtual_fp_id", all_v_fp_ids)
 
     # Derive nexus IDs from the mainstem flowpath(s) in this divide
@@ -462,14 +507,22 @@ def generate_subset_virtual_only(
     gage_hy_ids = subset_gages["hy_id"].to_list() if "hy_id" in subset_gages.columns else []
     all_hy_ids = set(lakes_hy_ids + gage_hy_ids)
 
-    # Wave 2: nexus / virtual_nexus / hydrolocations
-    with ThreadPoolExecutor(max_workers=2) as ex:
+    all_nhf_lake_ids = set(subset_lakes["nhf_lake_id"].to_list())
+
+    # Wave 2: dependent network, hydrolocation, and lake-detail layers
+    with ThreadPoolExecutor(max_workers=6) as ex:
         nex_f = ex.submit(source.load_filtered, "nexus", "nex_id", all_nex_ids)
         v_nex_f = ex.submit(source.load_filtered, "virtual_nexus", "virtual_nex_id", all_v_nex_ids)
         hy_id_f = ex.submit(source.load_filtered, "hydrolocations", "hy_id", all_hy_ids)
+        lake_polygon_f = ex.submit(source.load_filtered, "lakes_polygons", "nhf_lake_id", all_nhf_lake_ids)
+        reservoir_da_f = ex.submit(source.load_filtered, "reservoir_da", "nhf_lake_id", all_nhf_lake_ids)
+        lake_vfp_f = ex.submit(source.load_filtered, "lake_vfp_crosswalk", "nhf_lake_id", all_nhf_lake_ids)
         subset_nex = nex_f.result()
         subset_v_nex = v_nex_f.result()
         subset_hydrolocations = hy_id_f.result()
+        subset_lake_polygons = lake_polygon_f.result()
+        subset_reservoir_da = reservoir_da_f.result()
+        subset_lake_vfp = lake_vfp_f.result()
 
     # NHD: filter by ref_ids present in reference_flowpaths for this divide
     all_ref_ids = set(
@@ -498,10 +551,13 @@ def generate_subset_virtual_only(
         "virtual_nexus": pl_to_gdf(subset_v_nex, crs=crs),
         "virtual_flowpaths": pl_to_gdf(subset_v_fp, crs=crs),
         "gages": (pl_to_gdf(subset_gages, crs=crs) if len(subset_gages) > 0 else subset_gages.to_pandas()),
-        "lakes": (pl_to_gdf(subset_lakes, crs=crs) if len(subset_lakes) > 0 else subset_lakes.to_pandas()),
+        "lakes": pl_to_gdf(subset_lakes, crs=crs),
+        "lakes_polygons": pl_to_gdf(subset_lake_polygons, crs=crs),
         "reference_flowpaths": subset_ref_fp.to_pandas(),
         "hydrolocations": subset_hydrolocations.to_pandas(),
         "nhd": subset_nhd.to_pandas(),
+        "reservoir_da": subset_reservoir_da.to_pandas(),
+        "lake_vfp_crosswalk": subset_lake_vfp.to_pandas(),
     }
 
     if subset_file is not None:
@@ -516,14 +572,28 @@ def generate_subset_virtual_only(
             "virtual_flowpaths",
             "gages",
             "lakes",
+            "lakes_polygons",
         ]
+        empty_geometry_types = {"lakes": "Point", "lakes_polygons": "MultiPolygon"}
         for name in spatial_layers:
             df = output[name]
             logger.debug(f"  {name}: {len(df)} rows")
-            if isinstance(df, gpd.GeoDataFrame) and len(df) > 0:
-                pyogrio.write_dataframe(df, subset_file, layer=name)
+            if isinstance(df, gpd.GeoDataFrame):
+                geometry_type = empty_geometry_types.get(name) if len(df) == 0 else None
+                pyogrio.write_dataframe(
+                    df,
+                    subset_file,
+                    layer=name,
+                    geometry_type=geometry_type,
+                )
 
-        nonspatial_layers = ["reference_flowpaths", "hydrolocations", "nhd"]
+        nonspatial_layers = [
+            "reference_flowpaths",
+            "hydrolocations",
+            "nhd",
+            "reservoir_da",
+            "lake_vfp_crosswalk",
+        ]
         conn = sqlite3.connect(subset_file)
         for name in nonspatial_layers:
             logger.debug(f"  {name}: {len(output[name])} rows")
@@ -620,23 +690,39 @@ def subset_nhf(
             virtual_fp_id = gage_df["virtual_fp_id"][0]
             if virtual_fp_id is None:
                 raise NoResultsFoundError(f"Gage ID '{gage_id}' exists but has no virtual flowpath.")
-            ref_df = source.load_filtered("reference_flowpaths", "virtual_fp_id", {int(virtual_fp_id)})
+            try:
+                virtual_fp_id = int(virtual_fp_id)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValueError(f"Invalid virtual_fp_id for gage {gage_id}: {virtual_fp_id!r}") from exc
+            ref_df = source.load_filtered("reference_flowpaths", "virtual_fp_id", {virtual_fp_id})
             if len(ref_df) == 0:
                 raise NoResultsFoundError(
                     f"Gage ID '{gage_id}' has virtual_fp_id {virtual_fp_id} but no reference_flowpaths entry."
                 )
             div_id = ref_df["div_id"][0]
+            try:
+                div_id = int(div_id)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValueError(f"Invalid div_id for gage {gage_id}: {div_id!r}") from exc
             output_layers = generate_subset_virtual_only(
                 source=source,
-                virtual_fp_id=int(virtual_fp_id),
-                div_id=int(div_id),
+                virtual_fp_id=virtual_fp_id,
+                div_id=div_id,
                 subset_file=output,
             )
             logger.info(f"\nDone! Output: {output}")
             return output_layers
-        flowpath_id = int(fp_id)
+        try:
+            flowpath_id = int(fp_id)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"Invalid fp_id for gage {gage_id}: {fp_id!r}") from exc
     else:
-        flowpath_id = int(flowpath_id)
+        if flowpath_id is None:
+            raise ValueError("flowpath_id is required")
+        try:
+            flowpath_id = int(flowpath_id)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"Invalid flowpath_id: {flowpath_id!r}") from exc
 
     # Build graph for upstream traversal
     logger.debug("Building network graph...")

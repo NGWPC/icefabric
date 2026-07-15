@@ -237,6 +237,12 @@ class Divides:
             "cgw",
             "expon",
             "max_gw_storage",
+            "vegetation_height",
+            "zero_plane_displacement_height",
+            "momentum_transfer_roughness_length",
+            "heat_transfer_roughness_length",
+            "surface_longwave_emissivity",
+            "surface_shortwave_albedo",
             "geometry",
             "gid",
         ]
@@ -321,6 +327,12 @@ class Divides:
             "Groundwater Coefficient",
             "Groundwater Exponent",
             "The maximum storage capacity (or total height) of the conceptual groundwater bucket",
+            "Vegetation height",
+            "Zero-plane displacement height",
+            "Momentum-transfer roughness length",
+            "Heat-transfer roughness length",
+            "Surface longwave emissivity",
+            "Surface shortwave albedo",
             "Spatial Geometry (MULTIPOLYGON format) - stored in WKB binary format",
         ]
         return Schema(
@@ -395,8 +407,14 @@ class Divides:
             NestedField(67, "cgw", DoubleType(), required=False, doc=desc[66]),
             NestedField(68, "expon", DoubleType(), required=False, doc=desc[67]),
             NestedField(69, "max_gw_storage", DoubleType(), required=False, doc=desc[68]),
-            NestedField(70, "geometry", BinaryType(), required=False, doc=desc[69]),
-            NestedField(71, "gid", StringType(), required=False, doc="Geolocation Plus Code identifier"),
+            NestedField(70, "vegetation_height", DoubleType(), required=False, doc=desc[69]),
+            NestedField(71, "zero_plane_displacement_height", DoubleType(), required=False, doc=desc[70]),
+            NestedField(72, "momentum_transfer_roughness_length", DoubleType(), required=False, doc=desc[71]),
+            NestedField(73, "heat_transfer_roughness_length", DoubleType(), required=False, doc=desc[72]),
+            NestedField(74, "surface_longwave_emissivity", DoubleType(), required=False, doc=desc[73]),
+            NestedField(75, "surface_shortwave_albedo", DoubleType(), required=False, doc=desc[74]),
+            NestedField(76, "geometry", BinaryType(), required=False, doc=desc[75]),
+            NestedField(77, "gid", StringType(), required=False, doc="Geolocation Plus Code identifier"),
             identifier_field_ids=[1],
         )
 
@@ -481,6 +499,12 @@ class Divides:
                 pa.field("cgw", pa.float64(), nullable=True),
                 pa.field("expon", pa.float64(), nullable=True),
                 pa.field("max_gw_storage", pa.float64(), nullable=True),
+                pa.field("vegetation_height", pa.float64(), nullable=True),
+                pa.field("zero_plane_displacement_height", pa.float64(), nullable=True),
+                pa.field("momentum_transfer_roughness_length", pa.float64(), nullable=True),
+                pa.field("heat_transfer_roughness_length", pa.float64(), nullable=True),
+                pa.field("surface_longwave_emissivity", pa.float64(), nullable=True),
+                pa.field("surface_shortwave_albedo", pa.float64(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
                 pa.field("gid", pa.string(), nullable=True),
             ]
@@ -1445,8 +1469,8 @@ class Lakes:
         Downstream virtual nexus identifier
     div_id : int
         Associated divide identifier
-    lake_id : int
-        Lake identifier
+    lake_id : str
+        Lake identifier (numeric NWM IDs or GUID reference-waterbody IDs)
     res_id : str
         Reservoir identifier
     LkArea : float
@@ -1556,14 +1580,14 @@ class Lakes:
         ]
         return Schema(
             NestedField(1, "nhf_lake_id", LongType(), required=True, doc=desc[0]),
-            NestedField(2, "ref_fp_id", LongType(), required=False, doc=desc[1]),
+            NestedField(2, "ref_fp_id", DoubleType(), required=False, doc=desc[1]),
             NestedField(3, "hy_id", LongType(), required=False, doc=desc[2]),
             NestedField(4, "fp_id", DoubleType(), required=False, doc=desc[3]),
             NestedField(5, "virtual_fp_id", LongType(), required=False, doc=desc[4]),
             NestedField(6, "dn_nex_id", DoubleType(), required=False, doc=desc[5]),
             NestedField(7, "dn_virtual_nex_id", LongType(), required=False, doc=desc[6]),
             NestedField(8, "div_id", LongType(), required=False, doc=desc[7]),
-            NestedField(9, "lake_id", LongType(), required=False, doc=desc[8]),
+            NestedField(9, "lake_id", StringType(), required=False, doc=desc[8]),
             NestedField(10, "res_id", StringType(), required=False, doc=desc[9]),
             NestedField(11, "LkArea", DoubleType(), required=False, doc=desc[10]),
             NestedField(12, "LkMxE", DoubleType(), required=False, doc=desc[11]),
@@ -1592,14 +1616,14 @@ class Lakes:
         return pa.schema(
             [
                 pa.field("nhf_lake_id", pa.int64(), nullable=False),
-                pa.field("ref_fp_id", pa.int64(), nullable=True),
+                pa.field("ref_fp_id", pa.float64(), nullable=True),
                 pa.field("hy_id", pa.int64(), nullable=True),
                 pa.field("fp_id", pa.float64(), nullable=True),
                 pa.field("virtual_fp_id", pa.int64(), nullable=True),
                 pa.field("dn_nex_id", pa.float64(), nullable=True),
                 pa.field("dn_virtual_nex_id", pa.int64(), nullable=True),
                 pa.field("div_id", pa.int64(), nullable=True),
-                pa.field("lake_id", pa.int64(), nullable=True),
+                pa.field("lake_id", pa.string(), nullable=True),
                 pa.field("res_id", pa.string(), nullable=True),
                 pa.field("LkArea", pa.float64(), nullable=True),
                 pa.field("LkMxE", pa.float64(), nullable=True),
@@ -1761,5 +1785,118 @@ class NHD:
                 pa.field("nhd_feature_id", pa.int64(), nullable=True),
                 pa.field("ref_id", pa.int64(), nullable=False),
                 pa.field("percent_inside", pa.float64(), nullable=True),
+            ]
+        )
+
+
+class LakesPolygons:
+    """The polygon geometry and source identifiers for NHF lakes."""
+
+    @classmethod
+    def columns(cls) -> list[str]:
+        """Return the columns associated with the lakes polygons schema."""
+        return ["lake_id", "virtual_fp_id", "nhf_lake_id", "source", "geometry"]
+
+    @classmethod
+    def schema(cls) -> Schema:
+        """Return the PyIceberg schema for lake polygons."""
+        return Schema(
+            NestedField(1, "lake_id", StringType(), required=True, doc="Source lake identifier"),
+            NestedField(
+                2,
+                "virtual_fp_id",
+                DoubleType(),
+                required=False,
+                doc="Associated virtual flowpath identifier",
+            ),
+            NestedField(3, "nhf_lake_id", LongType(), required=True, doc="NHF lake identifier"),
+            NestedField(4, "source", StringType(), required=False, doc="Lake geometry source"),
+            NestedField(
+                5,
+                "geometry",
+                BinaryType(),
+                required=False,
+                doc="Spatial Geometry (MULTIPOLYGON format) stored as WKB",
+            ),
+            identifier_field_ids=[1, 3],
+        )
+
+    @classmethod
+    def arrow_schema(cls) -> pa.Schema:
+        """Return the PyArrow schema for lake polygons."""
+        return pa.schema(
+            [
+                pa.field("lake_id", pa.string(), nullable=False),
+                pa.field("virtual_fp_id", pa.float64(), nullable=True),
+                pa.field("nhf_lake_id", pa.int64(), nullable=False),
+                pa.field("source", pa.string(), nullable=True),
+                pa.field("geometry", pa.binary(), nullable=True),
+            ]
+        )
+
+
+class ReservoirDA:
+    """The reservoir drainage-area metadata associated with NHF lakes."""
+
+    @classmethod
+    def columns(cls) -> list[str]:
+        """Return the columns associated with the reservoir drainage-area schema."""
+        return ["nhf_lake_id", "lake_id", "site_no", "da_type"]
+
+    @classmethod
+    def schema(cls) -> Schema:
+        """Return the PyIceberg schema for reservoir drainage areas."""
+        return Schema(
+            NestedField(1, "nhf_lake_id", LongType(), required=True, doc="NHF lake identifier"),
+            NestedField(2, "lake_id", StringType(), required=True, doc="Source lake identifier"),
+            NestedField(3, "site_no", StringType(), required=False, doc="Associated gage site number"),
+            NestedField(4, "da_type", LongType(), required=False, doc="Drainage-area type"),
+            identifier_field_ids=[1],
+        )
+
+    @classmethod
+    def arrow_schema(cls) -> pa.Schema:
+        """Return the PyArrow schema for reservoir drainage areas."""
+        return pa.schema(
+            [
+                pa.field("nhf_lake_id", pa.int64(), nullable=False),
+                pa.field("lake_id", pa.string(), nullable=False),
+                pa.field("site_no", pa.string(), nullable=True),
+                pa.field("da_type", pa.int64(), nullable=True),
+            ]
+        )
+
+
+class LakeVFPCrosswalk:
+    """The many-to-many crosswalk between NHF lakes and virtual flowpaths."""
+
+    @classmethod
+    def columns(cls) -> list[str]:
+        """Return the columns associated with the lake/VFP crosswalk schema."""
+        return ["nhf_lake_id", "lake_id", "virtual_fp_id"]
+
+    @classmethod
+    def schema(cls) -> Schema:
+        """Return the PyIceberg schema for the lake/VFP crosswalk."""
+        return Schema(
+            NestedField(1, "nhf_lake_id", LongType(), required=True, doc="NHF lake identifier"),
+            NestedField(2, "lake_id", StringType(), required=True, doc="Source lake identifier"),
+            NestedField(
+                3,
+                "virtual_fp_id",
+                DoubleType(),
+                required=False,
+                doc="Associated virtual flowpath identifier",
+            ),
+        )
+
+    @classmethod
+    def arrow_schema(cls) -> pa.Schema:
+        """Return the PyArrow schema for the lake/VFP crosswalk."""
+        return pa.schema(
+            [
+                pa.field("nhf_lake_id", pa.int64(), nullable=False),
+                pa.field("lake_id", pa.string(), nullable=False),
+                pa.field("virtual_fp_id", pa.float64(), nullable=True),
             ]
         )

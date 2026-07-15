@@ -19,52 +19,102 @@ When writing update scripts, it's important to know the location of the data tha
 
 <img src="../../docs/img/test_account_overview.png" alt="Production promotion" width="70%">
 
+### Snapshot-preserving NHF update
+
+`build_nhf.py` updates existing tables with Iceberg overwrites; it does not purge tables. Before any
+catalog mutation it writes a JSON manifest containing every table's metadata location, schema, refs,
+and snapshot history. It also tags every current data snapshot as `pre_<release-tag>` before writing.
+The strict converter guarantees that every layer present in a GeoPackage is converted. Use
+`--require-all` only for domains expected to contain every supported layer; domain-specific packages
+may legitimately omit layers such as Alaska's `lakes_polygons`.
+
+```sh
+# Convert and validate every NHF GeoPackage layer.
+uv run python tools/hydrofabric/nhf_gpkg_to_parquet.py \
+  --gpkg /path/to/nhf_1.2.2.gpkg \
+  --output-folder /tmp/nhf_1_2_2 \
+  --strict
+
+# Inspect each Test namespace without changing Glue or S3.
+uv run python tools/iceberg/build_nhf.py \
+  --catalog glue --deploy-env test --namespace conus_nhf \
+  --files /tmp/nhf_1_2_2 --overwrite --require-all --dry-run \
+  --release-tag nhf_1_2_2 \
+  --backup-manifest output/conus_nhf_pre_nhf_1_2_2.json
+
+uv run python tools/iceberg/build_nhf.py \
+  --catalog glue --deploy-env test --namespace nhf \
+  --files /tmp/nhf_1_2_2 --overwrite --require-all --dry-run \
+  --release-tag nhf_1_2_2 \
+  --backup-manifest output/nhf_pre_nhf_1_2_2.json
+```
+
+After reviewing the dry-run, remove `--dry-run` to apply the update. Run the two namespaces separately
+so `conus_nhf` can be tested as a canary before updating the legacy `nhf` namespace. Existing tables
+that are not in the GeoPackage remain registered.
+
+For data rollback, use the recorded snapshot IDs with `tools/iceberg/set_snapshot.py`. A snapshot
+rollback does not restore an incompatible schema change; for that case, use the manifest's recorded
+`metadata_location` to restore the prior table registration.
+
 ### Example workflow
+
 For this workflow I'll be showing how to update the CONUS hydrofabric namespace
 
 #### Build/Create
+
 *Note* this assumes you have a .gpkg file that you'd like to upload to PyIceberg
+
 1. Write the geopackage to a parquet
+
 ```sh
 python tools/hydrofabric/gpkg_to_parquet.py --gpkg conus_hf.gpkg --output-folder /tmp/hf
 ```
 
-2. Build a local warehouse for testing using the sql warehouse
+1. Build a local warehouse for testing using the sql warehouse
+
 ```sh
 python tools/iceberg/build_hydrofabric.py --catalog sql --files /tmp/hf --domain conus
 ```
 
-3. Test that this is working, confirm with a team member in peer review
+1. Test that this is working, confirm with a team member in peer review
 
-4. Update the GLUE endpoint
+2. Update the GLUE endpoint
+
 ```sh
 python tools/iceberg/build_hydrofabric.py --catalog glue --files /tmp/hf --domain conus
 ```
 
 #### Update
+
 1. Export the table you are looking to update from the S3 Tables so you have a local dev warehouse
+
 ```sh
 python tools/iceberg/export_catalog.py --namespace conus_hf
 ```
 
-2. Download the gpkg so you can make changes
+1. Download the gpkg so you can make changes
+
 ```sh
 python tools/hydrofabric/download_hydrofabric_gpkg.py --namespace conus_hf
 ```
 
-3. Make changes to the geopackage
+1. Make changes to the geopackage
 
-4. Write the geopackage to a parquet
+2. Write the geopackage to a parquet
+
 ```sh
 python tools/hydrofabric/gpkg_to_parquet.py --gpkg patch_conus_hf.gpkg --output-folder /tmp/hf
 ```
 
-5. Update the local warehouse table
+1. Update the local warehouse table
+
 ```sh
 python tools/iceberg/update_hydrofabric.py --layer <LAYER> --file </tmp/hf/FILE TO BE UPDATED> --domain conus
 ```
 
-6. Once the data is updated and works, confirm with a team member that the data is correct, then prod can be updated
+1. Once the data is updated and works, confirm with a team member that the data is correct, then prod can be updated
+
 ```sh
 python tools/iceberg/update_hydrofabric.py --catalog glue --layer <LAYER> --file </tmp/hf/FILE TO BE UPDATED> --domain conus
 ```

@@ -1,7 +1,7 @@
 """Contains the PyIceberg Table schema for all hydrofabric layers"""
 
 import pyarrow as pa
-from pyiceberg.schema import Schema
+from pyiceberg.schema import Schema  # pyright: ignore[reportMissingImports]
 from pyiceberg.types import LongType, NestedField
 
 
@@ -14,11 +14,15 @@ class NHFSnapshot:
     - flowpaths
     - nexus
     - reference_flowpaths
-    - waterbodies
     - gages
     - virtual_flowpaths
     - virtual_nexus
     - hydrolocations
+    - lakes
+    - nhd
+    - lakes_polygons
+    - reservoir_da
+    - lake_vfp_crosswalk
     """
 
     @classmethod
@@ -40,6 +44,10 @@ class NHFSnapshot:
             "virtual_nexus",
             "hydrolocations",
             "lakes",
+            "nhd",
+            "lakes_polygons",
+            "reservoir_da",
+            "lake_vfp_crosswalk",
         ]
 
     @classmethod
@@ -61,6 +69,10 @@ class NHFSnapshot:
             NestedField(7, "virtual_nexus", LongType(), required=False),
             NestedField(8, "hydrolocations", LongType(), required=False),
             NestedField(9, "lakes", LongType(), required=False),
+            NestedField(10, "nhd", LongType(), required=False),
+            NestedField(11, "lakes_polygons", LongType(), required=False),
+            NestedField(12, "reservoir_da", LongType(), required=False),
+            NestedField(13, "lake_vfp_crosswalk", LongType(), required=False),
         )
 
     @classmethod
@@ -83,5 +95,9 @@ class NHFSnapshot:
                 pa.field("virtual_nexus", pa.int64(), nullable=True),
                 pa.field("hydrolocations", pa.int64(), nullable=True),
                 pa.field("lakes", pa.int64(), nullable=True),
+                pa.field("nhd", pa.int64(), nullable=True),
+                pa.field("lakes_polygons", pa.int64(), nullable=True),
+                pa.field("reservoir_da", pa.int64(), nullable=True),
+                pa.field("lake_vfp_crosswalk", pa.int64(), nullable=True),
             ]
         )

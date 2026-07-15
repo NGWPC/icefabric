@@ -255,25 +255,24 @@ def generate_subset_from_ids(
             "div": ex.submit(source.load_filtered, "divides", "div_id", flowpath_ids),
             "gages": ex.submit(source.load_filtered, "gages", "fp_id", flowpath_ids),
             "ref_fp": ex.submit(source.load_filtered, "reference_flowpaths", "div_id", flowpath_ids),
-            "lakes": ex.submit(source.load_filtered, "lakes", "fp_id", flowpath_ids),
             "nhd": ex.submit(source.load_filtered, "nhd", "ref_id", flowpath_ids),
         }
         subset_fp = f["fp"].result()
         subset_div = f["div"].result()
         subset_gages = f["gages"].result()
         subset_ref_fp = f["ref_fp"].result()
-        subset_lakes = f["lakes"].result()
         subset_nhd = f["nhd"].result()
 
     # Virtual-only gages have fp_id=NULL so they were dropped by the Wave 1
     # fp_id filter. Bridge through reference_flowpaths: every virtual_fp_id in
     # the subset maps to exactly one div_id, and that div_id is in the subset.
-    # Collect all virtual_fp_ids and pull any gages tied to them.
-    virtual_fp_ids = set(
+    # Collect all virtual_fp_ids and pull any gages and lakes tied to them.
+    all_v_fp_ids = set(
         subset_ref_fp.filter(pl.col("virtual_fp_id").is_not_null())["virtual_fp_id"].cast(pl.Int64).to_list()
     )
-    if virtual_fp_ids:
-        virtual_gages = source.load_filtered("gages", "virtual_fp_id", virtual_fp_ids)
+    subset_lakes = source.load_filtered("lakes", "virtual_fp_id", all_v_fp_ids)
+    if all_v_fp_ids:
+        virtual_gages = source.load_filtered("gages", "virtual_fp_id", all_v_fp_ids)
         if len(virtual_gages) > 0:
             existing_ids = set(subset_gages["site_no"].to_list()) if len(subset_gages) > 0 else set()
             new_ids = set(virtual_gages["site_no"].to_list())
@@ -289,19 +288,25 @@ def generate_subset_from_ids(
         subset_fp.filter(pl.col("up_nex_id").is_not_null())["up_nex_id"].cast(pl.Int64).to_list()
         + subset_fp.filter(pl.col("dn_nex_id").is_not_null())["dn_nex_id"].cast(pl.Int64).to_list()
     )
-    all_v_fp_ids = set(subset_ref_fp["virtual_fp_id"].to_list())
+    all_nhf_lake_ids = set(subset_lakes["nhf_lake_id"].to_list())
     lakes_hy_ids = subset_lakes["hy_id"].to_list() if "hy_id" in subset_lakes.columns else []
     gage_hy_ids = subset_gages["hy_id"].to_list() if "hy_id" in subset_gages.columns else []
     all_hy_ids = set(lakes_hy_ids + gage_hy_ids)
 
-    # Wave 2: nex_id/virtual_fp_id filtered (parallel)
+    # Wave 2: dependent network, hydrolocation, and lake-detail layers
     with ThreadPoolExecutor(max_workers=2) as ex:
         nex_f = ex.submit(source.load_filtered, "nexus", "nex_id", all_nex_ids)
         v_fp_f = ex.submit(source.load_filtered, "virtual_flowpaths", "virtual_fp_id", all_v_fp_ids)
         hy_id_f = ex.submit(source.load_filtered, "hydrolocations", "hy_id", all_hy_ids)
+        lake_polygon_f = ex.submit(source.load_filtered, "lakes_polygons", "nhf_lake_id", all_nhf_lake_ids)
+        reservoir_da_f = ex.submit(source.load_filtered, "reservoir_da", "nhf_lake_id", all_nhf_lake_ids)
+        lake_vfp_f = ex.submit(source.load_filtered, "lake_vfp_crosswalk", "nhf_lake_id", all_nhf_lake_ids)
         subset_nex = nex_f.result()
         subset_v_fp = v_fp_f.result()
         subset_hydrolocations = hy_id_f.result()
+        subset_lake_polygons = lake_polygon_f.result()
+        subset_reservoir_da = reservoir_da_f.result()
+        subset_lake_vfp = lake_vfp_f.result()
 
     # Wave 3: virtual_nex_id filtered
     all_v_nex_ids = set(
@@ -345,9 +350,12 @@ def generate_subset_from_ids(
         "virtual_flowpaths": pl_to_gdf(subset_v_fp, crs=crs),
         "gages": pl_to_gdf(subset_gages, crs=crs) if len(subset_gages) > 0 else subset_gages.to_pandas(),
         "lakes": pl_to_gdf(subset_lakes, crs=crs) if len(subset_lakes) > 0 else subset_lakes.to_pandas(),
+        "lakes_polygons": pl_to_gdf(subset_lake_polygons, crs=crs),
         "reference_flowpaths": subset_ref_fp.to_pandas(),
         "hydrolocations": subset_hydrolocations.to_pandas(),
         "nhd": subset_nhd.to_pandas(),
+        "reservoir_da": subset_reservoir_da.to_pandas(),
+        "lake_vfp_crosswalk": subset_lake_vfp.to_pandas(),
     }
 
     if subset_file is not None:
@@ -362,14 +370,22 @@ def generate_subset_from_ids(
             "virtual_flowpaths",
             "gages",
             "lakes",
+            "lakes_polygons",
         ]
         for name in spatial_layers:
             df = output[name]
             logger.debug(f"  {name}: {len(df)} rows")
-            if isinstance(df, gpd.GeoDataFrame) and len(df) > 0:
-                pyogrio.write_dataframe(df, subset_file, layer=name)
+            if isinstance(df, gpd.GeoDataFrame) and (len(df) > 0 or name == "lakes_polygons"):
+                geometry_type = "MultiPolygon" if name == "lakes_polygons" and len(df) == 0 else None
+                pyogrio.write_dataframe(df, subset_file, layer=name, geometry_type=geometry_type)
 
-        nonspatial_layers = ["reference_flowpaths", "hydrolocations", "nhd"]
+        nonspatial_layers = [
+            "reference_flowpaths",
+            "hydrolocations",
+            "nhd",
+            "reservoir_da",
+            "lake_vfp_crosswalk",
+        ]
         conn = sqlite3.connect(subset_file)
         for name in nonspatial_layers:
             logger.debug(f"  {name}: {len(output[name])} rows")
@@ -462,14 +478,22 @@ def generate_subset_virtual_only(
     gage_hy_ids = subset_gages["hy_id"].to_list() if "hy_id" in subset_gages.columns else []
     all_hy_ids = set(lakes_hy_ids + gage_hy_ids)
 
-    # Wave 2: nexus / virtual_nexus / hydrolocations
+    all_nhf_lake_ids = set(subset_lakes["nhf_lake_id"].to_list())
+
+    # Wave 2: dependent network, hydrolocation, and lake-detail layers
     with ThreadPoolExecutor(max_workers=2) as ex:
         nex_f = ex.submit(source.load_filtered, "nexus", "nex_id", all_nex_ids)
         v_nex_f = ex.submit(source.load_filtered, "virtual_nexus", "virtual_nex_id", all_v_nex_ids)
         hy_id_f = ex.submit(source.load_filtered, "hydrolocations", "hy_id", all_hy_ids)
+        lake_polygon_f = ex.submit(source.load_filtered, "lakes_polygons", "nhf_lake_id", all_nhf_lake_ids)
+        reservoir_da_f = ex.submit(source.load_filtered, "reservoir_da", "nhf_lake_id", all_nhf_lake_ids)
+        lake_vfp_f = ex.submit(source.load_filtered, "lake_vfp_crosswalk", "nhf_lake_id", all_nhf_lake_ids)
         subset_nex = nex_f.result()
         subset_v_nex = v_nex_f.result()
         subset_hydrolocations = hy_id_f.result()
+        subset_lake_polygons = lake_polygon_f.result()
+        subset_reservoir_da = reservoir_da_f.result()
+        subset_lake_vfp = lake_vfp_f.result()
 
     # NHD: filter by ref_ids present in reference_flowpaths for this divide
     all_ref_ids = set(
@@ -499,9 +523,12 @@ def generate_subset_virtual_only(
         "virtual_flowpaths": pl_to_gdf(subset_v_fp, crs=crs),
         "gages": (pl_to_gdf(subset_gages, crs=crs) if len(subset_gages) > 0 else subset_gages.to_pandas()),
         "lakes": (pl_to_gdf(subset_lakes, crs=crs) if len(subset_lakes) > 0 else subset_lakes.to_pandas()),
+        "lakes_polygons": pl_to_gdf(subset_lake_polygons, crs=crs),
         "reference_flowpaths": subset_ref_fp.to_pandas(),
         "hydrolocations": subset_hydrolocations.to_pandas(),
         "nhd": subset_nhd.to_pandas(),
+        "reservoir_da": subset_reservoir_da.to_pandas(),
+        "lake_vfp_crosswalk": subset_lake_vfp.to_pandas(),
     }
 
     if subset_file is not None:
@@ -516,14 +543,22 @@ def generate_subset_virtual_only(
             "virtual_flowpaths",
             "gages",
             "lakes",
+            "lakes_polygons",
         ]
         for name in spatial_layers:
             df = output[name]
             logger.debug(f"  {name}: {len(df)} rows")
-            if isinstance(df, gpd.GeoDataFrame) and len(df) > 0:
-                pyogrio.write_dataframe(df, subset_file, layer=name)
+            if isinstance(df, gpd.GeoDataFrame) and (len(df) > 0 or name == "lakes_polygons"):
+                geometry_type = "MultiPolygon" if name == "lakes_polygons" and len(df) == 0 else None
+                pyogrio.write_dataframe(df, subset_file, layer=name, geometry_type=geometry_type)
 
-        nonspatial_layers = ["reference_flowpaths", "hydrolocations", "nhd"]
+        nonspatial_layers = [
+            "reference_flowpaths",
+            "hydrolocations",
+            "nhd",
+            "reservoir_da",
+            "lake_vfp_crosswalk",
+        ]
         conn = sqlite3.connect(subset_file)
         for name in nonspatial_layers:
             logger.debug(f"  {name}: {len(output[name])} rows")

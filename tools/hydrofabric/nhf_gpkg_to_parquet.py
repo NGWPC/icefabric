@@ -22,6 +22,9 @@ def nhf_gpkg_to_parquet(input_file: Path, output_folder: Path, strict: bool = Fa
         Path to the geopackage file to convert
     output_folder : Path
         Directory where the parquet file will be saved
+    strict : bool
+        Validate that every source layer has a supported schema, reject required
+        or unexpected columns, and confirm every source layer is converted.
 
     Raises
     ------

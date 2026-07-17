@@ -135,7 +135,7 @@ class HydrofabricSource:
         lf = self._get_lazy_frame(layer)
         if lf is None:
             return self._empty_for_layer(layer)
-        return lf.filter(pl.col(col).is_in(ids)).collect()
+        return lf.filter(pl.col(col).cast(pl.Int64).is_in(ids)).collect()
 
     def load_filtered_eq(self, layer: str, col: str, value: str) -> pl.DataFrame:
         """Load a layer filtered by string equality."""

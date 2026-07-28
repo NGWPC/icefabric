@@ -169,6 +169,25 @@ def pl_to_gdf(pl_df: pl.DataFrame, crs: str = "EPSG:5070") -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(df, crs=crs)
 
 
+def filter_ak(source: HydrofabricSource, fp_ids: list) -> list:
+    """Get flowpath IDs for divides within the NWM v4 domain""
+
+    Find flowpath ids where isltyp and ivgtyp are both not NA.  These two attributes should
+    not be NA for any catchement within the NWM v4 domain.  From the full list of flowpaths,
+    only keep those where isltyp and ivgtyp are not NA.
+    """
+    div_ids = source.load_columns("divides", ["div_id", "ivgtyp_mode", "isltyp_mode"])
+    div_ids = (
+        div_ids.filter(pl.col("ivgtyp_mode").is_not_null() & pl.col("isltyp_mode").is_not_null())
+        .get_column("div_id")
+        .to_list()
+    )
+
+    div_ids = set(div_ids)
+    has_attr = [item for item in fp_ids if item in div_ids]
+    return has_attr
+
+
 # =============================================================================
 # ID Resolution
 # =============================================================================
@@ -628,6 +647,11 @@ def subset_nhf(
     # ==================================================================
     if vpu_id is not None:
         flowpath_ids = resolve_vpu_to_flowpath_ids(source, vpu_id)
+
+        # If domain is Alaska (vpu 19) only include divides with attributes to match
+        # the NWM v4 Alaska domain.
+        if vpu_id == "19":
+            flowpath_ids = filter_ak(source, flowpath_ids)
 
         output_layers = generate_subset_from_ids(
             source=source,

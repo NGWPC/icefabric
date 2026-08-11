@@ -8,6 +8,8 @@ cd "$HERE"
 RESULTS="results"
 mkdir -p "$RESULTS"
 
+# DURATION, RPM (requests per minute), TIMEOUT, CPUS, and MEMORY can be set as environment variables,
+# otherwise the defaults are used.
 DURATION="${DURATION:-300}"   # seconds
 RPM="${RPM:-100}"
 TIMEOUT="${TIMEOUT:-120}"     # per-request seconds

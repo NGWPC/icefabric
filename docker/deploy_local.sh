@@ -23,11 +23,13 @@ if [[ $# -lt 1 ]]; then
     echo "  s3_archive_path   S3 path to the icefabric backup tar file"
     echo "                    (e.g., s3://edfs-data/tmp/icefabric_full_backup.tar)"
     echo "  aws_profile       AWS profile name (optional, uses default if not set)"
+    echo "  archive_dir       Local directory for archive without a following /, defaults to /tmp. Ex. /home"
     exit 1
 fi
 
 S3_ARCHIVE_PATH="$1"
 AWS_PROFILE="${2:-}"
+ARCHIVE_ROOT="${3:-"/tmp"}"
 
 # --- Validate inputs ---
 if [[ ! "$S3_ARCHIVE_PATH" =~ ^s3:// ]]; then
@@ -94,21 +96,21 @@ echo "[INFO] Branch: $(git branch --show-current 2>/dev/null || echo 'not a git 
 echo "[INFO] Commit: $(git rev-parse --short HEAD 2>/dev/null || echo 'N/A')"
 
 # --- Extract archive ---
-ARCHIVE_DIR="/tmp/icefabric_local_catalog"
+ARCHIVE_DIR="$ARCHIVE_ROOT/icefabric_local_catalog"
 WAREHOUSE_DIR="$ARCHIVE_DIR/warehouse"
 PYICEBERG_DB="$ARCHIVE_DIR/pyiceberg_catalog.db"
-LOCAL_ICECHUNK="/tmp/icefabric_streamflow_obs"
+LOCAL_ICECHUNK="$ARCHIVE_ROOT/icefabric_streamflow_obs"
 
 if [[ -f "$PYICEBERG_DB" && -d "$LOCAL_ICECHUNK" ]]; then
     echo "[INFO] Archive already extracted, skipping download"
 else
     echo "[INFO] Downloading and extracting archive from: $S3_ARCHIVE_PATH"
     ARCHIVE_FILENAME=$(basename "$S3_ARCHIVE_PATH")
-    $AWS_CMD s3 cp "$S3_ARCHIVE_PATH" "/tmp/$ARCHIVE_FILENAME"
+    $AWS_CMD s3 cp "$S3_ARCHIVE_PATH" "$ARCHIVE_ROOT/$ARCHIVE_FILENAME"
 
     echo "[INFO] Extracting archive..."
-    tar -xf "/tmp/$ARCHIVE_FILENAME" -C /tmp/
-    rm -f "/tmp/$ARCHIVE_FILENAME"
+    tar -xf "$ARCHIVE_ROOT/$ARCHIVE_FILENAME" -C $ARCHIVE_ROOT/
+    rm -f "$ARCHIVE_ROOT/$ARCHIVE_FILENAME"
 fi
 
 # --- Verify extracted files ---
@@ -139,6 +141,7 @@ ICEFABRIC_DEPLOY_ENV=local
 ICEFABRIC_ICECHUNK_PATH=${LOCAL_ICECHUNK}
 ICEFABRIC_BUILD_CACHE=false
 PYICEBERG_HOME=$(pwd)/.pyiceberg.yaml
+ARCHIVE_ROOT=${ARCHIVE_ROOT}
 EOF
 
 # --- Build and start services ---

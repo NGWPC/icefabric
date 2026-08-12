@@ -296,10 +296,7 @@ def get_repo_history(request: Request):
 
 @api_router.get("/available", tags=["Streamflow Observations"])
 def get_available_identifiers(
-<<<<<<< HEAD
-=======
     request: Request,
->>>>>>> main
     limit: int = Query(100, description="Maximum number of IDs to return"),
 ):
     """

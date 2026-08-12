@@ -6,7 +6,7 @@ from datetime import datetime
 import icechunk
 import numpy as np
 import xarray as xr
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, HTTPException, Path, Query, Request
 from fastapi.background import BackgroundTasks
 from fastapi.responses import FileResponse
 from werkzeug.utils import secure_filename
@@ -92,8 +92,18 @@ def integrate_time_range(sd: str, ed: str, filename_parts: list, command_args: l
     return command_args, output_file
 
 
-def get_data_and_repo_hist():
-    """Get repo/data from icechunk for a given data source"""
+def get_data_and_repo_hist(request: Request | None = None):
+    """Get repo/data from icechunk for a given data source.
+
+    Prefers a cached ``StreamflowData`` on ``request.app.state`` (populated
+    once per worker in lifespan) to avoid re-opening the icechunk session
+    on every request. Falls back to opening fresh if no cache exists (e.g.
+    in tests where the fixture bypasses lifespan).
+    """
+    if request is not None:
+        cached = getattr(request.app.state, "streamflow_data", None)
+        if cached is not None:
+            return cached.dataset, cached.repo
     try:
         storage_config = icechunk.s3_storage(
             bucket=get_bucket(), prefix=PREFIX, region="us-east-1", from_env=True
@@ -107,10 +117,10 @@ def get_data_and_repo_hist():
     return ds, repo
 
 
-def validate_identifier(identifier: str):
+def validate_identifier(identifier: str, request: Request | None = None):
     """Check if identifier exists in the dataset"""
     try:
-        ds, repo = get_data_and_repo_hist()
+        ds, repo = get_data_and_repo_hist(request)
     except PermissionError as e:
         raise PermissionError(f"Cannot access S3 storage - {e}") from e
     if identifier not in ds.coords["id"]:
@@ -126,7 +136,7 @@ def get_identifier_info(
     identifier: str = Path(
         ...,
         description="Station/gauge ID",
-        max_length=10,
+        max_length=15,
         pattern=r"^[a-zA-Z0-9]+$",
         examples=["01010000"],
         openapi_examples={"station_example": {"summary": "USGS Gauge", "value": "01010000"}},
@@ -145,7 +155,7 @@ def get_identifier_info(
     - GET /v1/streamflow_observations/08102730/info
     """
     try:
-        ds, _ = validate_identifier(identifier)
+        ds, _ = validate_identifier(identifier, request)
         df = ds.sel(id=identifier).to_dataframe().reset_index()
         df.dropna(subset=["q_cms"], inplace=True)
 
@@ -171,7 +181,7 @@ def get_data_time_range(
     identifier: str = Path(
         ...,
         description="Station/gauge ID",
-        max_length=10,
+        max_length=15,
         pattern=r"^[a-zA-Z0-9]+$",
         examples=["01010000"],
         openapi_examples={"station_example": {"summary": "USGS Gauge", "value": "01010000"}},
@@ -252,7 +262,7 @@ def get_data_time_range(
 
 
 @api_router.get("/history", tags=["Streamflow Observations"])
-def get_repo_history():
+def get_repo_history(request: Request):
     """
     GET Repo History/Snapshots
 
@@ -263,7 +273,7 @@ def get_repo_history():
     - GET /v1/streamflow_observations/history
     """
     try:
-        _, repo = get_data_and_repo_hist()
+        _, repo = get_data_and_repo_hist(request)
         snapshots = []
         hist = repo.ancestry(branch="main")
         for ancestor in hist:
@@ -286,6 +296,10 @@ def get_repo_history():
 
 @api_router.get("/available", tags=["Streamflow Observations"])
 def get_available_identifiers(
+<<<<<<< HEAD
+=======
+    request: Request,
+>>>>>>> main
     limit: int = Query(100, description="Maximum number of IDs to return"),
 ):
     """
@@ -300,7 +314,7 @@ def get_available_identifiers(
     - GET /v1/streamflow_observations/available?limit=50
     """
     try:
-        ds, _ = get_data_and_repo_hist()
+        ds, _ = get_data_and_repo_hist(request)
         ds = ds.drop_vars(["q_cms", "q_cms_denoted_3"])
         ids = np.unique(ds.coords["id"]).tolist()
 

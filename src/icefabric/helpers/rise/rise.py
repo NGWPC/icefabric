@@ -37,6 +37,8 @@ async def make_get_req_to_rise(full_url: str):
     the response is an error from RISE, the original code and message is
     returned as well.
     """
+    import json
+
     rise_response = {}
     async with httpx.AsyncClient() as client:
         try:
@@ -44,9 +46,19 @@ async def make_get_req_to_rise(full_url: str):
             print(f"Making GET request to RISE (full URL): {full_url}")
             resp = await client.get(full_url, headers=RISE_HEADERS, timeout=15)
             resp.raise_for_status()
-            rise_response["detail"] = resp.json()
+            # Handle cases where API returns non-JSON response (e.g., HTML error page)
+            try:
+                rise_response["detail"] = resp.json()
+            except json.JSONDecodeError:
+                print("RISE API returned non-JSON response (likely API down)")
+                rise_response["status_code"] = 503
+                rise_response["detail"] = "RISE API returned non-JSON response (service unavailable)"
         except httpx.TimeoutException as err:
             print(f"RISE API timed out: {err}")
+            rise_response["status_code"] = 504
+            rise_response["detail"] = "RISE API request timed out"
+        except httpx.ReadTimeout as err:
+            print(f"RISE API read timed out: {err}")
             rise_response["status_code"] = 504
             rise_response["detail"] = "RISE API request timed out"
         except httpx.HTTPStatusError as err:

@@ -16,13 +16,16 @@ from pyiceberg.expressions import EqualTo
 from starlette.background import BackgroundTask
 
 from app import (
+    GpkgCache,
     GpkgLimiter,
     get_cache_catalog,
     get_cached_namespaces,
     get_catalog,
+    get_gpkg_cache,
     get_gpkg_limiter,
     get_graphs,
 )
+from icefabric.cli.streamflow import NoResultsFoundError
 from icefabric.hydrofabric import subset_hydrofabric, subset_nhf
 from icefabric.schemas import (
     DivideAttributes,
@@ -99,6 +102,7 @@ def get_hydrofabric_subset_gpkg(
     cached_namespaces=Depends(get_cached_namespaces),
     network_graphs=Depends(get_graphs),
     gpkg_limiter: GpkgLimiter = Depends(get_gpkg_limiter),
+    gpkg_cache: GpkgCache | None = Depends(get_gpkg_cache),
 ):
     """
     Get hydrofabric subset as a geopackage file (.gpkg)
@@ -140,30 +144,59 @@ def get_hydrofabric_subset_gpkg(
     # swap catalog for cached catalog if appropriate
     catalog = cache_catalog if namespace in cached_namespaces else catalog
 
+    # Build the response filename up-front so every exit path uses the same.
+    safe_identifier = identifier.replace("/", "_").replace("\\", "_")
+    download_filename = f"hydrofabric_subset_{safe_identifier}_{id_type.value}.gpkg"
+    response_headers_base = {
+        "Content-Description": "Hydrofabric Subset Geopackage",
+        "X-Identifier": identifier,
+        "X-ID-Type": id_type.value,
+        "X-Domain": str(namespace),
+    }
+
+    # Cache lookup. Result is deterministic given (namespace, id_type,
+    # identifier, snapshot_id). Hit -> return immediately, bypassing the
+    # semaphore, the subset work, and the layer-streaming writes.
+    cache_key: str | None = None
+    if gpkg_cache is not None:
+        try:
+            snapshot_id = str(catalog.load_table(f"{namespace}.flowpaths").current_snapshot().snapshot_id)
+            cache_key = gpkg_cache.key(str(namespace), id_type.value, str(identifier), snapshot_id)
+            cached_path = gpkg_cache.get(cache_key)
+            if cached_path is not None:
+                # Defense-in-depth: verify the resolved path stays inside the
+                # cache directory. The key is already a sha256 hex digest, so
+                # this should always succeed; it silences CodeQL's
+                # "Uncontrolled data used in path expression" alert.
+                try:
+                    resolved_path = cached_path.resolve()
+                    resolved_path.relative_to(gpkg_cache.cache_dir.resolve())
+                except (ValueError, OSError):
+                    logger.warning(f"gpkg cache path escape detected for key {cache_key[:12]}")
+                    cache_key = None
+                else:
+                    logger.info(f"gpkg cache HIT: {cache_key[:12]} ({cached_path.name})")
+                    return FileResponse(
+                        path=str(resolved_path),
+                        filename=download_filename,
+                        media_type="application/geopackage+sqlite3",
+                        headers={**response_headers_base, "X-Cache": "HIT"},
+                        # No background delete: this file IS the cache entry.
+                    )
+        except Exception as e:  # noqa: BLE001
+            # Cache-lookup failures must never prevent serving the request.
+            logger.warning(f"gpkg cache lookup skipped: {e}")
+            cache_key = None
+
     # Cap concurrent heavy builds per worker. Each CONUS VPU subset peaks
     # at hundreds of MB of pandas/geopandas memory, so uncapped concurrency
-    # can OOM the instance. Queue timeouts surface as 503 rather than a
-    # silently stalled client.
-    sem_wait_start = time.monotonic()
-    if not gpkg_limiter.semaphore.acquire(timeout=gpkg_limiter.queue_timeout_s):
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Hydrofabric service is at capacity. Please retry shortly. "
-                f"(waited {gpkg_limiter.queue_timeout_s:.0f}s for a slot)"
-            ),
-            headers={"Retry-After": "30"},
-        )
-    sem_held = True
-    sem_wait_ms = (time.monotonic() - sem_wait_start) * 1000
-    if sem_wait_ms > 250:
-        logger.info(f"gpkg semaphore wait: {sem_wait_ms:.0f} ms for {identifier}")
+    # can OOM the instance. ``admit()`` enforces queue-depth (429 fast-fail)
+    # and timeout (503) in one step; shared with the param_metadata endpoint
+    # so backlog accounting is correct across both heavy paths.
+    slot = gpkg_limiter.admit(logger=logger, context=f"for {identifier}").__enter__()
 
     def _release_sem() -> None:
-        nonlocal sem_held
-        if sem_held:
-            sem_held = False
-            gpkg_limiter.semaphore.release()
+        slot.release()
 
     try:
         if namespace.is_nhf:
@@ -223,21 +256,21 @@ def get_hydrofabric_subset_gpkg(
         spatial_names: list[str] = []
         nonspatial_names: list[str] = []
         for name, data in output_layers.items():
-            if isinstance(data, gpd.GeoDataFrame) and len(data) > 0:
+            if isinstance(data, gpd.GeoDataFrame):
                 spatial_names.append(name)
             elif not isinstance(data, gpd.GeoDataFrame):
                 nonspatial_names.append(name)
 
         layers_written = 0
 
-        # Stream spatial layers one at a time: pop -> write -> del + gc so
-        # RSS stays flat across layers instead of accumulating.
+        # Stream spatial layers one at a time: pop -> write -> del. Refcounts
+        # hit zero immediately so numpy/geopandas memory is freed without
+        # needing gc.collect() between layers.
         for name in spatial_names:
             layer_data = output_layers.pop(name)
             n_rows = len(layer_data)
             pyogrio.write_dataframe(layer_data, tmp_path, layer=name)
             del layer_data
-            gc.collect()
             layers_written += 1
             logger.info(f"Written spatial layer '{name}' with {n_rows} records")
 
@@ -250,13 +283,12 @@ def get_hydrofabric_subset_gpkg(
                     n_rows = len(layer_data)
                     layer_data.to_sql(name, conn, if_exists="replace", index=False)
                     del layer_data
-                    gc.collect()
                     layers_written += 1
                     logger.info(f"Written non-spatial layer '{name}' with {n_rows} records")
             finally:
                 conn.close()
 
-        # Drop any layers skipped above (empty spatial frames etc.).
+        # Single sweep at the end for any pandas/geopandas reference cycles.
         output_layers.clear()
         gc.collect()
 
@@ -268,36 +300,48 @@ def get_hydrofabric_subset_gpkg(
                 status_code=404, detail=f"No non-empty layers found for identifier '{identifier}'"
             )
 
-        # Verify the file was created successfully
+        # Validate the freshly-built file BEFORE committing to cache — we
+        # never want to cache garbage, and after os.replace() tmp_path no
+        # longer exists so these checks must happen first.
         if not tmp_path.exists():
             raise HTTPException(status_code=500, detail="Failed to create geopackage file")
-
+        if not tmp_path.is_file():
+            raise HTTPException(status_code=500, detail="Expected file but got directory")
         if tmp_path.stat().st_size == 0:
             tmp_path.unlink(missing_ok=True)
             raise HTTPException(status_code=500, detail="Created geopackage file is empty")
 
-        # Verify it's actually a file, not a directory
-        if not tmp_path.is_file():
-            raise HTTPException(status_code=500, detail="Expected file but got directory")
+        # Install into the gpkg cache if available. os.replace() is atomic;
+        # after commit, tmp_path no longer exists so BackgroundTask.unlink is
+        # a no-op (safe via missing_ok=True).
+        served_path = tmp_path
+        cache_hit_header = "MISS"
+        if gpkg_cache is not None and cache_key is not None:
+            try:
+                served_path = gpkg_cache.commit(cache_key, tmp_path)
+                cache_hit_header = "STORE"
+                logger.info(f"gpkg cache STORE: {cache_key[:12]}")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"gpkg cache store failed: {e}")
 
-        print(f"Successfully created geopackage: {tmp_path} (size: {tmp_path.stat().st_size} bytes)")
+        logger.info(
+            f"Successfully created geopackage: {served_path} (size: {served_path.stat().st_size} bytes)"
+        )
 
-        # Create download filename
-        safe_identifier = identifier.replace("/", "_").replace("\\", "_")
-        download_filename = f"hydrofabric_subset_{safe_identifier}_{id_type.value}.gpkg"
+        # If the file moved into the cache, don't delete it afterward.
+        cleanup_path = tmp_path if served_path == tmp_path else None
+        background = BackgroundTask(_cleanup_tmp, cleanup_path) if cleanup_path else None
 
         return FileResponse(
-            path=str(tmp_path),
+            path=str(served_path),
             filename=download_filename,
             media_type="application/geopackage+sqlite3",
             headers={
-                "Content-Description": "Hydrofabric Subset Geopackage",
-                "X-Identifier": identifier,
-                "X-ID-Type": id_type.value,
-                "X-Domain": namespace,
+                **response_headers_base,
                 "X-Layers-Count": str(layers_written),
+                "X-Cache": cache_hit_header,
             },
-            background=BackgroundTask(_cleanup_tmp, tmp_path),
+            background=background,
         )
 
     except HTTPException:
@@ -306,6 +350,9 @@ def get_hydrofabric_subset_gpkg(
     except FileNotFoundError as e:
         _cleanup_tmp(tmp_path)
         raise HTTPException(status_code=404, detail=f"Required file not found: {str(e)}") from None
+    except NoResultsFoundError as e:
+        _cleanup_tmp(tmp_path)
+        raise HTTPException(status_code=404, detail=str(e)) from None
     except ValueError as e:
         _cleanup_tmp(tmp_path)
         if "No origin found" in str(e):

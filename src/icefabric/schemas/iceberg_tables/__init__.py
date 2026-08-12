@@ -5,11 +5,13 @@ from .hydrofabric_update import (
     Gages,
     Hydrolocations,
     Lakes,
+    LakesPolygons,
+    LakeVFPCrosswalk,
     Nexus,
     ReferenceFlowpaths,
+    ReservoirDA,
     VirtualFlowpaths,
     VirtualNexus,
-    Waterbodies,
 )
 
 nhf_layers = {
@@ -17,11 +19,13 @@ nhf_layers = {
     "flowpaths": Flowpaths,
     "nexus": Nexus,
     "reference_flowpaths": ReferenceFlowpaths,
-    "waterbodies": Waterbodies,
     "gages": Gages,
     "virtual_flowpaths": VirtualFlowpaths,
     "virtual_nexus": VirtualNexus,
     "hydrolocations": Hydrolocations,
     "lakes": Lakes,
     "nhd": NHD,
+    "lakes_polygons": LakesPolygons,
+    "reservoir_da": ReservoirDA,
+    "lake_vfp_crosswalk": LakeVFPCrosswalk,
 }

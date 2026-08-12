@@ -50,32 +50,36 @@ class SFT(BaseModel):
         ...,
         description="Maximum soil moisture content",
         alias="smcmax",
-        serialization_alias="soil_params.smcmax",
+        serialization_alias="smcmax",
     )
     soil_params_b: FloatWithUnits = Field(
         ...,
         description="Soil moisture retention curve parameter (bexp)",
         alias="b",
-        serialization_alias="soil_params.b",
+        serialization_alias="b",
     )
     soil_params_satpsi: FloatWithUnits = Field(
         ...,
         description="Saturated soil suction (psisat)",
         alias="satpsi",
-        serialization_alias="soil_params.satpsi",
+        serialization_alias="satpsi",
     )
     soil_params_quartz: FloatWithUnits = Field(
         default=FloatWithUnits(value=1.0, units="m"),
         description="Quartz content",
         alias="quartz",
-        serialization_alias="soil_params.quartz",
+        serialization_alias="quartz",
     )
     ice_fraction_scheme: IceFractionScheme = Field(..., description="Ice fraction scheme")
     soil_z: FloatListWithUnits = Field(
         default=FloatListWithUnits(value=[0.1, 0.3, 1.0, 2.0], units="m"),
         description="Soil depth layers in meters",
     )
-    soil_temperature: FloatListWithUnits = Field(..., description="Soil temperature in Kelvin for each layer")
+    soil_temperature: FloatListWithUnits = Field(
+        ...,
+        description="Soil temperature in Kelvin for each layer",
+        serialization_alias="soil_temperature_profile",
+    )
 
     '''
     @field_validator("soil_temperature")
@@ -266,19 +270,19 @@ class SMP(BaseModel):
         ...,
         description="Maximum soil moisture content",
         alias="smcmax",
-        serialization_alias="soil_params.smcmax",
+        serialization_alias="smcmax",
     )
     soil_params_b: FloatWithUnits = Field(
         ...,
         description="Soil moisture retention curve parameter (bexp)",
         alias="b",
-        serialization_alias="soil_params.b",
+        serialization_alias="b",
     )
     soil_params_satpsi: FloatWithUnits = Field(
         ...,
         description="Saturated soil suction (psisat)",
         alias="satpsi",
-        serialization_alias="soil_params.satpsi",
+        serialization_alias="satpsi",
     )
     soil_z: FloatListWithUnits = Field(
         default=FloatListWithUnits(value=[0.1, 0.3, 1.0, 2.0], units="m"),
@@ -542,6 +546,7 @@ class LASAM(BaseModel):
     field_capacity_psi: str = Field(
         default="340.9[cm]",
         description="Capillary head corresponding to volumetric water content at which gravity drainage becomes slower",
+        serialization_alias="field_capacity",
     )
     giuh_ordinates: list[float] = Field(default=[0.06, 0.51, 0.28, 0.12, 0.03], description="giuh")
     calib_params: bool = Field(default=True, description="NA")
@@ -1309,22 +1314,22 @@ class CFE(BaseModel):
     soil_params_b: FloatWithUnits = Field(
         default=FloatWithUnits(value=CFEValues.SOIL_B.value, units=CFEUnits.SOIL_B.value),
         description="Beta exponent on Clapp-Hornberger (1978) soil water relations",
-        serialization_alias="soil_params.b",
+        serialization_alias="b",
     )
     soil_params_satdk: FloatWithUnits = Field(
         default=FloatWithUnits(value=CFEValues.SOIL_SATDK.value, units=CFEUnits.SOIL_SATDK.value),
         description="Saturated hydraulic conductivity",
-        serialization_alias="soil_params.satdk",
+        serialization_alias="satdk",
     )
     soil_params_satpsi: FloatWithUnits = Field(
         default=FloatWithUnits(value=CFEValues.SOIL_SATPSI.value, units=CFEUnits.SOIL_SATPSI.value),
         description="Saturated capillary head",
-        serialization_alias="soil_params.satpsi",
+        serialization_alias="satpsi",
     )
     soil_params_slop: FloatWithUnits = Field(
         default=FloatWithUnits(value=CFEValues.SOIL_SLOP.value, units=CFEUnits.SOIL_SLOP.value),
         description="This factor (0-1) modifies the gradient of the hydraulic head at the soil bottom.  0=no-flow.",
-        serialization_alias="soil_params.slop",
+        serialization_alias="slope",
     )
     soil_params_smcmax: FloatWithUnits = Field(
         default=FloatWithUnits(
@@ -1332,12 +1337,12 @@ class CFE(BaseModel):
             units=CFEUnits.SOIL_SMCMAX.value,
         ),
         description="Saturated soil moisture content (Maximum soil moisture content)",
-        serialization_alias="soil_params.smcmax",
+        serialization_alias="maxsmc",
     )
     soil_params_wltsmc: FloatWithUnits = Field(
         default=FloatWithUnits(value=CFEValues.SOIL_WLTSMC.value, units=CFEUnits.SOIL_WLTSMC.value),
         description="Wilting point soil moisture content (< soil_params.smcmax)",
-        serialization_alias="soil_params.wltsmc",
+        serialization_alias="wltsmc",
     )
     soil_params_expon: FloatWithUnits = Field(
         default=FloatWithUnits(value=CFEValues.SOIL_EXPON.value, units=CFEUnits.SOIL_EXPON.value),
@@ -1380,10 +1385,12 @@ class CFE(BaseModel):
         default=FloatWithUnits(value=CFEValues.K_NASH.value, units=CFEUnits.K_NASH.value),
         description="Nash Config param for lateral subsurface runoff (Nash discharge to storage ratio)",
         json_schema_extra={"units": "units"},
+        serialization_alias="Kn",
     )
     K_lf: FloatWithUnits = Field(
         default=FloatWithUnits(value=CFEValues.K_LF.value, units=CFEUnits.K_LF.value),
         description="Nash Config param - primary reservoir",
+        serialization_alias="Klf",
     )
     nash_storage: FloatListWithUnits = Field(
         default=FloatListWithUnits(value=CFEValues.NASH_STORAGE.value, units=CFEUnits.NASH_STORAGE.value),

@@ -31,9 +31,9 @@ def _build_upstream_dict_from_nexus(
     """Build upstream connectivity dictionary from flowpath nexus connections."""
     fp_pl = flowpaths_pl.with_columns(
         [
-            pl.col(edge_id).cast(pl.Int32),
-            pl.col(f"up_{node_id}").cast(pl.Int32),
-            pl.col(f"dn_{node_id}").cast(pl.Int32),
+            pl.col(edge_id).cast(pl.Int64),
+            pl.col(f"up_{node_id}").cast(pl.Int64),
+            pl.col(f"dn_{node_id}").cast(pl.Int64),
         ]
     )
     nexus_to_downstream = fp_pl.select(
@@ -135,7 +135,7 @@ class HydrofabricSource:
         lf = self._get_lazy_frame(layer)
         if lf is None:
             return self._empty_for_layer(layer)
-        return lf.filter(pl.col(col).is_in(ids)).collect()
+        return lf.filter(pl.col(col).cast(pl.Int64).is_in(ids)).collect()
 
     def load_filtered_eq(self, layer: str, col: str, value: str) -> pl.DataFrame:
         """Load a layer filtered by string equality."""
@@ -169,21 +169,76 @@ def pl_to_gdf(pl_df: pl.DataFrame, crs: str = "EPSG:5070") -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(df, crs=crs)
 
 
+def filter_ak(source: HydrofabricSource, fp_ids: list) -> list:
+    """Get flowpath IDs for divides within the NWM v4 domain""
+
+    Find flowpath ids where isltyp and ivgtyp are both not NA.  These two attributes should
+    not be NA for any catchement within the NWM v4 domain.  From the full list of flowpaths,
+    only keep those where isltyp and ivgtyp are not NA.
+    """
+    div_ids = source.load_columns("divides", ["div_id", "ivgtyp_mode", "isltyp_mode"])
+    div_ids = (
+        div_ids.filter(pl.col("ivgtyp_mode").is_not_null() & pl.col("isltyp_mode").is_not_null())
+        .get_column("div_id")
+        .to_list()
+    )
+
+    div_ids = set(div_ids)
+    has_attr = [item for item in fp_ids if item in div_ids]
+    return has_attr
+
+
 # =============================================================================
 # ID Resolution
 # =============================================================================
 
 
 def resolve_gage_to_flowpath(source: HydrofabricSource, gage_id: str) -> int:
-    """Resolve a gage ID to its associated flowpath ID."""
+    """Resolve a gage ID to its associated flowpath ID.
+
+    First tries the direct ``fp_id`` on the gages record. If that is ``None``
+    (virtual-only gage), bridges through ``reference_flowpaths``:
+    ``virtual_fp_id → div_id → flowpaths.fp_id``. Every virtual flowpath maps
+    to exactly one divide, and every divide has exactly one flowpath, so this
+    is deterministic.
+    """
     gage_df = source.load_filtered_eq("gages", "site_no", gage_id)
 
     if len(gage_df) == 0:
         raise NoResultsFoundError(f"Gage ID '{gage_id}' not found.")
 
     fp_id = gage_df["fp_id"][0]
-    logger.debug(f"Gage '{gage_id}' maps to flowpath {fp_id}")
-    return int(fp_id)
+    if fp_id is not None:
+        logger.debug(f"Gage '{gage_id}' maps to flowpath {fp_id}")
+        return int(fp_id)
+
+    # Virtual-only gage: bridge virtual_fp_id → reference_flowpaths.div_id → flowpaths.fp_id
+    virtual_fp_id = gage_df["virtual_fp_id"][0]
+    if virtual_fp_id is None:
+        raise NoResultsFoundError(
+            f"Gage ID '{gage_id}' exists but has no associated flowpath or virtual flowpath."
+        )
+
+    ref_df = source.load_filtered("reference_flowpaths", "virtual_fp_id", {int(virtual_fp_id)})
+    if len(ref_df) == 0:
+        raise NoResultsFoundError(
+            f"Gage ID '{gage_id}' has virtual_fp_id {virtual_fp_id} but no reference_flowpaths entry."
+        )
+
+    div_id = ref_df["div_id"][0]
+    fp_df = source.load_filtered("flowpaths", "div_id", {int(div_id)})
+    if len(fp_df) == 0:
+        raise NoResultsFoundError(
+            f"Gage ID '{gage_id}' (virtual_fp_id {virtual_fp_id}, div_id {div_id}) "
+            "has no corresponding flowpath."
+        )
+
+    bridged_fp_id = fp_df["fp_id"][0]
+    logger.debug(
+        f"Gage '{gage_id}' (virtual {int(virtual_fp_id)}) bridges to flowpath "
+        f"{bridged_fp_id} via div_id {div_id}"
+    )
+    return int(bridged_fp_id)
 
 
 def resolve_vpu_to_flowpath_ids(source: HydrofabricSource, vpu_id: str) -> set[int]:
@@ -217,38 +272,60 @@ def generate_subset_from_ids(
         f = {
             "fp": ex.submit(source.load_filtered, "flowpaths", "fp_id", flowpath_ids),
             "div": ex.submit(source.load_filtered, "divides", "div_id", flowpath_ids),
-            "wb": ex.submit(source.load_filtered, "waterbodies", "fp_id", flowpath_ids),
             "gages": ex.submit(source.load_filtered, "gages", "fp_id", flowpath_ids),
             "ref_fp": ex.submit(source.load_filtered, "reference_flowpaths", "div_id", flowpath_ids),
-            "lakes": ex.submit(source.load_filtered, "lakes", "fp_id", flowpath_ids),
             "nhd": ex.submit(source.load_filtered, "nhd", "ref_id", flowpath_ids),
         }
         subset_fp = f["fp"].result()
         subset_div = f["div"].result()
-        subset_wb = f["wb"].result()
         subset_gages = f["gages"].result()
         subset_ref_fp = f["ref_fp"].result()
-        subset_lakes = f["lakes"].result()
         subset_nhd = f["nhd"].result()
+
+    # Virtual-only gages have fp_id=NULL so they were dropped by the Wave 1
+    # fp_id filter. Bridge through reference_flowpaths: every virtual_fp_id in
+    # the subset maps to exactly one div_id, and that div_id is in the subset.
+    # Collect all virtual_fp_ids and pull any gages and lakes tied to them.
+    all_v_fp_ids = set(
+        subset_ref_fp.filter(pl.col("virtual_fp_id").is_not_null())["virtual_fp_id"].cast(pl.Int64).to_list()
+    )
+    subset_lakes = source.load_filtered("lakes", "virtual_fp_id", all_v_fp_ids)
+    if all_v_fp_ids:
+        virtual_gages = source.load_filtered("gages", "virtual_fp_id", all_v_fp_ids)
+        if len(virtual_gages) > 0:
+            existing_ids = set(subset_gages["site_no"].to_list()) if len(subset_gages) > 0 else set()
+            new_ids = set(virtual_gages["site_no"].to_list())
+            to_add = new_ids - existing_ids
+            if to_add:
+                subset_gages = pl.concat(
+                    [subset_gages, virtual_gages.filter(pl.col("site_no").is_in(to_add))],
+                    how="vertical",
+                )
 
     # Derive dependent IDs
     all_nex_ids = set(
         subset_fp.filter(pl.col("up_nex_id").is_not_null())["up_nex_id"].cast(pl.Int64).to_list()
         + subset_fp.filter(pl.col("dn_nex_id").is_not_null())["dn_nex_id"].cast(pl.Int64).to_list()
     )
-    all_v_fp_ids = set(subset_ref_fp["virtual_fp_id"].to_list())
-    wb_hy_ids = subset_wb["hy_id"].to_list() if "hy_id" in subset_wb.columns else []
+    all_nhf_lake_ids = set(subset_lakes["nhf_lake_id"].to_list())
+    lakes_hy_ids = subset_lakes["hy_id"].to_list() if "hy_id" in subset_lakes.columns else []
     gage_hy_ids = subset_gages["hy_id"].to_list() if "hy_id" in subset_gages.columns else []
-    all_hy_ids = set(wb_hy_ids + gage_hy_ids)
+    all_hy_ids = set(lakes_hy_ids + gage_hy_ids)
 
-    # Wave 2: nex_id/virtual_fp_id filtered (parallel)
+    # Wave 2: dependent network, hydrolocation, and lake-detail layers
     with ThreadPoolExecutor(max_workers=2) as ex:
         nex_f = ex.submit(source.load_filtered, "nexus", "nex_id", all_nex_ids)
         v_fp_f = ex.submit(source.load_filtered, "virtual_flowpaths", "virtual_fp_id", all_v_fp_ids)
         hy_id_f = ex.submit(source.load_filtered, "hydrolocations", "hy_id", all_hy_ids)
+        lake_polygon_f = ex.submit(source.load_filtered, "lakes_polygons", "nhf_lake_id", all_nhf_lake_ids)
+        reservoir_da_f = ex.submit(source.load_filtered, "reservoir_da", "nhf_lake_id", all_nhf_lake_ids)
+        lake_vfp_f = ex.submit(source.load_filtered, "lake_vfp_crosswalk", "nhf_lake_id", all_nhf_lake_ids)
         subset_nex = nex_f.result()
         subset_v_fp = v_fp_f.result()
         subset_hydrolocations = hy_id_f.result()
+        subset_lake_polygons = lake_polygon_f.result()
+        subset_reservoir_da = reservoir_da_f.result()
+        subset_lake_vfp = lake_vfp_f.result()
 
     # Wave 3: virtual_nex_id filtered
     all_v_nex_ids = set(
@@ -290,12 +367,14 @@ def generate_subset_from_ids(
         "divides": pl_to_gdf(subset_div, crs=crs),
         "virtual_nexus": pl_to_gdf(subset_v_nex, crs=crs),
         "virtual_flowpaths": pl_to_gdf(subset_v_fp, crs=crs),
-        "waterbodies": pl_to_gdf(subset_wb, crs=crs) if len(subset_wb) > 0 else subset_wb.to_pandas(),
         "gages": pl_to_gdf(subset_gages, crs=crs) if len(subset_gages) > 0 else subset_gages.to_pandas(),
         "lakes": pl_to_gdf(subset_lakes, crs=crs) if len(subset_lakes) > 0 else subset_lakes.to_pandas(),
+        "lakes_polygons": pl_to_gdf(subset_lake_polygons, crs=crs),
         "reference_flowpaths": subset_ref_fp.to_pandas(),
         "hydrolocations": subset_hydrolocations.to_pandas(),
         "nhd": subset_nhd.to_pandas(),
+        "reservoir_da": subset_reservoir_da.to_pandas(),
+        "lake_vfp_crosswalk": subset_lake_vfp.to_pandas(),
     }
 
     if subset_file is not None:
@@ -308,17 +387,24 @@ def generate_subset_from_ids(
             "divides",
             "virtual_nexus",
             "virtual_flowpaths",
-            "waterbodies",
             "gages",
             "lakes",
+            "lakes_polygons",
         ]
         for name in spatial_layers:
             df = output[name]
             logger.debug(f"  {name}: {len(df)} rows")
-            if isinstance(df, gpd.GeoDataFrame) and len(df) > 0:
-                pyogrio.write_dataframe(df, subset_file, layer=name)
+            if isinstance(df, gpd.GeoDataFrame) and (len(df) > 0 or name == "lakes_polygons"):
+                geometry_type = "MultiPolygon" if name == "lakes_polygons" and len(df) == 0 else None
+                pyogrio.write_dataframe(df, subset_file, layer=name, geometry_type=geometry_type)
 
-        nonspatial_layers = ["reference_flowpaths", "hydrolocations", "nhd"]
+        nonspatial_layers = [
+            "reference_flowpaths",
+            "hydrolocations",
+            "nhd",
+            "reservoir_da",
+            "lake_vfp_crosswalk",
+        ]
         conn = sqlite3.connect(subset_file)
         for name in nonspatial_layers:
             logger.debug(f"  {name}: {len(output[name])} rows")
@@ -345,6 +431,160 @@ def generate_subset_upstream(
         flowpath_ids=ancestor_ids,
         subset_file=subset_file,
     )
+
+
+def generate_subset_virtual_only(
+    source: HydrofabricSource,
+    virtual_fp_id: int,
+    div_id: int,
+    subset_file: Path | None = None,
+) -> dict[str, gpd.GeoDataFrame]:
+    """Subset hydrofabric for a virtual-only gage (no main-network upstream).
+
+    Returns all layers and attributes that belong to the ``div_id`` the
+    virtual flowpath sits in — including ALL virtual flowpaths within the
+    divide, not just the originating one. No graph traversal is performed
+    because virtual-only flowpaths are leaf nodes — there is no upstream
+    virtual or main network.
+    """
+    logger.debug(f"Virtual-only subset: virtual_fp_id={virtual_fp_id}, div_id={div_id}")
+    crs = source.namespace.crs
+    div_ids = {int(div_id)}
+
+    # Wave 1: direct div_id filters (parallel)
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        f = {
+            "fp": ex.submit(source.load_filtered, "flowpaths", "div_id", div_ids),
+            "div": ex.submit(source.load_filtered, "divides", "div_id", div_ids),
+            "gages": ex.submit(source.load_filtered, "gages", "div_id", div_ids),
+            "ref_fp": ex.submit(source.load_filtered, "reference_flowpaths", "div_id", div_ids),
+            "lakes": ex.submit(source.load_filtered, "lakes", "div_id", div_ids),
+        }
+        subset_fp = f["fp"].result()
+        subset_div = f["div"].result()
+        subset_gages = f["gages"].result()
+        subset_ref_fp = f["ref_fp"].result()
+        subset_lakes = f["lakes"].result()
+
+    # Collect ALL virtual_fp_ids from reference_flowpaths for this divide
+    # (not just the originating one), plus the originating vfp itself to
+    # ensure it's always included.
+    all_v_fp_ids = set(subset_ref_fp["virtual_fp_id"].to_list()) | {int(virtual_fp_id)}
+    subset_v_fp = source.load_filtered("virtual_flowpaths", "virtual_fp_id", all_v_fp_ids)
+
+    # Derive nexus IDs from the mainstem flowpath(s) in this divide
+    all_nex_ids = set()
+    if len(subset_fp) > 0:
+        all_nex_ids = set(
+            subset_fp.filter(pl.col("up_nex_id").is_not_null())["up_nex_id"].cast(pl.Int64).to_list()
+            + subset_fp.filter(pl.col("dn_nex_id").is_not_null())["dn_nex_id"].cast(pl.Int64).to_list()
+        )
+
+    # Derive virtual_nexus from ALL virtual flowpaths in this divide
+    all_v_nex_ids = set()
+    if len(subset_v_fp) > 0:
+        all_v_nex_ids = set(
+            subset_v_fp.filter(pl.col("up_virtual_nex_id").is_not_null())["up_virtual_nex_id"]
+            .cast(pl.Int64)
+            .to_list()
+            + subset_v_fp.filter(pl.col("dn_virtual_nex_id").is_not_null())["dn_virtual_nex_id"]
+            .cast(pl.Int64)
+            .to_list()
+        )
+
+    # Derive hydrolocation IDs from gages and lakes in this divide
+    lakes_hy_ids = subset_lakes["hy_id"].to_list() if "hy_id" in subset_lakes.columns else []
+    gage_hy_ids = subset_gages["hy_id"].to_list() if "hy_id" in subset_gages.columns else []
+    all_hy_ids = set(lakes_hy_ids + gage_hy_ids)
+
+    all_nhf_lake_ids = set(subset_lakes["nhf_lake_id"].to_list())
+
+    # Wave 2: dependent network, hydrolocation, and lake-detail layers
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        nex_f = ex.submit(source.load_filtered, "nexus", "nex_id", all_nex_ids)
+        v_nex_f = ex.submit(source.load_filtered, "virtual_nexus", "virtual_nex_id", all_v_nex_ids)
+        hy_id_f = ex.submit(source.load_filtered, "hydrolocations", "hy_id", all_hy_ids)
+        lake_polygon_f = ex.submit(source.load_filtered, "lakes_polygons", "nhf_lake_id", all_nhf_lake_ids)
+        reservoir_da_f = ex.submit(source.load_filtered, "reservoir_da", "nhf_lake_id", all_nhf_lake_ids)
+        lake_vfp_f = ex.submit(source.load_filtered, "lake_vfp_crosswalk", "nhf_lake_id", all_nhf_lake_ids)
+        subset_nex = nex_f.result()
+        subset_v_nex = v_nex_f.result()
+        subset_hydrolocations = hy_id_f.result()
+        subset_lake_polygons = lake_polygon_f.result()
+        subset_reservoir_da = reservoir_da_f.result()
+        subset_lake_vfp = lake_vfp_f.result()
+
+    # NHD: filter by ref_ids present in reference_flowpaths for this divide
+    all_ref_ids = set(
+        subset_ref_fp.filter(pl.col("ref_fp_id").is_not_null())["ref_fp_id"].cast(pl.Int64).to_list()
+    )
+    subset_nhd = source.load_filtered("nhd", "ref_id", all_ref_ids)
+
+    # Null downstream pointers (outlets)
+    subset_v_fp_ids = set(subset_v_fp["virtual_fp_id"].to_list())
+
+    subset_nex = subset_nex.with_columns(
+        pl.when(pl.col("dn_fp_id").is_in(div_ids)).then(pl.col("dn_fp_id")).otherwise(None).alias("dn_fp_id")
+    )
+
+    subset_v_nex = subset_v_nex.with_columns(
+        pl.when(pl.col("dn_virtual_fp_id").is_in(subset_v_fp_ids))
+        .then(pl.col("dn_virtual_fp_id"))
+        .otherwise(None)
+        .alias("dn_virtual_fp_id")
+    )
+
+    output = {
+        "flowpaths": pl_to_gdf(subset_fp, crs=crs),
+        "nexus": pl_to_gdf(subset_nex, crs=crs),
+        "divides": pl_to_gdf(subset_div, crs=crs),
+        "virtual_nexus": pl_to_gdf(subset_v_nex, crs=crs),
+        "virtual_flowpaths": pl_to_gdf(subset_v_fp, crs=crs),
+        "gages": (pl_to_gdf(subset_gages, crs=crs) if len(subset_gages) > 0 else subset_gages.to_pandas()),
+        "lakes": (pl_to_gdf(subset_lakes, crs=crs) if len(subset_lakes) > 0 else subset_lakes.to_pandas()),
+        "lakes_polygons": pl_to_gdf(subset_lake_polygons, crs=crs),
+        "reference_flowpaths": subset_ref_fp.to_pandas(),
+        "hydrolocations": subset_hydrolocations.to_pandas(),
+        "nhd": subset_nhd.to_pandas(),
+        "reservoir_da": subset_reservoir_da.to_pandas(),
+        "lake_vfp_crosswalk": subset_lake_vfp.to_pandas(),
+    }
+
+    if subset_file is not None:
+        logger.debug(f"Writing to {subset_file}...")
+        subset_file.parent.mkdir(parents=True, exist_ok=True)
+
+        spatial_layers = [
+            "flowpaths",
+            "nexus",
+            "divides",
+            "virtual_nexus",
+            "virtual_flowpaths",
+            "gages",
+            "lakes",
+            "lakes_polygons",
+        ]
+        for name in spatial_layers:
+            df = output[name]
+            logger.debug(f"  {name}: {len(df)} rows")
+            if isinstance(df, gpd.GeoDataFrame) and (len(df) > 0 or name == "lakes_polygons"):
+                geometry_type = "MultiPolygon" if name == "lakes_polygons" and len(df) == 0 else None
+                pyogrio.write_dataframe(df, subset_file, layer=name, geometry_type=geometry_type)
+
+        nonspatial_layers = [
+            "reference_flowpaths",
+            "hydrolocations",
+            "nhd",
+            "reservoir_da",
+            "lake_vfp_crosswalk",
+        ]
+        conn = sqlite3.connect(subset_file)
+        for name in nonspatial_layers:
+            logger.debug(f"  {name}: {len(output[name])} rows")
+            output[name].to_sql(name, conn, if_exists="replace", index=False)
+        conn.close()
+
+    return output
 
 
 # =============================================================================
@@ -408,6 +648,11 @@ def subset_nhf(
     if vpu_id is not None:
         flowpath_ids = resolve_vpu_to_flowpath_ids(source, vpu_id)
 
+        # If domain is Alaska (vpu 19) only include divides with attributes to match
+        # the NWM v4 Alaska domain.
+        if vpu_id == "19":
+            flowpath_ids = filter_ak(source, flowpath_ids)
+
         output_layers = generate_subset_from_ids(
             source=source,
             flowpath_ids=flowpath_ids,
@@ -421,15 +666,40 @@ def subset_nhf(
     # UPSTREAM PATH - requires graph traversal
     # ==================================================================
 
-    # Resolve gage_id to flowpath_id if needed
+    # For gage_id, check if it's virtual-only (fp_id=NULL) and branch to
+    # the no-traversal path. Virtual-only flowpaths are leaf nodes with no
+    # upstream virtual or main network, so the correct "catchment" is just
+    # the divide they sit in.
     if gage_id is not None:
-        flowpath_id = resolve_gage_to_flowpath(source, gage_id)
+        gage_df = source.load_filtered_eq("gages", "site_no", gage_id)
+        if len(gage_df) == 0:
+            raise NoResultsFoundError(f"Gage ID '{gage_id}' not found.")
+        fp_id = gage_df["fp_id"][0]
+        if fp_id is None:
+            virtual_fp_id = gage_df["virtual_fp_id"][0]
+            if virtual_fp_id is None:
+                raise NoResultsFoundError(f"Gage ID '{gage_id}' exists but has no virtual flowpath.")
+            ref_df = source.load_filtered("reference_flowpaths", "virtual_fp_id", {int(virtual_fp_id)})
+            if len(ref_df) == 0:
+                raise NoResultsFoundError(
+                    f"Gage ID '{gage_id}' has virtual_fp_id {virtual_fp_id} but no reference_flowpaths entry."
+                )
+            div_id = ref_df["div_id"][0]
+            output_layers = generate_subset_virtual_only(
+                source=source,
+                virtual_fp_id=int(virtual_fp_id),
+                div_id=int(div_id),
+                subset_file=output,
+            )
+            logger.info(f"\nDone! Output: {output}")
+            return output_layers
+        flowpath_id = int(fp_id)
     else:
         flowpath_id = int(flowpath_id)
 
     # Build graph for upstream traversal
     logger.debug("Building network graph...")
-    fp_pl = source.load_columns("flowpaths", ["fp_id", "up_nex_id", "dn_nex_id"])
+    fp_pl = source.load_columns("flowpaths", ["fp_id", "up_nex_id", "dn_nex_id", "dn_hydroseq"])
     logger.debug(f"  {len(fp_pl)} flowpaths loaded")
 
     upstream_dict = _build_upstream_dict_from_nexus(fp_pl)
@@ -437,7 +707,21 @@ def subset_nhf(
     logger.debug(f"  Graph: {graph.num_nodes()} nodes, {graph.num_edges()} edges")
 
     if flowpath_id not in node_indices:
-        raise NoResultsFoundError(f"Flowpath {flowpath_id} not found in network.")
+        # if the flowpath is not in the graph, it could be a single flowpath
+        # with no up or downstream flowpaths.  If so, just subset for the single flowpath.
+        if fp_pl.select((pl.col("fp_id") == flowpath_id).any()).item():
+            if (fp_pl.filter(pl.col("fp_id") == flowpath_id).select("dn_hydroseq").item() == 0) and (
+                fp_pl.filter(pl.col("fp_id") == flowpath_id).select("up_nex_id").item() is None
+            ):
+                return generate_subset_from_ids(
+                    source=source,
+                    flowpath_ids={flowpath_id},
+                    subset_file=output,
+                )
+            else:
+                raise NoResultsFoundError(f"Flowpath {flowpath_id} not found in flowpath layer.")
+        else:
+            raise NoResultsFoundError(f"Flowpath {flowpath_id} not found in network.")
 
     output_layers = generate_subset_upstream(
         source=source,

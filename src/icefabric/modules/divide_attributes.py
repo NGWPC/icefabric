@@ -60,6 +60,11 @@ class DivideAttributesHF(enum.Enum):
     OCT = "oct_temp_range"
     NOV = "nov_temp_range"
     DEC = "dec_temp_range"
+    SMCMIN = "smcmin"
+    SMCMAX_LASAM = "smcmax"
+    VAN_GENUCHTEN_ALPHA = "van_genuchten_alpha"
+    VAN_GENUCHTEN_N = "van_genuchten_n"
+    HYDRAULIC_CONDUCTIVITY = "hydraulic_conductivity"
 
 
 class DivideAttributesNHF(enum.Enum):
@@ -125,6 +130,11 @@ class DivideAttributesNHF(enum.Enum):
     NOV = "temp_delta_nov_mean"
     DEC = "temp_delta_dec_mean"
     QUARTZ = "quartz_mean"
+    SMCMIN = "smcmin"
+    SMCMAX_LASAM = "smcmax"
+    VAN_GENUCHTEN_ALPHA = "van_genuchten_alpha"
+    VAN_GENUCHTEN_N = "van_genuchten_n"
+    HYDRAULIC_CONDUCTIVITY = "hydraulic_conductivity"
 
 
 class ParametersToDivideAttributesNHF:
@@ -148,15 +158,21 @@ class ParametersToDivideAttributesNHF:
         "mfmin": DivideAttributesNHF.MFMIN.value,
         "mfmax": DivideAttributesNHF.MFMAX.value,
         "uadj": DivideAttributesNHF.UADJ.value,
-        "soil_params.b": DivideAttributesNHF.BEXP.value,
-        "soil_params.satdk": DivideAttributesNHF.DKSAT.value,
-        "soil_params.satpsi": DivideAttributesNHF.PSISAT.value,
-        "soil_params.slop": DivideAttributesNHF.SLOPE_1KM.value,
-        "soil_params.smcmax": DivideAttributesNHF.SMCMAX.value,
-        "soil_params.wltsmc": DivideAttributesNHF.SMCWLT.value,
+        "b": DivideAttributesNHF.BEXP.value,
+        "satdk": DivideAttributesNHF.DKSAT.value,
+        "satpsi": DivideAttributesNHF.PSISAT.value,
+        "slope": DivideAttributesNHF.SLOPE_1KM.value,
+        "maxsmc": DivideAttributesNHF.SMCMAX.value,
+        "wltsmc": DivideAttributesNHF.SMCWLT.value,
+        "quartz": DivideAttributesNHF.QUARTZ.value,
         "max_gw_storage": DivideAttributesNHF.ZMAX.value,
         "Cgw": DivideAttributesNHF.COEFF.value,
         "expon": DivideAttributesNHF.EXPON.value,
+        "smcmin": DivideAttributesNHF.SMCMIN.value,
+        "smcmax": [DivideAttributesNHF.SMCMAX_LASAM.value, DivideAttributesNHF.SMCMAX.value],
+        "van_genuchten_alpha": DivideAttributesNHF.VAN_GENUCHTEN_ALPHA.value,
+        "van_genuchten_n": DivideAttributesNHF.VAN_GENUCHTEN_N.value,
+        "hydraulic_conductivity": DivideAttributesNHF.HYDRAULIC_CONDUCTIVITY.value,
     }
 
 
@@ -181,13 +197,44 @@ class ParametersToDivideAttributesHF:
         "mfmin": DivideAttributesHF.MFMIN.value,
         "mfmax": DivideAttributesHF.MFMAX.value,
         "uadj": DivideAttributesHF.UADJ.value,
-        "soil_params.b": DivideAttributesHF.BEXP.value,
-        "soil_params.satdk": DivideAttributesHF.DKSAT.value,
-        "soil_params.satpsi": DivideAttributesHF.PSISAT.value,
-        "soil_params.slop": DivideAttributesHF.SLOPE_1KM.value,
-        "soil_params.smcmax": DivideAttributesHF.SMCMAX.value,
-        "soil_params.wltsmc": DivideAttributesHF.SMCWLT.value,
+        "b": DivideAttributesHF.BEXP.value,
+        "satdk": DivideAttributesHF.DKSAT.value,
+        "satpsi": DivideAttributesHF.PSISAT.value,
+        "slope": DivideAttributesHF.SLOPE_1KM.value,
+        "maxsmc": DivideAttributesHF.SMCMAX.value,
+        "wltsmc": DivideAttributesHF.SMCWLT.value,
         "max_gw_storage": DivideAttributesHF.ZMAX.value,
         "Cgw": DivideAttributesHF.COEFF.value,
         "expon": DivideAttributesHF.EXPON.value,
+        "smcmin": DivideAttributesHF.SMCMIN.value,
+        "smcmax": [DivideAttributesHF.SMCMAX_LASAM.value, DivideAttributesHF.SMCMAX.value],
+        "van_genuchten_alpha": DivideAttributesHF.VAN_GENUCHTEN_ALPHA.value,
+        "van_genuchten_n": DivideAttributesHF.VAN_GENUCHTEN_N.value,
+        "hydraulic_conductivity": DivideAttributesHF.HYDRAULIC_CONDUCTIVITY.value,
+    }
+
+
+class LASAMParameters:
+    """LASAM paramters based on soil type (ISLTYP) from https://github.com/NOAA-OWP/LGAR-C/blob/master/data/vG_default_params.dat"""
+
+    lasam_params = {
+        "isltyp_mode": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        "smcmin": [0.05, 0.05, 0.04, 0.07, 0.05, 0.06, 0.06, 0.09, 0.08, 0.12, 0.11, 0.1],
+        "smcmax": [0.38, 0.39, 0.39, 0.44, 0.49, 0.4, 0.38, 0.48, 0.44, 0.39, 0.48, 0.46],
+        "van_genuchten_alpha": [0.04, 0.03, 0.03, 0.01, 0.01, 0.01, 0.02, 0.01, 0.02, 0.03, 0.02, 0.01],
+        "van_genuchten_n": [3.18, 1.75, 1.45, 1.66, 1.68, 1.47, 1.33, 1.52, 1.42, 1.21, 1.32, 1.25],
+        "hydraulic_conductivity": [
+            26.64,
+            4.32,
+            1.584,
+            0.756,
+            1.836,
+            0.504,
+            0.54,
+            0.468,
+            0.3348,
+            0.468,
+            0.432,
+            0.612,
+        ],
     }

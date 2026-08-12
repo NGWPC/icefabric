@@ -1,14 +1,18 @@
-"""A file to create/build the NHF table and snapshots for a specific domain"""
+"""Create or safely update NHF Iceberg tables for a specific namespace."""
 
 import argparse
+import json
 import os
 import warnings
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
-import yaml
-from pyiceberg.catalog import load_catalog
+import yaml  # type: ignore[import-untyped]
+from pyiceberg.catalog import Catalog, load_catalog  # pyright: ignore[reportMissingImports]
+from pyiceberg.schema import Schema
+from pyiceberg.table import Table
 from pyiceberg.transforms import IdentityTransform
 
 from icefabric.helpers import load_creds
@@ -23,13 +27,28 @@ S3_BUCKETS = {
     "prod": "iceberg-data-oe",
 }
 
+DOMAIN_TO_NAMESPACE = {
+    "conus": "conus_nhf",
+    "ak": "ak_nhf",
+    "hi": "hi_nhf",
+    "prvi": "prvi_nhf",
+}
 
-def _init(deploy_env: str = "test"):
+
+def _init(deploy_env: str = "test") -> dict[str, str]:
     """Load credentials and resolve catalog locations."""
     load_creds(deploy_env)
-    with open(os.environ["PYICEBERG_HOME"]) as f:
-        config = yaml.safe_load(f)
-    warehouse = Path(config["catalog"]["sql"]["warehouse"].replace("file://", ""))
+    try:
+        config_path = os.environ["PYICEBERG_HOME"]
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+        warehouse_uri = config["catalog"]["sql"]["warehouse"]
+        glue_region = config["catalog"]["glue"].get("region", "us-east-1")
+    except (KeyError, OSError, TypeError, yaml.YAMLError) as exc:
+        raise RuntimeError("Could not load the PyIceberg catalog configuration") from exc
+    os.environ.setdefault("AWS_DEFAULT_REGION", glue_region)
+    os.environ.setdefault("AWS_REGION", glue_region)
+    warehouse = Path(warehouse_uri.replace("file://", ""))
     warehouse.mkdir(parents=True, exist_ok=True)
     s3_bucket = S3_BUCKETS.get(deploy_env, S3_BUCKETS["test"])
     return {
@@ -38,212 +57,355 @@ def _init(deploy_env: str = "test"):
     }
 
 
-DOMAIN_TO_NAMESPACE = {
-    "conus": "nhf",
-    "ak": "ak_nhf",
-    "hi": "hi_nhf",
-    "prvi": "prvi_nhf",
-}
+def _table_state(table: Table) -> dict[str, str | int | None]:
+    """Record the metadata pointer and snapshot needed for a full rollback."""
+    current_snapshot = table.current_snapshot()
+    return {
+        "metadata_location": table.metadata_location,
+        "current_snapshot_id": current_snapshot.snapshot_id if current_snapshot else None,
+    }
 
 
-def tear_down_nhf(catalog_type: str, domain: str = "conus", deploy_env: str = "test"):
-    """
-    Tears down the hydrofabric Iceberg tables
+def write_backup_manifest(
+    catalog: Catalog,
+    namespace: str,
+    output_path: Path,
+    *,
+    release_tag: str,
+    file_dir: Path,
+) -> None:
+    """Write all existing namespace metadata before any catalog mutation."""
+    identifiers = sorted(catalog.list_tables(namespace)) if catalog.namespace_exists(namespace) else []
+    snapshot_identifier = (f"{namespace}_snapshots", "id")
+    if catalog.table_exists(snapshot_identifier):
+        identifiers.append(snapshot_identifier)
 
-    Parameters
-    ----------
-    catalog_type : str
-        the type of catalog. sql is local, glue is production
-    domain : str
-        the NHF domain (conus, ak, hi, prvi)
-    deploy_env : str
-        the deploy environment (test or prod)
-    """
-    _init(deploy_env)
-    catalog = load_catalog(catalog_type)
-    namespace = DOMAIN_TO_NAMESPACE[domain]
+    manifest = {
+        "captured_at": datetime.now(UTC).isoformat(),
+        "catalog": catalog.name,
+        "namespace": namespace,
+        "release_tag": release_tag,
+        "parquet_directory": str(file_dir.resolve()),
+        "tables": {
+            ".".join(identifier): _table_state(catalog.load_table(identifier)) for identifier in identifiers
+        },
+        "rollback_note": (
+            "Data snapshots can be restored with tools/iceberg/set_snapshot.py. "
+            "If an incompatible schema change must also be reverted, restore the table registration "
+            "to the recorded metadata_location; setting a snapshot alone does not restore a schema."
+        ),
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(manifest, indent=2) + "\n")
+    print(f"Pre-update catalog manifest written to {output_path}")
 
-    print(f"Tearing down existing NHF tables in {namespace}...")
-    for layer in nhf_layers.keys():
-        table_identifier = f"{namespace}.{layer}"
-        if catalog.table_exists(table_identifier):
-            catalog.purge_table(table_identifier)
-            print(f"Purged NHF layer table: {table_identifier}")
-        else:
-            print(f"NHF layer table {table_identifier} does not exist. Skipping purge.")
 
-    print("Tearing down existing NHF snapshot table...")
-    snapshot_namespace = f"{namespace}_snapshots"
-    snapshot_table_identifier = f"{snapshot_namespace}.id"
-    if catalog.table_exists(snapshot_table_identifier):
-        catalog.purge_table(snapshot_table_identifier)
-        print(f"Purged snapshot table: {snapshot_table_identifier}")
-    else:
-        print(f"Snapshot table {snapshot_table_identifier} does not exist. Skipping purge.")
+def _tag_snapshot(table: Table, tag: str) -> None:
+    """Protect the current snapshot with a uniquely named rollback tag."""
+    snapshot = table.current_snapshot()
+    if snapshot is None:
+        return
+    existing = table.refs().get(tag)
+    if existing is not None:
+        if existing.snapshot_id != snapshot.snapshot_id:
+            raise ValueError(
+                f"Tag {tag!r} already points to {existing.snapshot_id} on {'.'.join(table.name())}, "
+                f"not current snapshot {snapshot.snapshot_id}"
+            )
+        return
+    table.manage_snapshots().create_tag(snapshot.snapshot_id, tag).commit()
+
+
+def _schema_changes(current: Schema, desired: Schema) -> dict[str, list[str]]:
+    """Return a concise, printable top-level schema diff."""
+    current_fields = {field.name: field for field in current.fields}
+    desired_fields = {field.name: field for field in desired.fields}
+    return {
+        "add": [name for name in desired_fields if name not in current_fields],
+        "drop": [name for name in current_fields if name not in desired_fields],
+        "type": [
+            f"{name}: {current_fields[name].field_type} -> {field.field_type}"
+            for name, field in desired_fields.items()
+            if name in current_fields and current_fields[name].field_type != field.field_type
+        ],
+        "required": [
+            f"{name}: {current_fields[name].required} -> {field.required}"
+            for name, field in desired_fields.items()
+            if name in current_fields and current_fields[name].required != field.required
+        ],
+    }
+
+
+def _print_schema_changes(identifier: str, changes: dict[str, list[str]]) -> None:
+    if not any(changes.values()):
+        print(f"  Schema already matches {identifier}")
+        return
+    print(f"  Schema changes for {identifier}:")
+    for change_type, values in changes.items():
+        if values:
+            print(f"    {change_type}: {', '.join(values)}")
+
+
+def _sync_schema(table: Table, desired: Schema) -> None:
+    """Make top-level columns, types, nullability, and order match ``desired``."""
+    current_fields = {field.name: field for field in table.schema().fields}
+    desired_fields = {field.name: field for field in desired.fields}
+    changes = _schema_changes(table.schema(), desired)
+    if not any(changes.values()) and [field.name for field in table.schema().fields] == [
+        field.name for field in desired.fields
+    ]:
+        return
+
+    # Some NHF source changes (for example lakes.lake_id long -> string) are
+    # intentionally incompatible. The pre-update metadata manifest and tags
+    # provide the complete rollback path for these changes.
+    with table.update_schema(allow_incompatible_changes=True) as update:
+        for name in changes["drop"]:
+            update.delete_column(name)
+        for name in changes["add"]:
+            field = desired_fields[name]
+            update.add_column(name, field.field_type, doc=field.doc, required=field.required)
+        for name, desired_field in desired_fields.items():
+            current_field = current_fields.get(name)
+            if current_field is None:
+                continue
+            field_type = (
+                desired_field.field_type if current_field.field_type != desired_field.field_type else None
+            )
+            required = desired_field.required if current_field.required != desired_field.required else None
+            if field_type is not None or required is not None:
+                update.update_column(name, field_type=field_type, required=required)
+
+        desired_names = [field.name for field in desired.fields]
+        if desired_names:
+            update.move_first(desired_names[0])
+            for previous, name in zip(desired_names, desired_names[1:], strict=False):
+                update.move_after(name, previous)
+
+
+def _preflight_parquet_files(file_dir: Path, require_all: bool) -> dict[str, Path]:
+    """Validate the available Parquet files before changing any table."""
+    available: dict[str, Path] = {}
+    errors: list[str] = []
+    for layer, schema_class in nhf_layers.items():
+        path = file_dir / f"{layer}.parquet"
+        if not path.exists():
+            if require_all:
+                errors.append(f"missing {path}")
+            continue
+        actual_schema = pq.read_schema(path)
+        desired_schema = schema_class.arrow_schema()
+        if actual_schema != desired_schema:
+            errors.append(
+                f"schema mismatch for {path}:\n  actual: {actual_schema}\n  expected: {desired_schema}"
+            )
+            continue
+        available[layer] = path
+    if errors:
+        raise ValueError("Parquet preflight failed:\n" + "\n".join(errors))
+    return available
 
 
 def build_nhf(
     catalog_type: str,
-    file_dir: str,
+    file_dir: str | Path,
     domain: str = "conus",
     overwrite_existing: bool = False,
     deploy_env: str = "test",
-):
-    """
-    Builds the hydrofabric Iceberg tables
-
-    Parameters
-    ----------
-    catalog_type : str
-        the type of catalog. sql is local, glue is production
-    file_dir : str
-        where the files are located
-    domain : str
-        the NHF domain (conus, ak, hi, prvi)
-    overwrite_existing : bool
-        if True, overwrite existing populated tables (preserves old snapshots for rollback)
-    deploy_env : str
-        the deploy environment (test or prod)
-    """
+    *,
+    namespace_override: str | None = None,
+    require_all: bool = False,
+    dry_run: bool = False,
+    release_tag: str | None = None,
+    backup_manifest: Path | None = None,
+) -> None:
+    """Create or update NHF tables without purging existing table history."""
     location = _init(deploy_env)
     catalog = load_catalog(catalog_type)
-    namespace = DOMAIN_TO_NAMESPACE[domain]
-    catalog.create_namespace_if_not_exists(namespace)
-    snapshots = {}
+    namespace = namespace_override or DOMAIN_TO_NAMESPACE[domain]
+    file_dir = Path(file_dir)
+    available = _preflight_parquet_files(file_dir, require_all=require_all)
 
-    update_snapshots = False
-    for layer, schema in nhf_layers.items():
-        build_table = True
-        print(f"Building layer: {layer}")
-        try:
-            table = pq.read_table(f"{file_dir}/{layer}.parquet", schema=schema.arrow_schema())
-        except FileNotFoundError:
-            print(f"Cannot find {layer} in the given file dir {file_dir}")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    release_tag = release_tag or f"nhf_update_{timestamp}"
+    rollback_tag = f"pre_{release_tag}"
+    backup_manifest = backup_manifest or Path.cwd() / f"{namespace}_{rollback_tag}.json"
+    write_backup_manifest(
+        catalog,
+        namespace,
+        backup_manifest,
+        release_tag=release_tag,
+        file_dir=file_dir,
+    )
+
+    if not catalog.namespace_exists(namespace):
+        print(f"Namespace {namespace} will be created")
+        if not dry_run:
+            catalog.create_namespace(namespace)
+
+    snapshots: dict[str, int | None] = {}
+    changed = False
+    for layer, schema_class in nhf_layers.items():
+        path = available.get(layer)
+        if path is None:
+            print(f"Skipping {layer}: no Parquet file")
             continue
-        if catalog.table_exists(f"{namespace}.{layer}"):
-            current_snapshot = catalog.load_table(f"{namespace}.{layer}").current_snapshot()
-            if current_snapshot is not None:
-                if overwrite_existing:
-                    print(f"Table {layer} already exists. Overwriting (old snapshots preserved)...")
-                    iceberg_table = catalog.load_table(f"{namespace}.{layer}")
-                    with iceberg_table.update_schema() as update:
-                        update.union_by_name(schema.arrow_schema())
-                    iceberg_table.overwrite(table)
-                    snapshots[layer] = iceberg_table.current_snapshot().snapshot_id
-                    update_snapshots = True
-                    build_table = False
-                else:
-                    print(f"Table {layer} already exists, and is populated. Skipping build")
-                    snapshots[layer] = current_snapshot.snapshot_id
-                    build_table = False
-            else:
-                print(f"Table {layer} has no current snapshot (must be empty).")
 
-        if build_table:
-            update_snapshots = True
-            iceberg_table = catalog.create_table_if_not_exists(
-                f"{namespace}.{layer}",
-                schema=schema.schema(),
+        identifier = f"{namespace}.{layer}"
+        desired_schema = schema_class.schema()
+        exists = catalog.table_exists(identifier)
+        if exists:
+            iceberg_table = catalog.load_table(identifier)
+            current_snapshot = iceberg_table.current_snapshot()
+            changes = _schema_changes(iceberg_table.schema(), desired_schema)
+            _print_schema_changes(identifier, changes)
+            if current_snapshot is not None and not overwrite_existing:
+                print(f"Skipping populated table {identifier}; pass --overwrite to update it")
+                snapshots[layer] = current_snapshot.snapshot_id
+                continue
+            print(f"{'Would overwrite' if dry_run else 'Overwriting'} {identifier}")
+            if dry_run:
+                continue
+            if current_snapshot is not None:
+                _tag_snapshot(iceberg_table, rollback_tag)
+            _sync_schema(iceberg_table, desired_schema)
+            arrow_table = pq.read_table(path, schema=schema_class.arrow_schema())
+            iceberg_table.overwrite(
+                arrow_table,
+                snapshot_properties={"icefabric.release": release_tag},
+            )
+        else:
+            print(f"{'Would create' if dry_run else 'Creating'} {identifier}")
+            if dry_run:
+                continue
+            iceberg_table = catalog.create_table(
+                identifier,
+                schema=desired_schema,
                 location=f"{location[catalog_type]}/{namespace.lower()}/{layer}",
             )
-
-            # Bucket partitioning on the schema ID field
-            # Additional partitioning on vpu_id if it exists in the schema
-            schema_id_field = schema.schema().identifier_field_ids[0]
-            schema_id_field = schema.schema().find_field(schema_id_field).name
-            partition_spec = iceberg_table.spec()
-            if len(partition_spec.fields) == 0:
-                with iceberg_table.update_spec() as update:
-                    # TODO - look into bucket partitioning during planning/innovation
-                    # update.add_field(
-                    #     schema_id_field, BucketTransform(100), f"{schema_id_field}_bucket_partition"
-                    # )
-                    try:
-                        schema.schema().find_field("vpu_id")
+            if not iceberg_table.spec().fields:
+                try:
+                    desired_schema.find_field("vpu_id")
+                except ValueError:
+                    pass
+                else:
+                    with iceberg_table.update_spec() as update:
                         update.add_field("vpu_id", IdentityTransform(), "vpu_id_partition")
-                    except ValueError:
-                        # No vpu_id field to partition on
-                        pass
-
-            iceberg_table.overwrite(table)
-            current_snapshot = iceberg_table.current_snapshot()
-            snapshots[layer] = current_snapshot.snapshot_id
-
-    if update_snapshots:
-        snapshot_namespace = f"{namespace}_snapshots"
-        snapshot_table = f"{snapshot_namespace}.id"
-        catalog.create_namespace_if_not_exists(snapshot_namespace)
-        if catalog.table_exists(snapshot_table):
-            tbl = catalog.load_table(snapshot_table)
-            with tbl.update_schema() as update:
-                update.union_by_name(NHFSnapshot.arrow_schema())
-        else:
-            tbl = catalog.create_table(
-                snapshot_table,
-                schema=NHFSnapshot.schema(),
-                location=f"{location[catalog_type]}/{snapshot_namespace}",
+            arrow_table = pq.read_table(path, schema=schema_class.arrow_schema())
+            iceberg_table.overwrite(
+                arrow_table,
+                snapshot_properties={"icefabric.release": release_tag},
             )
-        df = pa.Table.from_pylist([snapshots], schema=NHFSnapshot.arrow_schema())
-        tbl.append(df)
-        tbl.manage_snapshots().create_tag(tbl.current_snapshot().snapshot_id, "base").commit()
-        print(f"Build complete. Files written into metadata store on {catalog.name} @ {namespace}")
-        print(f"Snapshots written to: {snapshot_namespace}.id")
+
+        current_snapshot = iceberg_table.current_snapshot()
+        if current_snapshot is None:
+            raise RuntimeError(f"No snapshot was created for {identifier}")
+        snapshots[layer] = current_snapshot.snapshot_id
+        changed = True
+        print(f"  Current snapshot: {current_snapshot.snapshot_id}")
+
+    if dry_run:
+        print("Dry run complete; no catalog or S3 changes were made")
+        return
+    if not changed:
+        print("No tables changed")
+        return
+
+    snapshot_namespace = f"{namespace}_snapshots"
+    snapshot_identifier = f"{snapshot_namespace}.id"
+    catalog.create_namespace_if_not_exists(snapshot_namespace)
+    if catalog.table_exists(snapshot_identifier):
+        snapshot_table = catalog.load_table(snapshot_identifier)
+        _tag_snapshot(snapshot_table, rollback_tag)
+        with snapshot_table.update_schema() as update:
+            update.union_by_name(NHFSnapshot.arrow_schema())
     else:
-        print("No table built. All tables were initialized and already had data records. Build skipped.")
+        snapshot_table = catalog.create_table(
+            snapshot_identifier,
+            schema=NHFSnapshot.schema(),
+            location=f"{location[catalog_type]}/{snapshot_namespace}",
+        )
+
+    snapshot_row = pa.Table.from_pylist([snapshots], schema=NHFSnapshot.arrow_schema())
+    snapshot_table.append(snapshot_row, snapshot_properties={"icefabric.release": release_tag})
+    new_snapshot = snapshot_table.current_snapshot()
+    if new_snapshot is None:
+        raise RuntimeError(f"No snapshot was created for {snapshot_identifier}")
+    if release_tag not in snapshot_table.refs():
+        snapshot_table.manage_snapshots().create_tag(new_snapshot.snapshot_id, release_tag).commit()
+
+    print(f"Build complete. Files written into {catalog.name} @ {namespace}")
+    print(f"Snapshots written to {snapshot_identifier}")
+    print(f"Rollback tag on pre-update snapshots: {rollback_tag}")
+    print(f"Rollback manifest: {backup_manifest}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Build a PyIceberg catalog in the S3 Table for the Hydrofabric"
-    )
-
+    parser = argparse.ArgumentParser(description="Create or safely update an NHF PyIceberg catalog")
     parser.add_argument(
         "--catalog",
         choices=["sql", "glue"],
         default="sql",
-        help="Catalog type to use (default: sql for local build)",
+        help="Catalog type (default: sql)",
     )
     parser.add_argument(
         "--files",
         type=Path,
         required=True,
-        help="Path to the folder containing Hydrofabric parquet files",
-    )
-    parser.add_argument(
-        "--delete-old",
-        action="store_true",
-        default=False,
-        help="Purges old catalog tables before building new ones - use with caution! This permanently deletes data with no rollback. Prefer --overwrite instead.",
+        help="Directory containing NHF Parquet files",
     )
     parser.add_argument(
         "--overwrite",
         action="store_true",
-        default=False,
-        help="Overwrite existing populated tables. Preserves old snapshots for rollback via Iceberg time-travel.",
+        help="Overwrite populated tables while retaining prior snapshots and rollback tags",
     )
     parser.add_argument(
         "--domain",
-        type=str,
         default="conus",
         choices=["conus", "ak", "hi", "prvi"],
-        help="The NHF domain (default: conus). Determines the namespace (e.g., ak -> ak_nhf).",
+        help="NHF domain used to derive the namespace",
+    )
+    parser.add_argument(
+        "--namespace",
+        choices=["nhf", "conus_nhf", "ak_nhf", "hi_nhf", "prvi_nhf"],
+        help="Explicit namespace override (use nhf to update the legacy CONUS namespace)",
     )
     parser.add_argument(
         "--deploy-env",
-        type=str,
         default="test",
         choices=["test", "prod"],
-        help="Deploy environment (default: test). Controls AWS credentials and S3 bucket location.",
+        help="Credential and S3 environment (default: test)",
+    )
+    parser.add_argument(
+        "--release-tag",
+        help="Unique release label used for snapshot tags (for example nhf_1_2_2)",
+    )
+    parser.add_argument(
+        "--backup-manifest",
+        type=Path,
+        help="Path for the pre-update catalog/snapshot manifest",
+    )
+    parser.add_argument(
+        "--require-all",
+        action="store_true",
+        help="Fail preflight unless every supported NHF layer has a Parquet file",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate files and print catalog changes without modifying Glue or S3",
     )
 
     args = parser.parse_args()
-
-    if args.delete_old:
-        tear_down_nhf(catalog_type=args.catalog, domain=args.domain, deploy_env=args.deploy_env)
     build_nhf(
         catalog_type=args.catalog,
         file_dir=args.files,
         domain=args.domain,
         overwrite_existing=args.overwrite,
         deploy_env=args.deploy_env,
+        namespace_override=args.namespace,
+        require_all=args.require_all,
+        dry_run=args.dry_run,
+        release_tag=args.release_tag,
+        backup_manifest=args.backup_manifest,
     )

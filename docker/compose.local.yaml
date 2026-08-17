@@ -22,8 +22,8 @@ services:
       - ../.env
     volumes:
       - ../.pyiceberg.yaml:/app/.pyiceberg.yaml:ro
-      - ${ARCHIVE_ROOT:-/tmp}/icefabric_local_catalog:/tmp/icefabric_local_catalog:ro
-      - ${ARCHIVE_ROOT:-/tmp}/icefabric_streamflow_obs:/tmp/icefabric_streamflow_obs:ro
+      - /tmp/icefabric_local_catalog:/tmp/icefabric_local_catalog:ro
+      - /tmp/icefabric_streamflow_obs:/tmp/icefabric_streamflow_obs:ro
     command: ["python", "-m", "app.main", "--catalog", "sql"]
     restart: always
     healthcheck:
@@ -44,6 +44,6 @@ services:
       - ../.env
     volumes:
       - ../.pyiceberg.yaml:/app/.pyiceberg.yaml:ro
-      - ${ARCHIVE_ROOT:-/tmp}/icefabric_local_catalog:/tmp/icefabric_local_catalog:ro
-      - ${ARCHIVE_ROOT:-/tmp}/icefabric_streamflow_obs:/tmp/icefabric_streamflow_obs:ro
+      - /tmp/icefabric_local_catalog:/tmp/icefabric_local_catalog:ro
+      - /tmp/icefabric_streamflow_obs:/tmp/icefabric_streamflow_obs:ro
     restart: always

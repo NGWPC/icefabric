@@ -149,6 +149,10 @@ docker/deploy_local.sh s3://ngwpc-data/icefabric_catalog_archive.tar {aws_profil
 
 This process will take awhile (10-30 minutes) because we need to download ~40 GB of data, extract a large archive, build 3 docker images, and then wait for the api to spin up.
 
+The files will be saved to your `/var/tmp/`. If the both directories are present, the shell script will not re-download the archive. Delete `icefabric_local_catalog` and `icefabric_streamflow_obs` directories to force download.
+
+The shell script will update your `.env` file to have the appropriate file paths.
+
 ### Development
 To ensure that icefabric follows the specified structure, be sure to install the local dev dependencies and run `pre-commit install`
 

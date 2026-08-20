@@ -66,7 +66,7 @@ def get_hydrofabric_subset_gpkg(
         ...,
         description="Identifier to start tracing from (e.g., catchment ID, POI ID, HL_URI)",
         openapi_examples={
-            "NHF flowpath": {"summary": "NHF Flowpath ID (NHF)", "value": 3490271},
+            "NHF flowpath": {"summary": "NHF Flowpath ID (NHF)", "value": 1275769040909371},
             "vpu-id": {"summary": "VPU ID (NHF)", "value": "01"},
             "gage id": {"summary": "USGS Gauge ID (HFv2.2, NHF)", "value": "01010000"},
             "2.2 flowpath": {"summary": "Watershed ID (HFv2.2)", "value": "wb-4581"},

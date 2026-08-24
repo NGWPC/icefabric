@@ -67,6 +67,7 @@ STYLE_MAP = {
     "lakes": {
         "marker_styling": folium.Marker(icon=folium.Icon(color="darkblue", prefix="fa", icon="sailboat"))
     },
+    "lakes_polygons": {},
     "ras_xs": {
         "styling": {
             "color": "black",

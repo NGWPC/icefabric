@@ -97,7 +97,6 @@ def get_ras_xs_user_input():
                         zoom_start=4,
                         prefer_canvas=True,
                     )
-                    # import pdb; pdb.set_trace()
                     marker_cluster = MarkerCluster().add_to(m)
                     for _, row in xs_markers[:5000].iterrows():
                         folium.Marker(location=[row.geometry.y, row.geometry.x]).add_to(marker_cluster)

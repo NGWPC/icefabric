@@ -226,7 +226,7 @@ def main() -> None:
                     print(" (no data)")
                     continue
 
-                combined = pa.concat_tables(tables, promote_options="permissive")
+                combined = pa.concat_tables(tables)
 
                 # Create or append to local table
                 try:
@@ -236,14 +236,11 @@ def main() -> None:
                             full_table_name,
                             schema=combined.schema,
                         )
-                        # Make sure the parquet schema aligns with the new iceberg
-                        # table schema.
-                        target_arrow_schema = local_table.schema().as_arrow()
-                        aligned_table = combined.cast(target_arrow_schema)
-                        local_table.append(aligned_table)
+                        local_table.append(combined)
+                        print(f" created ({combined.num_rows} rows)")
                     else:
                         local_table = local_catalog.load_table(full_table_name)
-                        local_table.overwrite(combined)
+                        local_table.append(combined)
                         print(f" appended ({combined.num_rows} rows)")
                 except (ClientError, OSError, pa.ArrowException) as e:
                     print(f"\n      ERROR: {e}", file=sys.stderr)

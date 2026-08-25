@@ -6,8 +6,8 @@ The 'RAS XS' page provides tools for exploring River Analysis System (RAS) cross
 
 - View cross-sectional datasets alongside associated flowpaths and divides
 - Subset data using:
-  - A single flowpath ID
-  - A user-drawn geographic bounding box on the Leaflet map
+    - A single flowpath ID
+    - A user-drawn geographic bounding box on the Leaflet map
 - View results tabularly and geospatially
 - Download the subset as a GeoPackage
 
@@ -16,7 +16,7 @@ The 'RAS XS' page provides tools for exploring River Analysis System (RAS) cross
 You begin by deciding which cross-sectional data domain to pull from. The RAS XS dataset is formatted in two ways:
 
 - **Conflated** — This is the full collection of HEC-RAS data. Each cross-sectional value is mapped to the nearest hydrofabric flowpath. Thus, most flowpaths will have many cross-sectional values along the lengths of their geometries.
-- **Representative** — This is derived from the conflated dataset; each value is the median, representative, cross-section of a specific hydrofabric flowpath. So, each flowpath will have one associated representative cross-sectional value. In particular, this dataset is used as training/testing inputs for RiverML.
+- **Representative** — This is derived from the conflated dataset; each value is the median, representative, cross-section of a specific hydrofabric flowpath. So, each flowpath will have one associated representative cross-sectional value. In particular, this dataset is used as training/testing inputs for [RiverML](https://github.com/NOAA-OWP/predict-riverML).
 
 ![RAS XS Domains](../../img/dashboard/ras_xs_domains.png)
 
@@ -51,6 +51,7 @@ Enter the bounding box manually, by supplying min/max lat/lon coordinates (four 
 The dashboard will fetch the data requested and generate a map to view the cross-sections.
 
 The map displays the following as layers:
+
 - Flowpaths
 - Divides
 - Cross-Sectional Lines

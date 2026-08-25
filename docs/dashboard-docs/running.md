@@ -4,15 +4,15 @@ You can run the dashboard either locally or against the AWS Glue catalog.
 
 ## Requirements
 
-- Python (all dependencies managed through UV)
+- Python v3.11 - v3.12.8 (all dependencies managed through UV)
 - The Icefabric repo cloned locally
 - AWS credentials in the project's `.env` file (only needed when using Glue with test catalog)
 - AWS credentials in the project's `.prod.env` file (only needed when using Glue with prod (OE) catalog)
 - Streamlit (installed automatically via project dependencies)
-- Iceberg catalog available:
-  - Either AWS Glue
-  - Or local SQLite catalog
-- S3 Icechunk catalog available (no local option yet)
+- Iceberg catalog available in one of either formats:
+    - AWS Glue
+    - SQLite catalog (local)
+- S3 Icechunk catalog available
 
 ## Getting Started
 
@@ -25,7 +25,7 @@ source .venv/bin/activate
 
 ## Running Locally
 
-To run the dashboard locally, ensure your `.env` file in your project root has the right credentials (`test`), then run the following:
+To run the dashboard locally, ensure your `.env` file in your project root has the right credentials if running with AWS glue catalog, then run the following:
 
 ```sh
 uv run streamlit run app/streamlit/streamlit.py
@@ -42,29 +42,26 @@ uv run streamlit run app/streamlit/streamlit.py deploy-env=test
 uv run streamlit run app/streamlit/streamlit.py deploy-env=prod
 ```
 
-### Running the Dashboard with a local Iceberg catalog (Advanced Use)
+### Running the Dashboard with a local catalog/store
 
-To run the dashboard locally against a local catalog, the catalog must first be exported from glue. You need to run the build script for the 'NHF', 'RAS XS' and 'CONUS Reference' namespaces, as these are the only necessary catalog namespaces for the dashboard to function. Ensure your `.env` file in your project root has the right credentials (`test`), then run the following:
+To run the dashboard locally against a local Iceberg catalog and local Icechunk store, there's a shell script (`docker/deploy_local.sh`) to do so. It deploys the icefabric API and dashboard using a local catalog and icechunk store extracted from an S3 archive. The script automates everything from downloading the S3 archive, and extracting it locally, and spinning up the docker deployment.
 
-```sh
-uv python tools/iceberg/export_catalog.py --namespace nhf
-uv python tools/iceberg/export_catalog.py --namespace ras_xs
-uv python tools/iceberg/export_catalog.py --namespace conus_reference
-```
-
-Then, to run the dashboard locally using this newly exported SQL backend, add a `deploy-env` flag to the run command. The flag should be formatted as `deploy-env=local` to use the local SQL catalog. Run the following:
+Ensure your `.env` file in your project root has the right credentials (`test`), then run the following from the repo root:
 
 ```sh
-# Local deploy
-uv run streamlit run app/streamlit/streamlit.py deploy-env=local
+./docker/deploy_local.sh s3://edfs-data/tmp/icefabric_full_backup.tar
 ```
+
+You can optionally add your preferred AWS profile name (`aws_profile` is the arg name) argument to the end of the command, as well.
+
+For further information or troubleshooting, please reference [the script](https://github.com/NGWPC/icefabric/blob/main/docker/deploy_local.sh).
 
 > [!IMPORTANT]
-> At this time, the 'Streamflow Observations' dashboard page requires S3 access, as this page uses Icechunk (not Iceberg) to store and retrieve data. The Dashboard will still spin up as normal, and function fully, except the 'Streamflow Observations' dashboard page will not function (unless you have S3 credentials in your `.env` file.)
+> The archive pulled from S3 is quite large. You will need ~100GB of free diskspace in the location where you are writing the archive. The script defaults to the root temp directory (`/tmp`)
 
 ## Building/deploying the Dashboard through Docker
 
-To run just Dashboard locally with Docker, ensure your `.env` file in your project root has the right credentials (`test`) (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog), then run the `compose.sh` wrapper script to spin up the dashboard:
+To run just the Dashboard locally with Docker, ensure your `.env` file in your project root has the right credentials (`test`) (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog), then run the `compose.sh` wrapper script to spin up the dashboard:
 
 ```sh
 # Build

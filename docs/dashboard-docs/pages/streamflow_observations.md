@@ -5,8 +5,9 @@ The 'Streamflow Observations' page allows users to explore hourly streamflow rec
 ## Features
 
 For each USGS gage with streamflow data:
+
 - Retrieve hourly discharge time series (q_cms)
-- View a static full-range hydrograph of that gage
+- View a static full-range hydrograph of the gage
 - Interactively explore selected years and months using a zoom/pan hydrograph
 - View a map of the gage location and its corresponding flowpath/divide
 

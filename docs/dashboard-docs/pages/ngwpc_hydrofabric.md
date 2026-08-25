@@ -47,6 +47,7 @@ The Hydrofabric will then be subset according to the ID provided. If a flowpath 
 ### Dataframe Results
 
 A collection of tabular Streamlit dataframes will be displayed after the backend logic is complete. All NGWPC Hydrofabric components are included. Among the tabular data:
+
 - Flowpaths
 - Nexuses
 - Divides
@@ -72,6 +73,7 @@ A “Download as GeoPackage” button appears below the data, allowing users to 
 Also, the dashboard will generate an interactive map to view the subset.
 
 The interactive Leaflet map displays all NGWPC Hydrofabric components (only whose data includes geometry information):
+
 - Flowpath/Virtual Flowpath lines
 - Divide polygons
 - Nexus/Virtual Nexus points

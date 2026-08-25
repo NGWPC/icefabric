@@ -46,18 +46,10 @@ uv run streamlit run app/streamlit/streamlit.py deploy-env=prod
 
 To run the dashboard locally against a local Iceberg catalog and local Icechunk store, there's a shell script (`docker/deploy_local.sh`) to do so. It deploys the icefabric API and dashboard using a local catalog and icechunk store extracted from an S3 archive. The script automates everything from downloading the S3 archive, and extracting it locally, and spinning up the docker deployment.
 
-Ensure your `.env` file in your project root has the right credentials (`test`), then run the following from the repo root:
-
-```sh
-./docker/deploy_local.sh s3://edfs-data/tmp/icefabric_full_backup.tar
-```
-
-You can optionally add your preferred AWS profile name (`aws_profile` is the arg name) argument to the end of the command, as well.
-
 For further information or troubleshooting, please reference [the script](https://github.com/NGWPC/icefabric/blob/main/docker/deploy_local.sh).
 
-> [!IMPORTANT]
-> The archive pulled from S3 is quite large. You will need ~100GB of free diskspace in the location where you are writing the archive. The script defaults to the root temp directory (`/tmp`)
+!!! warning "Important"
+    The archive pulled from S3 is quite large. You will need ~100GB of free diskspace in the location where you are writing the archive. The script defaults to the root var/temp directory (`/var/tmp`)
 
 ## Building/deploying the Dashboard through Docker
 

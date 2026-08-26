@@ -25,4 +25,4 @@ fi
 
 export ICEFABRIC_DEPLOY_ENV=$ICEFABRIC_DEPLOY_ENV
 export ICEFABRIC_CREDS_ENV_FILE=$ICEFABRIC_CREDS_ENV_FILE
-docker compose -f docker/compose.yaml up $SERVICE
+docker compose -f compose.yaml up $SERVICE

@@ -1,6 +1,13 @@
 data/**/*.parquet
 data/**/*.gpkg
 data/**/*.json
+*.gpkg
+*.gr3
+*.csv
 .venv/
 .env
 .prod.env
+scratch/
+output/
+*.tar
+*.tar.gz

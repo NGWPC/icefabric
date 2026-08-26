@@ -1,0 +1,49 @@
+services:
+  nginx:
+    image: nginx:latest
+    container_name: icefabric-nginx-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+      - dashboard
+    restart: always
+
+  api:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.api
+    container_name: icefabric-api
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - ../.env
+    volumes:
+      - ../.pyiceberg.yaml:/app/.pyiceberg.yaml:ro
+      - /var/tmp/icefabric_local_catalog:/tmp/icefabric_local_catalog:ro
+      - /var/tmp/icefabric_streamflow_obs:/var/tmp/icefabric_streamflow_obs:ro
+    command: ["python", "-m", "app.main", "--catalog", "sql"]
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "--head", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  dashboard:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.streamlit
+    container_name: icefabric-dashboard
+    ports:
+      - "127.0.0.1:8501:8501"
+    env_file:
+      - ../.env
+    volumes:
+      - ../.pyiceberg.yaml:/app/.pyiceberg.yaml:ro
+      - /var/tmp/icefabric_local_catalog:/tmp/icefabric_local_catalog:ro
+      - /var/tmp/icefabric_streamflow_obs:/var/tmp/icefabric_streamflow_obs:ro
+    restart: always

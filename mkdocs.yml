@@ -77,3 +77,13 @@ nav:
     - SAC-SMA: modules/sacsma.md
     - T-Route: modules/troute.md
     - TOPMODEL: modules/topmodel.md
+  - Dashboard:
+    - dashboard-docs/index.md
+    - Overview: dashboard-docs/overview.md
+    - Running the Dashboard: dashboard-docs/running.md
+    - Pages:
+      - dashboard-docs/pages/index.md
+      - NGWPC Hydrofabric: dashboard-docs/pages/ngwpc_hydrofabric.md
+      - RAS XS: dashboard-docs/pages/ras_xs.md
+      - Streamflow Observations: dashboard-docs/pages/streamflow_observations.md
+    - Development: dashboard-docs/development.md

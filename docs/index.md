@@ -57,3 +57,9 @@ The `tests` folder is for all testing data so the global confest can pick it up.
 To run tests, run `pytest -s` from project root.
 
 To run the subsetter tests, run `pytest --run-slow` as these tests take some time. Otherwise, they will be skipped
+
+### Streamlit Dashboard
+
+Also included alongisde the API is the Icefabric Dashboard. The dashboard is a Streamlit-based frontend that works separately from the API. It allows users to explore, subset, and visualize hydrologic datasets stored in the Icefabric ecosystem.
+
+Further info can be found [here](./dashboard-docs/index.md).

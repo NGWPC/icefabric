@@ -10,7 +10,7 @@ catalog:
     type: sql
     # location for pre-existing local catalog. Don't use this location when using the API's catalog caching feature
     uri: sqlite:////tmp/icefabric_local_catalog/pyiceberg_catalog.db
-    warehouse: file:///var/tmp/icefabric_local_catalog/warehouse
+    warehouse: file:///tmp/icefabric_local_catalog/warehouse
     # For a glue catalog that will be cached use:
     # uri: sqlite:////tmp/warehouse/pyiceberg_catalog.db
     # warehouse: file:///tmp/warehouse

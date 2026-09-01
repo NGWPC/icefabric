@@ -111,7 +111,7 @@ def rewrite_avro_manifest(local_avro_path, s3_table_root, local_table_root):
 
 
 # set local paths and create directories
-local_catalog_root = "/tmp/icefabric_local_catalog"
+local_catalog_root = "/var/tmp/icefabric_local_catalog"
 warehouse_path = os.path.join(local_catalog_root, "warehouse")
 Path(local_catalog_root).mkdir(parents=True, exist_ok=True)
 Path(warehouse_path).mkdir(parents=True, exist_ok=True)
@@ -150,7 +150,8 @@ for namespace in namespaces:
 
     tables = glue_catalog.list_tables(namespace)
     if not tables:
-        raise ValueError(f"no tables found in namespace {namespace} in glue catalog")
+        print(f"no tables found in namespace {namespace} in glue catalog")
+        continue
 
     for table in tables:
         table_name = table[1]
@@ -162,6 +163,7 @@ for namespace in namespaces:
             glue_table = glue_catalog.load_table(f"{namespace}.{table_name}")
         except NoSuchTableError:
             print(f"Error loading table {table_name}")
+            continue
 
         # define local paths for this table's metadata and data directories
         table_metadata_path = os.path.join(local_namespace_path, table_name, "metadata")

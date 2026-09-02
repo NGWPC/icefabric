@@ -1,4 +1,4 @@
-"""A file to update the hydrofabric table and snapshots for a specific domain"""
+"""A file to update the hydrofabric 2.2 (NOT NHF) table and snapshots for a specific domain"""
 
 import argparse
 import os

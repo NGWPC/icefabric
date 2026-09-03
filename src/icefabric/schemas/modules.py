@@ -902,7 +902,7 @@ class TRoute(BaseModel):
             f"bmi_parameters: {self.bmi_parameters}",
             f"log_parameters: {self.log_param}",
             f"network_topology_parameters: {self.network_topology_parameters}",
-            f"compute_parameters: {self.comp_param}",
+            f"compute_parameters: {self.compute_parameters}",
             f"output_parameters: {self.output_parameters}",
         }
 
@@ -920,7 +920,7 @@ class TRoute(BaseModel):
             The path to the written config file
         """
         file_output = self.to_bmi_config()
-        troute_bmi_file = output_path / f"{self.catchment}_bmi_config_troute.txt"
+        troute_bmi_file = output_path / "bmi_config_troute.txt"
         with open(troute_bmi_file, "w") as f:
             f.write("\n".join(file_output))
         return troute_bmi_file
@@ -1450,10 +1450,10 @@ class CFE(BaseModel):
         nash_storage = ",".join([str(n) for n in self.nash_storage])
         giuh_ordinates = ",".join([str(giuh) for giuh in self.giuh_ordinates])
         return [
-            f"surface_partitioning_scheme: {self.surface_partitioning_scheme}",
+            f"surface_partitioning_scheme: {self.surface_water_partitioning_scheme}",
             f"surface_runoff_scheme: {self.surface_runoff_scheme}",
             f"is_sft_coupled: {self.is_sft_coupled}",
-            f"ice_content_threshold: {self.ice_content_thresh}",
+            f"ice_content_threshold: {self.ice_content_threshold}",
             f"soil_params.b: {self.soil_params_b}",
             f"soil_params.satdk: {self.soil_params_satdk}[m/s]",
             f"soil_params.satpsi: {self.soil_params_satpsi}[m]",

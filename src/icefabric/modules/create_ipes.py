@@ -73,7 +73,7 @@ def get_subset(
         The identifier to subset around
     namespace : str
         Domain name / namespace
-    upstream_dict : Dict[str, Set[str]]
+    graph: rx.PyDiGraph, optional
         Pre-computed upstream lookup dictionary
 
     Returns
@@ -116,7 +116,7 @@ def get_sft_parameters(
     catalog: Catalog,
     namespace: HydrofabricNamespace,
     identifier: str,
-    graph: rx.PyDiGraph,
+    graph: rx.PyDiGraph | None = None,
     use_schaake: bool = False,
 ) -> list[SFT]:
     """Creates the initial parameter estimates for the SFT module
@@ -129,6 +129,8 @@ def get_sft_parameters(
         the hydrofabric namespace
     identifier : str
         the gauge identifier
+    graph: rx.PyDiGraph, optional
+        Pre-computed upstream lookup dictionary
     use_schaake : bool, optional
         A setting to determine if Shaake should be used for ice fraction, by default False
 
@@ -171,7 +173,11 @@ def get_sft_parameters(
 
 
 def get_snow17_parameters(
-    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, envca: bool, graph: rx.PyDiGraph
+    catalog: Catalog,
+    namespace: HydrofabricNamespace,
+    identifier: str,
+    envca: bool,
+    graph: rx.PyDiGraph | None = None,
 ) -> list[Snow17]:
     """Creates the initial parameter estimates for the Snow17 module
 
@@ -185,6 +191,8 @@ def get_snow17_parameters(
         the gauge identifier
     envca : bool, optional
         If source is ENVCA, then set to True - otherwise False.
+    graph: rx.PyDiGraph, optional
+        Pre-computed upstream lookup dictionary
 
     Returns
     -------
@@ -259,7 +267,7 @@ def get_smp_parameters(
     catalog: Catalog,
     namespace: HydrofabricNamespace,
     identifier: str,
-    graph: rx.PyDiGraph,
+    graph: rx.PyDiGraph | None = None,
     extra_module: str | None = None,
 ) -> list[SMP]:
     """Creates the initial parameter estimates for the SMP module
@@ -272,6 +280,8 @@ def get_smp_parameters(
         the hydrofabric namespace
     identifier : str
         the gauge identifier
+    graph: rx.PyDiGraph, optional
+        Pre-computed upstream lookup dictionary
     extra_module : str, optional
         A setting to determine if a module should be specified to obtain additional SMP parameters.
         Available modules declared for addt'l SMP parameters: 'CFE-S', 'CFE-X', 'LASAM', 'TopModel'
@@ -336,7 +346,10 @@ def get_smp_parameters(
 
 
 def get_lstm_parameters(
-    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, graph: rx.PyDiGraph
+    catalog: Catalog,
+    namespace: HydrofabricNamespace,
+    identifier: str,
+    graph: rx.PyDiGraph | None = None,
 ) -> list[LSTM]:
     """Creates the initial parameter estimates for the LSTM module
 
@@ -348,6 +361,8 @@ def get_lstm_parameters(
         the hydrofabric namespace
     identifier : str
         the gauge identifier
+    graph: rx.PyDiGraph, optional
+        Pre-computed upstream lookup dictionary
 
     Returns
     -------
@@ -408,7 +423,7 @@ def get_lasam_parameters(
     namespace: HydrofabricNamespace,
     identifier: str,
     sft_included: bool,
-    graph: rx.PyDiGraph,
+    graph: rx.PyDiGraph | None = None,
     soil_params_file: str = "vG_default_params_HYDRUS.dat",
 ) -> list[LASAM]:
     """Creates the initial parameter estimates for the LASAM module
@@ -423,6 +438,8 @@ def get_lasam_parameters(
         the gauge identifier
     sft_included: bool
         True if SFT is in the "dep_modules_included" definition as declared in HF API repo.
+    graph: rx.PyDiGraph, optional
+        Pre-computed upstream lookup dictionary
     soil_params_file: str
         Name of the Van Genuchton soil parameters file. Note: This is the filename that gets returned by HF API's utility script
         get_hydrus_data().
@@ -458,7 +475,10 @@ def get_lasam_parameters(
 
 
 def get_noahowp_parameters(
-    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, graph: rx.PyDiGraph
+    catalog: Catalog,
+    namespace: HydrofabricNamespace,
+    identifier: str,
+    graph: rx.PyDiGraph | None = None,
 ) -> list[NoahOwpModular]:
     """Creates the initial parameter estimates for the Noah OWP Modular module
 
@@ -470,6 +490,8 @@ def get_noahowp_parameters(
         the hydrofabric namespace
     identifier : str
         the gauge identifier
+    graph: rx.PyDiGraph, optional
+        Pre-computed upstream lookup dictionary
 
     Returns
     -------
@@ -516,7 +538,11 @@ def get_noahowp_parameters(
 
 
 def get_sacsma_parameters(
-    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, envca: bool, graph: rx.PyDiGraph
+    catalog: Catalog,
+    namespace: HydrofabricNamespace,
+    identifier: str,
+    envca: bool,
+    graph: rx.PyDiGraph | None = None,
 ) -> list[SacSma]:
     """Creates the initial parameter estimates for the SAC SMA module
 
@@ -528,9 +554,10 @@ def get_sacsma_parameters(
         the hydrofabric namespace
     identifier : str
         the gauge identifier
-
     envca : bool, optional
         If source is ENVCA, then set to True - otherwise False.
+    graph: rx.PyDiGraph, optional
+        Pre-computed upstream lookup dictionary
 
     Returns
     -------
@@ -604,7 +631,10 @@ def get_sacsma_parameters(
 
 
 def get_troute_parameters(
-    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, graph: rx.PyDiGraph
+    catalog: Catalog,
+    namespace: HydrofabricNamespace,
+    identifier: str,
+    graph: rx.PyDiGraph | None = None,
 ) -> list[TRoute]:
     """Creates the initial parameter estimates for the T-Route
 
@@ -616,6 +646,8 @@ def get_troute_parameters(
         the hydrofabric namespace
     identifier : str
         the gauge identifier
+    graph: rx.PyDiGraph, optional
+        Pre-computed upstream lookup dictionary
 
     Returns
     -------
@@ -635,7 +667,10 @@ def get_troute_parameters(
 
 
 def get_topmodel_parameters(
-    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, graph: rx.PyDiGraph
+    catalog: Catalog,
+    namespace: HydrofabricNamespace,
+    identifier: str,
+    graph: rx.PyDiGraph | None = None,
 ) -> list[Topmodel]:
     """Creates the initial parameter estimates for the Topmodel
 
@@ -647,6 +682,8 @@ def get_topmodel_parameters(
         the hydrofabric namespace
     identifier : str
         the gauge identifier
+    graph: rx.PyDiGraph, optional
+        Pre-computed upstream lookup dictionary
 
     Returns
     -------
@@ -710,7 +747,10 @@ def get_topmodel_parameters(
 
 
 def get_topoflow_parameters(
-    catalog: Catalog, namespace: HydrofabricNamespace, identifier: str, graph: rx.PyDiGraph
+    catalog: Catalog,
+    namespace: HydrofabricNamespace,
+    identifier: str,
+    graph: rx.PyDiGraph | None = None,
 ) -> list[Topoflow]:
     """Creates the initial parameter estimates for the Topoflow module
 
@@ -722,6 +762,8 @@ def get_topoflow_parameters(
         the hydrofabric namespace
     identifier : str
         the gauge identifier
+    graph: rx.PyDiGraph, optional
+        Pre-computed upstream lookup dictionary
 
     Returns
     -------
@@ -778,7 +820,7 @@ def get_ueb_parameters(
     namespace: HydrofabricNamespace,
     identifier: str,
     envca: bool,
-    graph: rx.PyDiGraph,
+    graph: rx.PyDiGraph | None = None,
 ) -> list[UEB]:
     """Creates the initial parameter estimates for the UEB module
 
@@ -792,6 +834,8 @@ def get_ueb_parameters(
         the gauge identifier
     envca : bool, optional
         If source is ENVCA, then set to True - otherwise False.
+    graph: rx.PyDiGraph, optional
+        Pre-computed upstream lookup dictionary
 
     Returns
     -------
@@ -916,6 +960,8 @@ def get_cfe_parameters(
         the hydrofabric namespace
     identifier : str
         the gauge identifier
+    graph: rx.PyDiGraph, optional
+        Pre-computed upstream lookup dictionary
     cfe_version: str
         the CFE module type (e.g. CFE-X, CFE-S) for which determines whether
         to use Shaake or Xinanjiang for surface partitioning.

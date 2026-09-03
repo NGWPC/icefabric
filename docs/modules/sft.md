@@ -80,17 +80,18 @@ The SFT config text files can be created using the `icefabric` CLI tool:
 ```bash
 icefabric params \
     --gauge "01010000" \
-    --module "sft" \
-    --domain "conus" \
+    --nwm-module "sft" \
+    --domain "conus_hf" \
     --catalog "glue" \
     --ice-fraction "xinanjiang" \
     --output "./output"
 ```
 
 **CLI Parameters:**
+
 - `--gauge`: Gauge ID to trace upstream catchments from
-- `--module`: Module type (use "sft" for Soil Freeze-Thaw)
-- `--domain`: Hydrofabric domain (`conus`, `alaska`, etc.)
+- `--nwm-module`: Module type (use `sft` for Soil Freeze-Thaw)
+- `--domain`: Hydrofabric domain (`conus_hf`, etc.)
 - `--catalog`: PyIceberg Catalog type (`glue` or `sql`)
 - `--ice-fraction`: Ice fraction scheme (`schaake` or `xinanjiang`)
 - `--output`: Output directory for configuration files
@@ -100,13 +101,15 @@ icefabric params \
 The SFT module is also accessible via REST API:
 
 ```http
-GET /modules/sft/?identifier=01010000&domain=conus&use_schaake=false
+GET /v1/modules/sft/?identifier=01010000&use_schaake=False
 ```
 
 **API Parameters:**
-- `identifier` (required): Gauge ID to trace upstream from
-- `domain` (optional): Geographic domain (default: `conus`)
-- `use_schaake` (optional): Use Schaake ice fraction scheme (default: `false`)
+
+- `identifier` (required): Gage ID from which to trace upstream catchments.
+- `source` (optional): `nhf` (National Hydrofabric) or `hf` (Hydrofabric v2.2). Required when using geographic domain names.
+- `domain` (optional): Geographic domain (`CONUS`, `Alaska`, `Hawaii`, `Puerto_Rico`, `Great_Lakes`) with source param, or legacy values (`nhf`, `conus_hf`, etc.) for backwards compatibility.
+- `use_schaake` (optional): Whether to use Schaake for the Ice Fraction Scheme. Defaults to `False` to use Xinanjiang
 
 **Response:** Returns a list of SFT configuration objects, one for each upstream catchment.
 
@@ -116,7 +119,7 @@ Direct Python usage:
 
 ```python
 from icefabric.modules import get_sft_parameters
-from icefabric.schemas.hydrofabric import HydrofabricDomains
+from icefabric.schemas.hydrofabric import HydrofabricNamespace
 from pyiceberg.catalog import load_catalog
 
 # Load catalog
@@ -125,7 +128,7 @@ catalog = load_catalog("glue")
 # Get SFT parameters
 configs = get_sft_parameters(
     catalog=catalog,
-    namespace=HydrofabricDomains.CONUS,
+    namespace=HydrofabricNamespace.CONUS_NHF,
     identifier="01010000",
     use_schaake=False
 )
@@ -133,8 +136,12 @@ configs = get_sft_parameters(
 # Each config is an SFT pydantic model
 for config in configs:
     print(f"Catchment: {config.catchment}")
-    print(f"Soil layers: {config.soil_z}")
-    print(f"Initial temperatures: {config.soil_temperature}")
+    print(f"Soil Moisture BMI: {config.soil_moisture_bmi}")
+    print(f"Soil Params SMC Max: {config.soil_params_smcmax}")
+    print(f"Soil Params B: {config.soil_params_b}")
+    print(f"Soil Params Sat PSI: {config.soil_params_satpsi}")
+    print(f"Soil Params Quartz: {config.soil_params_quartz}")
+    print(f"...\n")
 ```
 
 ## Parameter Estimation

@@ -127,11 +127,11 @@ def params(
 ):
     """Returns a zip file containing all config files requested by a specific module"""
     # TODO - Remove the below if statement once topoflow has IPE/BMI generation
-    if nwm_module == "topoflow":
-        raise NotImplementedError("Topoflow not implemented yet")
+    # if nwm_module == "topoflow":
+    #     raise NotImplementedError("Topoflow not implemented yet")
 
     ice_fraction_enum = (
-        IceFractionScheme[use_schaake.upper()] if use_schaake else IceFractionScheme.XINANJIANG
+        IceFractionScheme[use_schaake.value.upper()] if use_schaake else IceFractionScheme.XINANJIANG
     )  # Defaults to Xinanjiang
     use_schaake = True if use_schaake == IceFractionScheme.SCHAAKE else False
     _catalog = get_catalog(catalog)
@@ -143,7 +143,7 @@ def params(
 
     ipe_kwargs = {}
     ipe_kwargs["catalog"] = _catalog
-    ipe_kwargs["namespace"] = domain
+    ipe_kwargs["namespace"] = HydrofabricNamespace(domain)
     ipe_kwargs["identifier"] = f"gages-{gauge}"
     ipe_kwargs["graph"] = graph
 

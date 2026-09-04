@@ -16,6 +16,28 @@ from pyiceberg.exceptions import NamespaceAlreadyExistsError, NoSuchTableError, 
 
 load_dotenv()
 
+NAMESPACES_TO_DOWNLOAD = [
+    "ak_hf",
+    "ak_nhf",
+    "ak_nhf_snapshots",
+    "conus_hf",
+    "conus_nhf_snapshots",
+    "conus_nhf",
+    "conus_reference",
+    "divide_parameters",
+    "hi_hf",
+    "hi_nhf_snapshots",
+    "hi_nhf",
+    "hydrofabric_snapshots",
+    "parameter_metadata",
+    "prvi_hf",
+    "prvi_nhf_snapshots",
+    "prvi_nhf",
+    "ras_xs",
+    "mip_xs",
+    "ble_xs",
+]
+
 
 def download_s3(s3_uris: list[str], local_path: str) -> None:
     """Download files from s3.
@@ -153,118 +175,131 @@ if __name__ == "__main__":
 
     for namespace in namespaces:
         namespace = namespace[0] if isinstance(namespace, tuple) else namespace
+        if namespace in NAMESPACES_TO_DOWNLOAD:
+            print(f"Processing namespace: {namespace}\n")
 
-        print(f"Processing namespace: {namespace}\n")
-
-        local_namespace_path = os.path.join(warehouse_path, namespace)
-        Path(local_namespace_path=os.path.join(warehouse_path, namespace)).mkdir(parents=True, exist_ok=True)
-
-        try:
-            sql_catalog.create_namespace(namespace)
-        except NamespaceAlreadyExistsError:
-            pass  # Skip if already exists
-
-        tables = glue_catalog.list_tables(namespace)
-        if not tables:
-            print(f"no tables found in namespace {namespace} in glue catalog")
-            continue
-
-        for table in tables:
-            table_name = table[1]
-
-            print(f"Processing table {namespace}.{table_name}")
-
-            # load current namespace.table from the glue catalog
-            try:
-                glue_table = glue_catalog.load_table(f"{namespace}.{table_name}")
-            except NoSuchTableError:
-                print(f"Error loading table {table_name}")
-                continue
-
-            # define local paths for this table's metadata and data directories
-            # snapshots and paramter metadata namespaces do not have table as subfolder and go straight from
-            # namespace to data/metadata
-            if "snapshots" in namespace or "parameter_metadata" in namespace:
-                table_metadata_path = os.path.join(local_namespace_path, "metadata")
-                table_data_path = os.path.join(local_namespace_path, "data")
+            # create the namespace directory
+            # parameter_metadata was put into the glue catalog incorrectly and the table path is duplicated
+            # set the path correctly here so that s3 paths match
+            if namespace == "parameter_metadata":
+                local_namespace_path = os.path.join(warehouse_path, "parameter_metadataparameter_metadata")
+                Path(local_namespace_path).mkdir(parents=True, exist_ok=True)
+            # ras-xs was uploaded wrong on glue. it is at the root of the warehouse for both tables (s3://edfs-data/icefabric_catalog/metadata)
+            elif namespace == "ras_xs":
+                local_namespace_path = warehouse_path
             else:
-                table_metadata_path = os.path.join(local_namespace_path, table_name, "metadata")
-                table_data_path = os.path.join(local_namespace_path, table_name, "data")
+                local_namespace_path = os.path.join(warehouse_path, namespace)
+                Path(local_namespace_path).mkdir(parents=True, exist_ok=True)
 
-            # create directories
-            Path(table_metadata_path).mkdir(parents=True, exist_ok=True)
-            Path(table_data_path).mkdir(parents=True, exist_ok=True)
+            try:
+                sql_catalog.create_namespace(namespace)
+            except NamespaceAlreadyExistsError:
+                pass  # Skip if already exists
 
-            # get a list of snapshots for this table
-            snapshots = glue_table.snapshots()
-
-            if not snapshots:
-                print(f"no snapshots found for {table_name}")
+            tables = glue_catalog.list_tables(namespace)
+            if not tables:
+                print(f"no tables found in namespace {namespace} in glue catalog")
                 continue
 
-            # get s3 uri for this table's metadata JSON and download
-            jsonfile = glue_table.metadata_location
-            print("downloading metadata JSON file\n")
-            download_s3([jsonfile], table_metadata_path)
+            for table in tables:
+                table_name = table[1]
 
-            # loop through each snapshot
-            for index, snapshot in enumerate(snapshots):
-                print(
-                    f"processing snapshot {index} of {len(snapshots)}, snapshot id: {snapshot.snapshot_id}\n"
-                )
+                print(f"Processing table {namespace}.{table_name}")
 
-                # get the s3 uri for the snapshot's manifest list avro file
-                manifest_list_file = snapshot.manifest_list
-
-                # get the s3 uris for each manifest avro file
-                manifests = snapshot.manifests(glue_table.io)
-
-                if not manifests:
-                    print(f"no manifests found for snapshot id: {snapshot.snapshot_id}, skipping")
+                # load current namespace.table from the glue catalog
+                try:
+                    glue_table = glue_catalog.load_table(f"{namespace}.{table_name}")
+                except NoSuchTableError:
+                    print(f"Error loading table {table_name}")
                     continue
 
-                manifest_paths = [manifest.manifest_path for manifest in manifests]
+                # define local paths for this table's metadata and data directories
+                # snapshots and parameter_metadata are missing the table level directory
+                # ras xs is at the root ware house level - this is set above for local_namespace
+                # so go straight from namespace to meatadata/data
+                if "snapshots" in namespace or "parameter_metadata" in namespace or "ras_xs" in namespace:
+                    table_metadata_path = os.path.join(local_namespace_path, "metadata")
+                    table_data_path = os.path.join(local_namespace_path, "data")
+                else:
+                    table_metadata_path = os.path.join(local_namespace_path, table_name, "metadata")
+                    table_data_path = os.path.join(local_namespace_path, table_name, "data")
 
-                # get all manifest entries
-                entries = manifests[0].fetch_manifest_entry(glue_table.io)
-                if not entries:
-                    print("no manifest entries found for ")
+                # create directories
+                Path(table_metadata_path).mkdir(parents=True, exist_ok=True)
+                Path(table_data_path).mkdir(parents=True, exist_ok=True)
 
-                # create empty list for storing parquet file URIs
-                parquetfiles = []
+                # get a list of snapshots for this table
+                snapshots = glue_table.snapshots()
 
-                # loop through each entry and get the parquet file S3 URIs
-                for entry in entries:
-                    parquetfiles.append(entry.data_file.file_path)
+                if not snapshots:
+                    print(f"no snapshots found for {table_name}")
+                    continue
 
-                # download all files for this snapshot from s3
+                # get s3 uri for this table's metadata JSON and download
+                jsonfile = glue_table.metadata_location
+                print("downloading metadata JSON file\n")
+                download_s3([jsonfile], table_metadata_path)
 
-                print("downloading manifest list avro file\n")
-                download_s3([manifest_list_file], table_metadata_path)
+                # loop through each snapshot
+                for index, snapshot in enumerate(snapshots):
+                    print(
+                        f"processing snapshot {index} of {len(snapshots)}, snapshot id: {snapshot.snapshot_id}\n"
+                    )
 
-                print("downloading manifest avro files\n")
-                download_s3(manifest_paths, table_metadata_path)
+                    # get the s3 uri for the snapshot's manifest list avro file
+                    manifest_list_file = snapshot.manifest_list
 
-                print("downloading data parquet filesfiles\n")
-                download_s3(parquetfiles, table_data_path)
+                    # get the s3 uris for each manifest avro file
+                    manifests = snapshot.manifests(glue_table.io)
 
-            # replace s3 paths with local file paths in metadata JSON
-            parsed = urlparse(jsonfile)
-            json_file_name = os.path.basename(parsed.path)
-            json_full_local_path = os.path.join(table_metadata_path, json_file_name)
-            rewrite_metadata_paths(
-                json_full_local_path, "s3://edfs-data/icefabric_catalog", f"file://{warehouse_path}"
-            )
+                    if not manifests:
+                        print(f"no manifests found for snapshot id: {snapshot.snapshot_id}, skipping")
+                        continue
 
-            avrofiles = glob.glob(os.path.join(table_metadata_path, "*.avro"))
-            for file in avrofiles:
-                rewrite_avro_manifest(file, "s3://edfs-data/icefabric_catalog", f"file://{warehouse_path}")
+                    manifest_paths = [manifest.manifest_path for manifest in manifests]
 
-            # register new table with this snapshot's metadata
-            try:
-                sql_catalog.register_table(
-                    identifier=f"{namespace}.{table_name}",
-                    metadata_location=json_full_local_path,
+                    # get all manifest entries
+                    entries = manifests[0].fetch_manifest_entry(glue_table.io)
+                    if not entries:
+                        print("no manifest entries found for ")
+
+                    # create empty list for storing parquet file URIs
+                    parquetfiles = []
+
+                    # loop through each entry and get the parquet file S3 URIs
+                    for entry in entries:
+                        parquetfiles.append(entry.data_file.file_path)
+
+                    # download all files for this snapshot from s3
+
+                    print("downloading manifest list avro file\n")
+                    download_s3([manifest_list_file], table_metadata_path)
+
+                    print("downloading manifest avro files\n")
+                    download_s3(manifest_paths, table_metadata_path)
+
+                    print("downloading data parquet filesfiles\n")
+                    download_s3(parquetfiles, table_data_path)
+
+                # replace s3 paths with local file paths in metadata JSON
+                parsed = urlparse(jsonfile)
+                json_file_name = os.path.basename(parsed.path)
+                json_full_local_path = os.path.join(table_metadata_path, json_file_name)
+                rewrite_metadata_paths(
+                    json_full_local_path, "s3://edfs-data/icefabric_catalog", f"file://{warehouse_path}"
                 )
-            except TableAlreadyExistsError:
-                print(f"table {table_name} already exists")
+
+                avrofiles = glob.glob(os.path.join(table_metadata_path, "*.avro"))
+                for file in avrofiles:
+                    rewrite_avro_manifest(
+                        file, "s3://edfs-data/icefabric_catalog", f"file://{warehouse_path}"
+                    )
+
+                # register new table with this snapshot's metadata
+                try:
+                    sql_catalog.register_table(
+                        identifier=f"{namespace}.{table_name}",
+                        metadata_location=json_full_local_path,
+                    )
+                except TableAlreadyExistsError:
+                    print(f"table {table_name} already exists")

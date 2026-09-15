@@ -1,8 +1,4 @@
-"""
-Contains the PyIceberg Table schemas for the updated Hydrofabric v2.2 data model tables
-
-NOTE - THIS IS A WORK IN PROGRESS
-"""
+"""Contains the PyIceberg Table schemas for the NHF data model tables"""
 
 import pyarrow as pa
 from pyiceberg.schema import Schema

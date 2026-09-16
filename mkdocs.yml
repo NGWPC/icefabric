@@ -59,7 +59,9 @@ nav:
   - User Guide:
     - user_guide/index.md
     - API: user_guide/icefabric_api.md
+    - Deployment: user_guide/deployment.md
     - Building Iceberg Tables: user_guide/iceberg_table_build.md
+    - Updating Iceberg Catalog: user_guide/catalog_update.md
     - Tools: user_guide/icefabric_tools.md
     - Terraform S3 Glue Endpoint: user_guide/terraform.md
   - Data Support:

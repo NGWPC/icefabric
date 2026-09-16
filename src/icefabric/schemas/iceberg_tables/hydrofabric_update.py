@@ -6,7 +6,7 @@ NOTE - THIS IS A WORK IN PROGRESS
 
 import pyarrow as pa
 from pyiceberg.schema import Schema
-from pyiceberg.types import BinaryType, DoubleType, FloatType, LongType, NestedField, StringType
+from pyiceberg.types import BinaryType, BooleanType, DoubleType, FloatType, LongType, NestedField, StringType
 
 
 class Divides:
@@ -1542,6 +1542,8 @@ class Lakes:
             "reservoir_index_Short_Range",
             "dam_id",
             "nidid",
+            "source",
+            "run_of_river",
             "geometry",
         ]
 
@@ -1576,6 +1578,8 @@ class Lakes:
             "Reservoir index for Short Range configuration",
             "Dam identifier",
             "National Inventory of Dams identifier",
+            "source",
+            "run_of_river",
             "Spatial Geometry (POINT format) - stored in WKB binary format",
         ]
         return Schema(
@@ -1606,7 +1610,9 @@ class Lakes:
             NestedField(25, "reservoir_index_Short_Range", DoubleType(), required=False, doc=desc[24]),
             NestedField(26, "dam_id", StringType(), required=False, doc=desc[25]),
             NestedField(27, "nidid", StringType(), required=False, doc=desc[26]),
-            NestedField(28, "geometry", BinaryType(), required=False, doc=desc[27]),
+            NestedField(28, "source", StringType(), required=False, doc=desc[27]),
+            NestedField(29, "run_of_river", BooleanType(), required=False, doc=desc[28]),
+            NestedField(30, "geometry", BinaryType(), required=False, doc=desc[29]),
             identifier_field_ids=[1],
         )
 
@@ -1642,6 +1648,8 @@ class Lakes:
                 pa.field("reservoir_index_Short_Range", pa.float64(), nullable=True),
                 pa.field("dam_id", pa.string(), nullable=True),
                 pa.field("nidid", pa.string(), nullable=True),
+                pa.field("source", pa.string(), nullable=True),
+                pa.field("run_of_river", pa.bool_(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
             ]
         )
@@ -1841,7 +1849,7 @@ class ReservoirDA:
     @classmethod
     def columns(cls) -> list[str]:
         """Return the columns associated with the reservoir drainage-area schema."""
-        return ["nhf_lake_id", "lake_id", "site_no", "da_type"]
+        return ["nhf_lake_id", "lake_id", "site_no", "da_type", "run_of_river"]
 
     @classmethod
     def schema(cls) -> Schema:
@@ -1851,6 +1859,9 @@ class ReservoirDA:
             NestedField(2, "lake_id", StringType(), required=True, doc="Source lake identifier"),
             NestedField(3, "site_no", StringType(), required=False, doc="Associated gage site number"),
             NestedField(4, "da_type", LongType(), required=False, doc="Drainage-area type"),
+            NestedField(
+                4, "run_of_river", BooleanType(), required=False, doc="Run of river channel routing flag"
+            ),
             identifier_field_ids=[1],
         )
 
@@ -1863,6 +1874,7 @@ class ReservoirDA:
                 pa.field("lake_id", pa.string(), nullable=False),
                 pa.field("site_no", pa.string(), nullable=True),
                 pa.field("da_type", pa.int64(), nullable=True),
+                pa.field("run_of_river", pa.bool_(), nullable=True),
             ]
         )
 

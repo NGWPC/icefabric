@@ -402,7 +402,7 @@ def generate_subset_from_ids(
             "reference_flowpaths",
             "hydrolocations",
             "nhd",
-            "reservoir_da",
+            # "reservoir_da", # NOTE: Handled below
             "lake_vfp_crosswalk",
         ]
         conn = sqlite3.connect(subset_file)
@@ -410,6 +410,14 @@ def generate_subset_from_ids(
             logger.debug(f"  {name}: {len(output[name])} rows")
             output[name].to_sql(name, conn, if_exists="replace", index=False)
         conn.close()
+
+        # NOTE: reservoir_da has a boolean column ('run_of_river') that cannot be properly written with sqlite3
+        # however, as this was discovered at the end of development, I am leaving the other layers written with
+        # sqlite to minimize changes to code in case that the engine writes other datatypes differently than ngen
+        # is expecting
+        gpd.GeoDataFrame(output["reservoir_da"]).to_file(
+            subset_file, layer="reservoir_da", overwrite=True, driver="GPKG"
+        )
 
     return output
 
@@ -575,7 +583,7 @@ def generate_subset_virtual_only(
             "reference_flowpaths",
             "hydrolocations",
             "nhd",
-            "reservoir_da",
+            # "reservoir_da", # NOTE: Handled below
             "lake_vfp_crosswalk",
         ]
         conn = sqlite3.connect(subset_file)
@@ -583,6 +591,14 @@ def generate_subset_virtual_only(
             logger.debug(f"  {name}: {len(output[name])} rows")
             output[name].to_sql(name, conn, if_exists="replace", index=False)
         conn.close()
+
+        # NOTE: reservoir_da has a boolean column ('run_of_river') that cannot be properly written with sqlite3
+        # however, as this was discovered at the end of development, I am leaving the other layers written with
+        # sqlite to minimize changes to code in case that the engine writes other datatypes differently than ngen
+        # is expecting
+        gpd.GeoDataFrame(output["reservoir_da"]).to_file(
+            subset_file, layer="reservoir_da", overwrite=True, driver="GPKG"
+        )
 
     return output
 

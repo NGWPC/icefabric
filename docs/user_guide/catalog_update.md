@@ -29,6 +29,7 @@
      --release-tag nhf_1_2_2 \
      --backup-manifest output/conus_nhf_pre_nhf_1_2_2.json
    ```
+   Replace 1_2_2 with major_minor_patch version.
 
    Note: `--require-all` is appropriate for domains expected to contain every
    supported layer, such as CONUS. Omit it for domains that legitimately lack
@@ -36,7 +37,7 @@
 
   The script will:
    - Create a backup manifest.The manifest's recorded snapshot can be used to rollback or for more manual schema/catalog recovery if necessary.
-   - Tag existing snapshots as `pre_nhf_1_2_2`.
+   - Tag existing snapshots as `pre_nhf_major_minor_patch` e.g. `pre_nhf_1_2_2`
    - Synchronize compatible schema changes.
    - Overwrite each supplied table without purging its history.
    - Record the new release snapshots.

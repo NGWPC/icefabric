@@ -15,12 +15,14 @@ source .venv/bin/activate
 
 ### Local Catalog (Full S3 Iceberg/Icechunk Archive)
 
-To run the API connected to a local iceberg catalog/icechunk data, which has been extracted from an archive file synced from S3, please:
+To run the API connected to a local iceberg catalog/icechunk data, which has been extracted from an archive file synced from S3:
 
 1\. Authenticate into an AWS profile that has access to the `ngwpc-data` S3 bucket using the command:
 `aws sso login --profile your-profile-name`
 
 If you haven't created a profile linked to the NGWPC Data AWS account please use the `aws configure sso` command using information associated with the NGWPC Data AWS account. Further instructions can be found at: https://d-90678ba0c3.awsapps.com/start/#/
+
+You need AWS CLI 2.x. At time of writing this is not the version stored in the apt repository so build it from the AWS source.
 
 2\. Run the following shell script to download the archived catalog, extract it, build the api, dashboard, and nginx docker images, and run docker compose up:
 

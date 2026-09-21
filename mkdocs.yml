@@ -59,7 +59,9 @@ nav:
   - User Guide:
     - user_guide/index.md
     - API: user_guide/icefabric_api.md
+    - Deployment: user_guide/deployment.md
     - Building Iceberg Tables: user_guide/iceberg_table_build.md
+    - Updating Iceberg Catalog: user_guide/catalog_update.md
     - Tools: user_guide/icefabric_tools.md
     - Terraform S3 Glue Endpoint: user_guide/terraform.md
   - Data Support:
@@ -68,6 +70,7 @@ nav:
     - RAS XS: datasets/ras_xs.md
   - Module Support:
     - modules/index.md
+    - CFE: modules/cfe.md
     - SFT: modules/sft.md
     - SNOW-17: modules/snow17.md
     - SMP: modules/smp.md
@@ -76,7 +79,36 @@ nav:
     - Noah-OWP-Modular: modules/noahowp.md
     - SAC-SMA: modules/sacsma.md
     - T-Route: modules/troute.md
+    - Topoflow: modules/topoflow.md
     - TOPMODEL: modules/topmodel.md
+    - UEB: modules/ueb.md
+  - Schemas:
+    - National Hydrofabric (NHF):
+      - Divides: schemas/nhf/divides.md
+      - Flowpaths: schemas/nhf/flowpaths.md
+      - Nexus: schemas/nhf/nexus.md
+      - Reference Flowpaths: schemas/nhf/reference_flowpaths.md
+      - Waterbodies: schemas/nhf/waterbodies.md
+      - Gages: schemas/nhf/gages.md
+      - Virtual Flowpaths: schemas/nhf/virtual_flowpaths.md
+      - Virtual Nexus: schemas/nhf/virtual_nexus.md
+      - Lakes: schemas/nhf/lakes.md
+      - Hydrolocations: schemas/nhf/hydrolocations.md
+      - NHD: schemas/nhf/nhd.md
+      - Lakes Polygons: schemas/nhf/lakes_polygons.md
+      - Reservoir DA: schemas/nhf/reservoir_da.md
+      - Lake VFP Crosswalk: schemas/nhf/lake_vfp_crosswalk.md
+    - Hydrofabric v2.2:
+      - DivideAttributes: schemas/hf_v22/divide_attributes.md
+      - Divides: schemas/hf_v22/divides.md
+      - FlowpathAttributes: schemas/hf_v22/flowpath_attributes.md
+      - FlowpathAttributesML: schemas/hf_v22/flowpath_attributes_ml.md
+      - Flowpaths: schemas/hf_v22/flowpaths.md
+      - Hydrolocations: schemas/hf_v22/hydrolocations.md
+      - Lakes: schemas/hf_v22/lakes.md
+      - Network: schemas/hf_v22/network.md
+      - Nexus: schemas/hf_v22/nexus.md
+      - POIs: schemas/hf_v22/pois.md
   - Dashboard:
     - dashboard-docs/index.md
     - Overview: dashboard-docs/overview.md

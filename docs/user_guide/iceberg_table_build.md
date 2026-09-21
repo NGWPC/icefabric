@@ -4,7 +4,7 @@ The Icefabric API is a FastAPI-based service that provides access to EDFS data s
 
 ## Loading the Catalog
 
-The Icefabric API data is stored in both Apache Iceberg & Icechunk. Depending on how the app is started up, the API can point to either the AWS-hosted Glue catalog, or a local SQLite-backed catalog. When creating new tables for the Iceberg catalog, you should load and specify which backend you'll be using.
+The Icefabric API data is stored in both Apache Iceberg & Icechunk. Depending on how the app is started up, the API can point to either the AWS-hosted Glue catalog, or a local catalog pulled down from an S3 archive.
 
 ### AWS Glue Catalog
 
@@ -22,34 +22,6 @@ catalog = load_catalog("glue")
 ```
 
 The resulting `catalog` variable is a `pyiceberg.catalog.Catalog` object that will allow modifications/additions to the defined catalog.
-
-### Local SQLite Catalog
-
-To run the API locally against a local catalog, the catalog must first be exported from glue. Then run the build script, and flag as many catalog namespaces as you need from the Glue catalog. Ensure your `.env` file in your project root has the right credentials (`test`), as with the Glue method directly above.
-
-Running the following in a bash terminal will copy down the SQLite catalog from the Glue catalog:
-
-```sh
-uv sync
-source .venv/bin/activate
-python tools/pyiceberg/export_catalog.py --namespace conus_hf
-# Run additional tool times with other namespaces as necessary
-```
-
-The SQLite catalog will be located locally in the directory defined in the `<project_root>/.pyiceberg.yaml` file. Default is `<project_root>/tmp/warehouse`
-
-You can load up the SQLite catalog much like the Glue catalog:
-
-```python
-from dotenv import load_dotenv
-from pyiceberg.catalog import load_catalog
-
-# Loads credentials from .env in the project root
-load_dotenv()
-
-# Load the SQLite catalog
-catalog = load_catalog("sql")
-```
 
 ## Building a Table
 

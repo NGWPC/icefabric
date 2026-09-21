@@ -20,11 +20,19 @@ source .venv/bin/activate
 ```
 Note: Functionality is split into `optional-dependencies` in `pyproject.toml`. If you only require base functionality, install as `uv sync`. If you require some extras (e.g. `icechunk`, `io`), you can specify `uv sync --extra icechunk --extra io` as needed. For local develpoment, `--all-extras` is recommended for complete functionality.
 
+### Development
+To ensure that icefabric follows the specified structure, be sure to install the local dev dependencies and run `pre-commit install`
+
 ### Running/deploying the services
+The following sections detail how to:
 
-The following sections detail how to run the Icefabric services locally (standalone) as well as how to build/deploy them through Docker (either standalone or together behind an nginx reverse-proxy)
+- Run the Icefabric API locally (standalone)
+- Deploy the API/Dashboard through a script that pulls down an S3 catalog archive, then spins up a unified docker setup routed behind an nginx proxy
 
-#### Running the API locally connected to the test or OE environment catalog
+For full information on API deployment, please see the full [user guide API deploy info page.](./docs/user_guide/deployment.md)
+For full information on Streamlit Dashboard deployment, please see the [dashboard deploy info page.](./docs/dashboard-docs/running.md)
+
+#### Running the API locally standalone
 To run the API locally, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog) in your project root has the right credentials, then run
 
 ```sh
@@ -42,101 +50,21 @@ python -m app.main --catalog glue --deploy-env test
 python -m app.main --catalog glue --deploy-env prod
 ```
 
-If you are running the API locally, you can run
+##### SQL catalog deploy
+
+If you are running the API locally (SQL) you first need to localize the Iceberg and Icechunk stores from S3. Information on this can be found in the User Guide - [details here](./docs/user_guide/icefabric_tools.md#localize-glue-catalog).
+
+With the local SQL catalog created, run:
 
 ```sh
 python -m app.main --catalog sql
 ```
 
-#### Building/deploying the API locally connected to the test or OE environment catalog through Docker
-To run the API locally with Docker, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog) in your project root has the right credentials, then run the `compose.sh` wrapper script to spin up the dashboard::
-```sh
-# Build
-docker compose -f docker/compose.yaml build api --no-cache
-
-# Run
-./compose.sh api
-```
-
-To specify the deploy environment/iceberg catalog used (test or production (OE)), pass it in as an argument to the wrapper script:
-
-```sh
-# Test deploy (default)
-./compose.sh api test
-# Prod (OE) deploy
-./compose.sh api prod
-```
-
-#### Running the dashboard locally connected to the test or OE environment catalog
-
-Besides the API, Icefabric also includes a frontend dashboard to interact with the Hydrofabric. The dashboard is implemented through `streamlit`.
-To run the dashboard locally, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog) in your project root has the right credentials (as with the API), then run:
-
-```sh
-uv run streamlit run app/streamlit/streamlit.py
-```
-
-The dashboard will spin up, and can be accessed in a browser at `http://localhost:8501`. Please note that the port number may change depending on availability. The command output will tell you the port number.
-
-To specify the deploy environment/iceberg catalog used (test or production (OE)), add a `deploy-env` flag to the run command. The flag should be formatted as `deploy-env=<value>`:
-
-```sh
-# Test deploy (default)
-uv run streamlit run app/streamlit/streamlit.py deploy-env=test
-# Prod (OE) deploy
-uv run streamlit run app/streamlit/streamlit.py deploy-env=prod
-```
-
-#### Building/deploying a local dashboard connected to the test or OE environment catalog through Docker
-To run just the Dashboard locally with Docker, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog) in your project root has the right credentials, then run the `compose.sh` wrapper script to spin up the dashboard:
-```sh
-# Build
-docker compose -f docker/compose.yaml build dashboard --no-cache
-
-# Run
-./compose.sh dashboard
-```
-To specify the deploy environment/iceberg catalog used (test or production (OE)), pass it in as an argument to the wrapper script:
-
-```sh
-# Test deploy (default)
-./compose.sh dashboard test
-# Prod (OE) deploy
-./compose.sh dashboard prod
-```
-
-#### Full local deployment of icefabric connected to the test or OE environment glue catalogs
-
-To run the api and dashboard together, you can specify this to the docker compose wrapper script. The services will be routed behind an nginx reverse-proxy, with the underlying services only directly accessible from the localhost.
-
-The api will be accesible @ http://localhost:80/api
-
-The dashboard will be accesible @ http://localhost:80/dashboard
-
-ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog) in your project root has the right credentials, then run the `compose.sh` wrapper script to spin up everyting:
-
-```sh
-# Build
-docker compose -f docker/compose.yaml build --no-cache
-
-# Run
-./compose.sh full
-```
-
-To specify the deploy environment/iceberg catalog used (test or production (OE)), pass it in as an argument to the wrapper script:
-
-```sh
-# Test deploy (default)
-./compose.sh full test
-# Prod (OE) deploy
-./compose.sh full prod
-```
-
-#### Full local deployment of icefabric connected to a local catalog extracted from an archive file stored on S3
+#### Full API/dashboard local deployment (from archive file)
 
 To run the api and dashboard together connected to a local iceberg catalog and icechunk data that has been extracted from an archive file synced from S3 please:
 
-1\. authenticate into an AWS profile that has access to the `ngwpc-data` S3 bucket using the command:
+1\. Authenticate into an AWS profile that has access to the `ngwpc-data` S3 bucket using the command:
 `aws sso login --profile your-profile-name`
 
 If you haven't created a profile linked to the NGWPC Data AWS account please use the `aws configure sso` command using information associated with the NGWPC Data AWS account. Further instructions can be found at: https://d-90678ba0c3.awsapps.com/start/#/
@@ -147,14 +75,11 @@ If you haven't created a profile linked to the NGWPC Data AWS account please use
 docker/deploy_local.sh s3://ngwpc-data/icefabric_catalog_archive.tar {aws_profile}
 ```
 
-This process will take awhile (10-30 minutes) because we need to download ~40 GB of data, extract a large archive, build 3 docker images, and then wait for the api to spin up.
+This process will take a while (10-30 minutes) because we need to download ~40 GB of data, extract a large archive, build 3 docker images, and then wait for the api to spin up.
 
 The files will be saved to your `/var/tmp/`. If the both directories are present, the shell script will not re-download the archive. Delete `icefabric_local_catalog` and `icefabric_streamflow_obs` directories to force download.
 
 The shell script will update your `.env` file to have the appropriate file paths.
-
-### Development
-To ensure that icefabric follows the specified structure, be sure to install the local dev dependencies and run `pre-commit install`
 
 ### Documentation
 To build the user guide documentation for Icefabric locally, run the following commands:

@@ -12,42 +12,29 @@ An [Apache Iceberg](https://py.iceberg.apache.org/)/[Icechunk](https://icechunk.
 
 ### Getting Started
 This repo is managed through [UV](https://docs.astral.sh/uv/getting-started/installation/) and can be installed through:
+
 ```sh
 uv sync --all-extras
 source .venv/bin/activate
 ```
+
 Note: Functionality is split into `optional-dependencies` in `pyproject.toml`. If you only require base functionality, install as `uv sync`. If you require some extras (e.g. `icechunk`, `io`), you can specify `uv sync --extra icechunk --extra io` as needed. For local develpoment, `--all-extras` is recommended for complete functionality.
 
-### Running the API locally
-To run the API locally, ensure your `.env` file in your project root has the right credentials, then run
-```sh
-python -m app.main
-```
-This should spin up the API services at `localhost:8000/`.
+### Deployment
 
-If you are running the API locally, you can run
-```sh
-python -m app.main --catalog sql
-```
-
-### Building the API through Docker
-To run the API locally with Docker, ensure your `.env` file in your project root has the right credentials, then run
-```sh
-docker compose -f docker/compose.yaml build --no-cache
-docker compose -f docker/compose.yaml up
-```
-This should spin up the API services
-
+You can run the API either locally or against the AWS Glue catalog. Please see the full [deployment information page.](./user_guide/deployment.md)
 
 ### Development
 To ensure that icefabric follows the specified structure, be sure to install the local dev dependencies and run `pre-commit install`
 
 ### Documentation
 To build the user guide documentation for Icefabric locally, run the following commands:
+
 ```sh
 uv sync --extra docs
 mkdocs serve -a localhost:8080
 ```
+
 Docs will be spun up at localhost:8080/
 
 ### Pytests

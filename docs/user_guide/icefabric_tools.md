@@ -2,6 +2,40 @@
 
 A series of compute services built on top of version controlled EDFS data
 
+## Localize Glue Catalog
+
+### Overview
+
+Script located at `tools/local_catalog_sync.py` - downloads the Icefabric catalog from S3 and rewrites paths for local use.
+
+!!! warning "Important"
+    To run this tool, your AWS test account credentials need to be in your `.env` file. The `.env` file is used for interacting with the test environment (`.prod.env` for the production environment.)
+
+### Usage
+
+Simply run the python script as-is - no options or flags to set. The script will pull down the Glue catalog from S3 and save the catalog locally. This local catalog can then be archived/imaged for later use. The path to the new warehouse will be `/tmp/icefabric_local_catalog/warehouse`:
+
+```sh
+uv run python tools/local_catalog_sync.py
+```
+
+## Localize Icechunk (Streamflow) Store
+
+### Overview
+
+Script located at `tools/localize_streamflow.py` - downloads the Icechunk store from S3 to the local filesystem.
+
+!!! warning "Important"
+    To run this tool, your AWS test account credentials need to be in your `.env` file. The `.env` file is used for interacting with the test environment (`.prod.env` for the production environment.)
+
+### Usage
+
+As with localizing the Glue catalog, run the python script as-is. The script will save the Icechunk store locally. The path to the new local icechunk store will be `/tmp/icefabric_streamflow_obs`:
+
+```sh
+uv run python tools/localize_streamflow.py
+```
+
 ## Hydrofabric Geospatial Tools
 
 ### Overview

@@ -13,48 +13,6 @@ The API consists of several key components:
    - **RISE Wrapper API** - Also has a wrapper API to the RISE API from the Bureau of Reclamation
 3. **Apache Iceberg Backend** - Defaults to hosted AWS Glue catalog. Local SQLite-backed catalog may be built using instructions below.
 
-### Running the API locally
-To run the API locally, ensure your `.env` file in your project root has the right credentials (`test`), then run
-```sh
-uv sync
-source .venv/bin/activate
-python -m app.main
-```
-This should spin up the API services at `localhost:8000/`
-
-### Building the API through Docker
-To run the API locally with Docker, ensure your `.env` file in your project root has the right credentials, then run
-```sh
-docker compose -f docker/compose.yaml build --no-cache
-docker compose -f docker/compose.yaml up
-```
-This should spin up the API services
-
-### Running the API with a local Iceberg catalog - Advanced Use
-To run the API locally against a local catalog, the catalog must first be exported from glue. In the following code block, run build script for as many catalog namespaces as you need. Ensure your `.env` file in your project root has the right credentials (`test`), then run
-```sh
-uv sync
-source .venv/bin/activate
-python tools/pyiceberg/export_catalog.py --namespace conus_hf
-# Run additional tool times with other namespaces as necessary
-```
-
-To view the namespaces hosted on glue, you can run the following commands in the terminal:
-```python
->>> from pyiceberg.catalog import load_catalog
->>> catalog = load_catalog("glue")
->>> catalog.list_namespaces()
-```
-
-
-To run the API locally with a local SQL backend, ensure your `.env` file in your project root has the right credentials (`test`), then run
-```sh
-uv sync
-source .venv/bin/activate
-python -m app.main --catalog sql
-```
-This should spin up the API services
-
 ## How It Works
 
 ### Data Flow
@@ -80,14 +38,12 @@ Provides geospatial watershed data:
 - **Subset Generation** - Creates upstream watershed subsets from identifiers
 - **History** - Gets the iceberg snapshot history for a specific domain namespace
 
-!!! note "Data Storage"
-    All data is stored remotely as Apache Iceberg tables on AWS glue unless you built the catalog locally. Then, it is stored at SQLite-backed catalog locally built at `/tmp/warehouse/pyiceberg_catalog.db`
-
 ### National Water Model Modules
 Retrieve National Water Model (NWM) module parameters.
 
 Currently supports:
 
+- **CFE (Conceptual Functional Equivalent)** - Retrieve parameters for the Conceptual Functional Equivalent module
 - **SFT (Soil Freeze-Thaw)** - Retrieve parameters for the Soil Freeze-Thaw module
 - **SNOW-17 (Snow Accumulation and Ablation Model)** - Retrieve parameters for the Snow Accumulation and Ablation Model module
 - **SMP (Soil Moisture Profile)** - Retrieve parameters for the Soil Moisture Profile module
@@ -96,18 +52,18 @@ Currently supports:
 - **Noah-OWP-Modular** - Retrieve parameters for the Noah-OWP-Modular module
 - **SAC-SMA (Sacramento Soil Moisture Accounting)** - Retrieve parameters for the Sacramento Soil Moisture Accounting module
 - **T-Route (Tree-Based Channel Routing)** - Retrieve parameters for the Tree-Based Channel Routing module
+- **TopoFlow** - Retrieve parameters for the TopoFlow module
 - **TOPMODEL** - Retrieve parameters for the TOPMODEL module
-
-#### Other
-
-- **TopoFlow-Glacier Albedo** - Return TopoFlow-Glacier albedo value for given catchment state (snow, ice, or other)
+- **UEB (Utah Energy Balance)** - Retrieve parameters for the Utah Energy Balance module
 
 ### RAS Cross-sections
 Retrieves geopackage data of HEC-RAS cross-sections. The cross-sectional data is in two schemas:
+
 - **Conflated**: HEC-RAS data mapped to nearest reference hydrofabric flowpath. Many per flowpath ID.
 - **Representative**: The median, representative, cross-sections - derived from the conflated data set. As such, there is one per reference hydrofabric flowpath ID.
 
 Currently supports the following query types (both can retrieve data from either conflated or representative datasets):
+
 - **Flowpath ID**: Download a geopackage for given flowpath ID.
 - **Geospatial Query**: Download a geopackage that contains every instance of XS line-data inside a provided lat/lon bounding box.
 
@@ -235,18 +191,6 @@ gdf.explore(m=ref_flo_ex, color="black")
 | < 50,000 records | CSV | Simple, widely supported |
 | > 50,000 records | Parquet | Better compression, faster processing |
 | > 200,000 records | Parquet + date filters | Reduced data transfer |
-
-## Development
-
-### Running the API
-
-```bash
-# Install dependencies
-uv sync
-
-# Start development server
-python -m app.main
-```
 
 ## API Documentation
 

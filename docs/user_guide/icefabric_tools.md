@@ -6,7 +6,10 @@ A series of compute services built on top of version controlled EDFS data
 
 ### Overview
 
-Script located at `tools/local_catalog_sync.py` - downloads the Icefabric catalog from S3 and rewrites paths for local use
+Script located at `tools/local_catalog_sync.py` - downloads the Icefabric catalog from S3 and rewrites paths for local use.
+
+!!! warning "Important"
+    To run this tool, your AWS test account credentials need to be in your `.env` file. The `.env` file is used for interacting with the test environment (`.prod.env` for the production environment.)
 
 ### Usage
 
@@ -20,7 +23,10 @@ uv run python tools/local_catalog_sync.py
 
 ### Overview
 
-Script located at `tools/localize_streamflow.py` - downloads the Icechunk store from S3 to the local filesystem
+Script located at `tools/localize_streamflow.py` - downloads the Icechunk store from S3 to the local filesystem.
+
+!!! warning "Important"
+    To run this tool, your AWS test account credentials need to be in your `.env` file. The `.env` file is used for interacting with the test environment (`.prod.env` for the production environment.)
 
 ### Usage
 

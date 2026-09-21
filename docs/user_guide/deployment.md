@@ -38,7 +38,7 @@ The api will be accesible @ `http://localhost:80/api`
 
 The dashboard will be accesible @ `http://localhost:80/dashboard`
 
-## Running with Glue Catalog
+## Running with Glue/SQL Catalog
 
 ### Running Straight from Source
 
@@ -57,6 +57,16 @@ To specify the deploy environment/iceberg catalog used (test or production (OE))
 python -m app.main --catalog glue --deploy-env test
 # Prod
 python -m app.main --catalog glue --deploy-env prod
+```
+
+#### SQL Catalog Deploy
+
+If you are running the API locally (SQL) you first need to localize the Iceberg and Icechunk stores from S3. Information on this can be found in the `Tools` section of the User Guide - [details here](./icefabric_tools.md#localize-glue-catalog).
+
+With the local SQL catalog created, run:
+
+```sh
+python -m app.main --catalog sql
 ```
 
 ### Building/Running the Docker Image
@@ -78,3 +88,7 @@ To specify the deploy environment/iceberg catalog used (test or production (OE))
 # Prod (OE) deploy
 ./compose.sh api prod
 ```
+
+## Dashboard Deploy
+
+For information specifically on deploying the Streamlit Dashboad, please check out the [documentation here.](../dashboard-docs/running.md)

@@ -1507,6 +1507,10 @@ class Lakes:
         Dam identifier
     nidid : str
         National Inventory of Dams identifier
+    source : str
+        data source of lake geometry
+    run_of_river : boolean
+        true if dam is a run of river dam
     geometry : binary
         Spatial Geometry (POINT format) - stored in WKB binary format
     """
@@ -1849,7 +1853,7 @@ class ReservoirDA:
     @classmethod
     def columns(cls) -> list[str]:
         """Return the columns associated with the reservoir drainage-area schema."""
-        return ["nhf_lake_id", "lake_id", "site_no", "da_type", "run_of_river"]
+        return ["nhf_lake_id", "lake_id", "site_no", "da_type"]
 
     @classmethod
     def schema(cls) -> Schema:
@@ -1859,9 +1863,6 @@ class ReservoirDA:
             NestedField(2, "lake_id", StringType(), required=True, doc="Source lake identifier"),
             NestedField(3, "site_no", StringType(), required=False, doc="Associated gage site number"),
             NestedField(4, "da_type", LongType(), required=False, doc="Drainage-area type"),
-            NestedField(
-                4, "run_of_river", BooleanType(), required=False, doc="Run of river channel routing flag"
-            ),
             identifier_field_ids=[1],
         )
 
@@ -1874,7 +1875,6 @@ class ReservoirDA:
                 pa.field("lake_id", pa.string(), nullable=False),
                 pa.field("site_no", pa.string(), nullable=True),
                 pa.field("da_type", pa.int64(), nullable=True),
-                pa.field("run_of_river", pa.bool_(), nullable=True),
             ]
         )
 

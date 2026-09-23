@@ -575,6 +575,7 @@ def generate_subset_virtual_only(
             "reference_flowpaths",
             "hydrolocations",
             "nhd",
+            "reservoir_da",
             "lake_vfp_crosswalk",
         ]
         conn = sqlite3.connect(subset_file)

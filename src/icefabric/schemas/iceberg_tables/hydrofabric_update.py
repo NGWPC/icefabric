@@ -2,7 +2,7 @@
 
 import pyarrow as pa
 from pyiceberg.schema import Schema
-from pyiceberg.types import BinaryType, DoubleType, FloatType, LongType, NestedField, StringType
+from pyiceberg.types import BinaryType, BooleanType, DoubleType, FloatType, LongType, NestedField, StringType
 
 
 class Divides:
@@ -1489,6 +1489,10 @@ class Lakes:
         Dam length
     ifd : float
         Initial flood depth
+    dam_crest_length_m : float
+        Dam crest length (meters) from NID dam_length
+    spillway_width_m : float
+        Spillway width (meters) from NID spillway_width
     reservoir_index_AnA : float
         Reservoir index for AnA configuration
     reservoir_index_Extended_AnA : float
@@ -1503,13 +1507,17 @@ class Lakes:
         Dam identifier
     nidid : str
         National Inventory of Dams identifier
+    source : str
+        data source of lake geometry
+    run_of_river : boolean
+        true if dam is a run of river dam
     geometry : binary
         Spatial Geometry (POINT format) - stored in WKB binary format
     """
 
     @classmethod
     def columns(cls) -> list[str]:
-        """Returns the columns associated with this schema."""
+        """Returns the columns associated with lakes schema."""
         return [
             "nhf_lake_id",
             "ref_fp_id",
@@ -1531,6 +1539,8 @@ class Lakes:
             "OrificeE",
             "Dam_Length",
             "ifd",
+            "dam_crest_length_m",
+            "spillway_width_m",
             "reservoir_index_AnA",
             "reservoir_index_Extended_AnA",
             "reservoir_index_GDL_AK",
@@ -1538,6 +1548,8 @@ class Lakes:
             "reservoir_index_Short_Range",
             "dam_id",
             "nidid",
+            "source",
+            "run_of_river",
             "geometry",
         ]
 
@@ -1565,6 +1577,8 @@ class Lakes:
             "Orifice elevation",
             "Dam length",
             "Initial flood depth",
+            "Dam crest length (meters) from NID dam_length",
+            "Spillway width (meters) from NID spillway_width",
             "Reservoir index for AnA configuration",
             "Reservoir index for Extended AnA configuration",
             "Reservoir index for GDL AK configuration",
@@ -1572,6 +1586,8 @@ class Lakes:
             "Reservoir index for Short Range configuration",
             "Dam identifier",
             "National Inventory of Dams identifier",
+            "Data source",
+            "Flagged true if run of river dam",
             "Spatial Geometry (POINT format) - stored in WKB binary format",
         ]
         return Schema(
@@ -1595,14 +1611,18 @@ class Lakes:
             NestedField(18, "OrificeE", DoubleType(), required=False, doc=desc[17]),
             NestedField(19, "Dam_Length", DoubleType(), required=False, doc=desc[18]),
             NestedField(20, "ifd", DoubleType(), required=False, doc=desc[19]),
-            NestedField(21, "reservoir_index_AnA", DoubleType(), required=False, doc=desc[20]),
-            NestedField(22, "reservoir_index_Extended_AnA", DoubleType(), required=False, doc=desc[21]),
-            NestedField(23, "reservoir_index_GDL_AK", DoubleType(), required=False, doc=desc[22]),
-            NestedField(24, "reservoir_index_Medium_Range", DoubleType(), required=False, doc=desc[23]),
-            NestedField(25, "reservoir_index_Short_Range", DoubleType(), required=False, doc=desc[24]),
-            NestedField(26, "dam_id", StringType(), required=False, doc=desc[25]),
-            NestedField(27, "nidid", StringType(), required=False, doc=desc[26]),
-            NestedField(28, "geometry", BinaryType(), required=False, doc=desc[27]),
+            NestedField(21, "dam_crest_length_m", DoubleType(), required=False, doc=desc[20]),
+            NestedField(22, "spillway_width_m", DoubleType(), required=False, doc=desc[21]),
+            NestedField(23, "reservoir_index_AnA", DoubleType(), required=False, doc=desc[22]),
+            NestedField(24, "reservoir_index_Extended_AnA", DoubleType(), required=False, doc=desc[23]),
+            NestedField(25, "reservoir_index_GDL_AK", DoubleType(), required=False, doc=desc[24]),
+            NestedField(26, "reservoir_index_Medium_Range", DoubleType(), required=False, doc=desc[25]),
+            NestedField(27, "reservoir_index_Short_Range", DoubleType(), required=False, doc=desc[26]),
+            NestedField(28, "dam_id", StringType(), required=False, doc=desc[27]),
+            NestedField(29, "nidid", StringType(), required=False, doc=desc[28]),
+            NestedField(30, "source", StringType(), required=False, doc=desc[29]),
+            NestedField(31, "run_of_river", BooleanType(), required=False, doc=desc[30]),
+            NestedField(32, "geometry", BinaryType(), required=False, doc=desc[31]),
             identifier_field_ids=[1],
         )
 
@@ -1631,6 +1651,8 @@ class Lakes:
                 pa.field("OrificeE", pa.float64(), nullable=True),
                 pa.field("Dam_Length", pa.float64(), nullable=True),
                 pa.field("ifd", pa.float64(), nullable=True),
+                pa.field("dam_crest_length_m", pa.float64(), nullable=True),
+                pa.field("spillway_width_m", pa.float64(), nullable=True),
                 pa.field("reservoir_index_AnA", pa.float64(), nullable=True),
                 pa.field("reservoir_index_Extended_AnA", pa.float64(), nullable=True),
                 pa.field("reservoir_index_GDL_AK", pa.float64(), nullable=True),
@@ -1638,6 +1660,8 @@ class Lakes:
                 pa.field("reservoir_index_Short_Range", pa.float64(), nullable=True),
                 pa.field("dam_id", pa.string(), nullable=True),
                 pa.field("nidid", pa.string(), nullable=True),
+                pa.field("source", pa.string(), nullable=True),
+                pa.field("run_of_river", pa.bool_(), nullable=True),
                 pa.field("geometry", pa.binary(), nullable=True),
             ]
         )

@@ -13,7 +13,9 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=Path, required=True, help="Output GeoPackage path")
 
     args = parser.parse_args()
-    _ = subset_nhf(
+    if args.catalog is False:
+        args.catalog = None
+    subset_nhf(
         flowpath_id=args.flowpath_id,
         gage_id=args.gage_id,
         vpu_id=args.vpu_id,

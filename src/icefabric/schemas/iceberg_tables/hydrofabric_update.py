@@ -1590,8 +1590,8 @@ class Lakes:
             "Reservoir index for Short Range configuration",
             "Dam identifier",
             "National Inventory of Dams identifier",
-            "source",
-            "run_of_river",
+            "Data source",
+            "Flagged true if run of river dam",
             "Spatial Geometry (POINT format) - stored in WKB binary format",
         ]
         return Schema(

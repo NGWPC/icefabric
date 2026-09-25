@@ -64,10 +64,6 @@ nav:
     - Updating Iceberg Catalog: user_guide/catalog_update.md
     - Tools: user_guide/icefabric_tools.md
     - Terraform S3 Glue Endpoint: user_guide/terraform.md
-  - Data Support:
-    - datasets/index.md
-    - Hydrofabric: datasets/hydrofabric.md
-    - RAS XS: datasets/ras_xs.md
   - Module Support:
     - modules/index.md
     - CFE: modules/cfe.md
@@ -110,6 +106,7 @@ nav:
       - Network: schemas/hf_v22/network.md
       - Nexus: schemas/hf_v22/nexus.md
       - POIs: schemas/hf_v22/pois.md
+    - RAS XS: schemas/ras_xs.md
   - Dashboard:
     - dashboard-docs/index.md
     - Overview: dashboard-docs/overview.md

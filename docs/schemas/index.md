@@ -1,3 +1,1 @@
- # Schemas
-
- Schemas for Hydrofabric 2.2 and NHF are found here.
+Schemas for Hydrofabric 2.2, NGWPC Hydrofabric, and RAS XS are found here.

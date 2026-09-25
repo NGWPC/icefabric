@@ -103,7 +103,7 @@ Smoke tests validate the deployed test API. These tests are skipped when the `AP
 
 To run smoke tests against a deployed environment:
 ```sh
-export API_BASE_URL="http://edfs.test.nextgenwaterprediction.com:8000/"
+export API_BASE_URL="[url]/api""
 uv run pytest tests/smoke/ -v
 ```
 

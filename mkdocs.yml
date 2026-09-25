@@ -83,7 +83,8 @@ nav:
     - TOPMODEL: modules/topmodel.md
     - UEB: modules/ueb.md
   - Schemas:
-    - National Hydrofabric (NHF):
+    - schemas/index.md
+    - NGWPC Hydrofabric (NHF):
       - Divides: schemas/nhf/divides.md
       - Flowpaths: schemas/nhf/flowpaths.md
       - Nexus: schemas/nhf/nexus.md

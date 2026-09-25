@@ -1,8 +1,5 @@
 # Welcome to Icefabric
 
-!!! warning "In Progress"
-    These docs are a work in progress and will continously be updated
-
 # Icefabric
 
 An [Apache Iceberg](https://py.iceberg.apache.org/)/[Icechunk](https://icechunk.io/en/latest/) implementation of the Hydrofabric to disseminate continental hydrologic data
@@ -18,7 +15,7 @@ uv sync --all-extras
 source .venv/bin/activate
 ```
 
-Note: Functionality is split into `optional-dependencies` in `pyproject.toml`. If you only require base functionality, install as `uv sync`. If you require some extras (e.g. `icechunk`, `io`), you can specify `uv sync --extra icechunk --extra io` as needed. For local develpoment, `--all-extras` is recommended for complete functionality.
+Note: Functionality is split into `optional-dependencies` in `pyproject.toml`. If you only require base functionality, install as `uv sync`. For local develpoment, `--all-extras` is recommended for complete functionality.
 
 ### Deployment
 
@@ -44,6 +41,17 @@ The `tests` folder is for all testing data so the global confest can pick it up.
 To run tests, run `pytest -s` from project root.
 
 To run the subsetter tests, run `pytest --run-slow` as these tests take some time. Otherwise, they will be skipped
+
+### Smoke Tests
+
+Smoke tests validate the deployed test API. These tests are skipped when the `API_BASE_URL` environment variable is not set, so they won't run during normal CI.
+
+To run smoke tests against a deployed environment:
+```sh
+export API_BASE_URL="[url]/api"
+uv run pytest tests/smoke/ -v
+```
+
 
 ### Streamlit Dashboard
 

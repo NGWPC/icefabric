@@ -64,12 +64,12 @@ python -m app.main --catalog sql
 
 To run the api and dashboard together connected to a local iceberg catalog and icechunk data that has been extracted from an archive file synced from S3 please:
 
-1\. Authenticate into an AWS profile that has access to the `ngwpc-data` S3 bucket using the command:
+1\. Authenticate into an AWS profile that has access to an S3 bucket with icefabric archive using the command:
 `aws sso login --profile your-profile-name`
 
-If you haven't created a profile linked to the NGWPC Data AWS account please use the `aws configure sso` command using information associated with the NGWPC Data AWS account. Further instructions can be found at: https://d-90678ba0c3.awsapps.com/start/#/
+If you haven't created a profile linked to the AWS account please use the `aws configure sso` command using information associated with the AWS account. Further instructions can be found at: https://d-90678ba0c3.awsapps.com/start/#/
 
-2\. Run the following shell script to download the archived catalog, extract it, build the api, dashboard, and nginx docker images, and run docker compose up:
+2\. Run the following shell script to download the archived catalog, extract it, build the api, dashboard, and nginx docker images, and run docker compose up. Replace the s3 with your s3 path:
 
 ```sh
 docker/deploy_local.sh s3://ngwpc-data/icefabric_catalog_archive.tar {aws_profile}
@@ -104,6 +104,12 @@ Smoke tests validate the deployed test API. These tests are skipped when the `AP
 To run smoke tests against a deployed environment:
 ```sh
 export API_BASE_URL="http://edfs.test.nextgenwaterprediction.com:8000/"
+uv run pytest tests/smoke/ -v
+```
+
+For local (note no / following api):
+```sh
+export API_BASE_URL="http://localhost:8000/api"
 uv run pytest tests/smoke/ -v
 ```
 

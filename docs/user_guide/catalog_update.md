@@ -1,5 +1,21 @@
 # Updating the Iceberg Catalog from an NHF GeoPackage
 
+This is a guide for updating NHF but can be adapted to other namespaces. For another namespace, follow the general rules and create a specific build script in the `tools/iceberg` folder. You will need a schema, parquets, and a build script.
+
+**Schema Change**
+
+If you are changing the schema (changing columns in a layer or adding a layer), go to `src/icefabric/schemas/hydrofabric_update.py` (this is NHF).
+For each layer, there is a class with the layer name.
+
+- Add the new columns to the field list in docstring
+- Add the columns to the `def columns` classmethod.
+- Add bew columns to the `def schema` classmethod. This is for pyiceberg. Add the description at the correct index in the list and add a `NestedField`. Note that the first argument is 1-indexed and the description arugment is 0-indexed (python list). Include the data type.
+- Add the columns to the `def arrow_schema` classmethod. These are `pa.field`. Use `pa` datatypes.
+
+If you are adding a layer, create a new class with the same pattern as the other layers. You also need to add it to `nhf_layers` in `src/icefabric/iceberg_table/__init__.py/nhf_layers`. These are the supported layers for when you convert from GPKG to parquet.
+
+When you run `build_nhf` in step 4 and the layer is present in the parquets, it will pick it up and add it to icefabric.
+
 1. **Configure credentials**
 
    Put Test AWS credentials in `.env` at the project root, or Production AWS
@@ -17,6 +33,7 @@
    Note: Make sure to use the NHF-specific converter rather than the HFv2.2 converter (`hf2.2_gpkg_to_parquet.py`).
 
 3. **Apply the Test update**
+   If using SQL, change `glue` to `sql`
 
    ```bash
    uv run python tools/iceberg/build_nhf.py \

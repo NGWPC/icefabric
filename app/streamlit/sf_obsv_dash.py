@@ -136,7 +136,7 @@ def show_sf_map(gage_id_user_sel):
         crs="EPSG:5070",
     ).to_crs(epsg=4326)
 
-    m = folium.Map(tiles=folium.TileLayer(tiles="Cartodb Positron", control=False))
+    m = folium.Map(tiles=folium.TileLayer(tiles="OpenStreetMap", control=False))
     minx, miny, maxx, maxy = dv_gdf.bounds.values.tolist()[0]
     m.fit_bounds([[miny, minx], [maxy, maxx]])
 

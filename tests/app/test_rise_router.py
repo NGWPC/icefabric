@@ -1,3 +1,5 @@
+"""RISE API NOT IN USE: LEAVING TESTS FOR ARCHIVE"""
+
 import json
 
 import httpx
@@ -16,6 +18,7 @@ RISE_TIMEOUT_CODE = 504
 RISE_UNAVAILABLE_CODE = 503
 
 
+@pytest.mark.skip(reason="RISE not used at this time")
 def _skip_if_rise_unavailable(response: httpx.Response) -> None:
     """Skip the test if RISE API is down or timing out."""
     if response.status_code == RISE_TIMEOUT_CODE:
@@ -24,6 +27,7 @@ def _skip_if_rise_unavailable(response: httpx.Response) -> None:
         pytest.skip("RISE API is unavailable (service unavailable)")
 
 
+@pytest.mark.skip(reason="RISE not used at this time")
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize("resource_type,id", list(zip(resources, good_ids, strict=False)))
@@ -38,6 +42,7 @@ async def test_get_item_by_id_good(client: TestClient, resource_type: str, id: s
     assert json.loads(response.text) == rise_direct_response["detail"]
 
 
+@pytest.mark.skip(reason="RISE not used at this time")
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize("resource_type,id", list(zip(resources, bad_ids, strict=False)))
@@ -52,6 +57,7 @@ async def test_get_item_by_id_bad(client: TestClient, resource_type: str, id: st
     assert json.loads(response.text)["detail"] == rise_direct_response["detail"]
 
 
+@pytest.mark.skip(reason="RISE not used at this time")
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize("resource_type", resources)
@@ -69,6 +75,7 @@ async def test_get_collection(client: TestClient, resource_type: str) -> None:
     assert json.loads(response.text)["data"] == rise_direct_response["detail"]["data"]
 
 
+@pytest.mark.skip(reason="RISE not used at this time")
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize("resource_type", resources)

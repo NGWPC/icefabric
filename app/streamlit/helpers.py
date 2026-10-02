@@ -142,7 +142,7 @@ def convert_for_download(gdf, tmp_path):
 def format_xs_map(_catalog, xs_gdf, domain):
     """Helper to create/format a folium map to display the cross-sectional data."""
     # Create base map
-    m = folium.Map(tiles=folium.TileLayer(tiles="Cartodb Positron", control=False), prefer_canvas=True)
+    m = folium.Map(tiles=folium.TileLayer(tiles="OpenStreetMap", control=False), prefer_canvas=True)
 
     # Format cross-sectional data
     ras_xs = xs_gdf.to_crs(epsg=4326)

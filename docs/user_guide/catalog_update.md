@@ -66,13 +66,7 @@ When you run `build_nhf` in step 4 and the layer is present in the parquets, it 
 
 5. **Repeat for additional namespaces for each domain**
 
-   For CONUS, update `conus_nhf` first as a canary. Then repeat the update with:
-
-   ```bash
-   --namespace nhf
-   ```
-
-   This updates the legacy conus namespace. All the other domains just have one namespace.
+   Repeat for each OCONUS namespace.
 
 ## Rollback
 

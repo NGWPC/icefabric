@@ -17,6 +17,7 @@ from app.streamlit.helpers import (
     STYLE_MAP,
 )
 from icefabric.hydrofabric.subset_nhf import (
+    HydrofabricNamespace,
     HydrofabricSource,
     resolve_gage_to_flowpath,
 )
@@ -117,10 +118,13 @@ def show_sf_map(gage_id_user_sel):
     nhf_flowpath_id = resolve_gage_to_flowpath(nhf_source, gage_id_user_sel)
 
     fp_df = (
-        catalog.load_table("nhf.flowpaths").to_polars().filter(pl.col("fp_id") == nhf_flowpath_id).collect()
+        catalog.load_table("conus_nhf.flowpaths")
+        .to_polars()
+        .filter(pl.col("fp_id") == nhf_flowpath_id)
+        .collect()
     )
     fp_id, div_id = fp_df["fp_id"][0], fp_df["div_id"][0]
-    dv_df = catalog.load_table("nhf.divides").to_polars().filter(pl.col("div_id") == div_id).collect()
+    dv_df = catalog.load_table("conus_nhf.divides").to_polars().filter(pl.col("div_id") == div_id).collect()
     st.markdown(f"### Map of Gage `{gage_id_user_sel}` Location (maps to flowpath ID `{fp_id}`)")
 
     fp_gdf = gpd.GeoDataFrame(
@@ -172,7 +176,7 @@ st.write("Please select a gage ID to view the streamflow observations and corres
 
 
 catalog = st.session_state.catalog
-nhf_source = HydrofabricSource(parquet_dir=None, catalog=catalog)
+nhf_source = HydrofabricSource(parquet_dir=None, catalog=catalog, namespace=HydrofabricNamespace.CONUS_NHF)
 # Get list of gage IDs for dropdown selection
 try:
     sf_obsv_ds, _ = get_all_sf_obsv()

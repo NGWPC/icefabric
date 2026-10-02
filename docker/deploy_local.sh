@@ -151,12 +151,12 @@ $DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d
 
 # --- Wait for health check ---
 echo "[INFO] Waiting for API to become healthy..."
-for i in $(seq 1 30); do
+for i in $(seq 1 60); do
     if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
         echo "[INFO] API is healthy!"
         break
     fi
-    if [[ $i -eq 30 ]]; then
+    if [[ $i -eq 60 ]]; then
         echo "[WARN] API health check timed out. Check logs with: $DOCKER_COMPOSE -f $COMPOSE_FILE logs api"
     fi
     sleep 2

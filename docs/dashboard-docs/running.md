@@ -49,7 +49,7 @@ To run the dashboard locally against a local Iceberg catalog and local Icechunk 
 For further information or troubleshooting, please reference [the script](https://github.com/NGWPC/icefabric/blob/main/docker/deploy_local.sh).
 
 !!! warning "Important"
-    The archive pulled from S3 is quite large. You will need ~100GB of free diskspace in the location where you are writing the archive. The script defaults to the root var/temp directory (`/var/tmp`)
+    The archive pulled from S3 is quite large. You will need ~100GB of free diskspace in the location where you are writing the archive. The script defaults to the root temp directory (`/tmp`)
 
 ## Building/deploying the Dashboard through Docker
 

@@ -66,7 +66,6 @@ nav:
     - Terraform S3 Glue Endpoint: user_guide/terraform.md
   - Data Support:
     - datasets/index.md
-    - Hydrofabric: datasets/hydrofabric.md
     - RAS XS: datasets/ras_xs.md
   - Module Support:
     - modules/index.md
@@ -83,7 +82,7 @@ nav:
     - TOPMODEL: modules/topmodel.md
     - UEB: modules/ueb.md
   - Schemas:
-    - National Hydrofabric (NHF):
+    - NGWPC Hydrofabric (NHF):
       - Divides: schemas/nhf/divides.md
       - Flowpaths: schemas/nhf/flowpaths.md
       - Nexus: schemas/nhf/nexus.md

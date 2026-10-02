@@ -1,8 +1,5 @@
 # Welcome to Icefabric
 
-!!! warning "In Progress"
-    These docs are a work in progress and will continously be updated
-
 # Icefabric
 
 An [Apache Iceberg](https://py.iceberg.apache.org/)/[Icechunk](https://icechunk.io/en/latest/) implementation of the Hydrofabric to disseminate continental hydrologic data

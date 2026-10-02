@@ -95,7 +95,7 @@ class HydrofabricSource:
         self,
         parquet_dir: Path | None = None,
         catalog: Catalog | None = None,
-        namespace: HydrofabricNamespace = HydrofabricNamespace.NHF,
+        namespace: HydrofabricNamespace = HydrofabricNamespace.CONUS_NHF,
     ):
         self.parquet_dir = parquet_dir
         self.catalog = catalog

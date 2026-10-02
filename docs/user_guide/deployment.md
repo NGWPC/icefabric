@@ -69,6 +69,9 @@ With the local SQL catalog created, run:
 python -m app.main --catalog sql
 ```
 
+!!! note
+    To run any of the functions in this repo your AWS test account credentials + `AWS_DEFAULT_REGION="us-east-1"` need to be in your `.env` file and your `.pyiceberg.yaml` settings need to up to date
+
 ### Building/Running the Docker Image
 
 To run the API locally with Docker, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog) in your project root has the right credentials, then build with `docker compose`, followed by running the image with the `compose.sh` wrapper script:

@@ -1,49 +1,98 @@
-# Welcome to Icefabric
+# Icefabric: Lakehouse Architecture for Hydrologic Data Management
 
-# Icefabric
+<figure markdown="span">
+  ![Icefabric version controlling system](img/icefabric_version.png){ width="600" }
+  <figcaption>The icefabric lake house architecture. Data is moved from sources to an underlying specificed format (iceberg/icechunk) and queried to consumers via APIs and services.</figcaption>
+</figure>
 
-An [Apache Iceberg](https://py.iceberg.apache.org/)/[Icechunk](https://icechunk.io/en/latest/) implementation of the Hydrofabric to disseminate continental hydrologic data
 
-!!! note
-    To run any of the functions in this repo your AWS test account credentials + `AWS_DEFAULT_REGION="us-east-1"` need to be in your `.env` file and your `.pyiceberg.yaml` settings need to up to date
+## Overview
 
-### Getting Started
-This repo is managed through [UV](https://docs.astral.sh/uv/getting-started/installation/) and can be installed through:
+Icefabric implements a modern **lakehouse architecture** to combine the flexibility of data lakes with the performance and governance of data warehouse. This system provides versioned, centralized access to hydrologic datasets to support the National Water Model.
 
-```sh
-uv sync --all-extras
-source .venv/bin/activate
-```
+## The Problem: Hydrologic Data Complexity
 
-Note: Functionality is split into `optional-dependencies` in `pyproject.toml`. If you only require base functionality, install as `uv sync`. If you require some extras (e.g. `icechunk`, `io`), you can specify `uv sync --extra icechunk --extra io` as needed. For local develpoment, `--all-extras` is recommended for complete functionality.
+### Traditional Challenges
 
-### Deployment
+Hydrologic research and operations face unique data management challenges:
 
-You can run the API either locally or against the AWS Glue catalog. Please see the full [deployment information page.](./user_guide/deployment.md)
+- **Heterogeneous Data Sources**: Datasets are sourced from different agencies in various formats
+- **Multiple Formats**: Tabular, vectorized, COGs, etc
+- **Version Control Needs**: Hydrofabric topology updates, data quality improvements, and research reproducibility
 
-### Development
-To ensure that icefabric follows the specified structure, be sure to install the local dev dependencies and run `pre-commit install`
+### Why Traditional Solutions Fall Short
 
-### Documentation
-To build the user guide documentation for Icefabric locally, run the following commands:
+**Traditional database systems** struggle with:
 
-```sh
-uv sync --extra docs
-mkdocs serve -a localhost:8080
-```
+- Large geospatial datasets and complex geometries
+- Schema evolution for evolving datasets
+- Version control for scientific workflows
 
-Docs will be spun up at localhost:8080/
+**File-based approaches** suffer from:
 
-### Pytests
+- Data duplication and storage inefficiencies
+- Lack of ACID transactions
+- Manual version management
+- Limited discovery and access controls
 
-The `tests` folder is for all testing data so the global confest can pick it up. This allows all tests in the namespace packages to share the same scope without having to reference one another in tests
+## Lakehouse Architecture Solution
 
-To run tests, run `pytest -s` from project root.
+### Technology Stack Rationale
 
-To run the subsetter tests, run `pytest --run-slow` as these tests take some time. Otherwise, they will be skipped
+=== "Apache Iceberg - Structured Data"
 
-### Streamlit Dashboard
+    **Used For:**
+    - Hydrofabric geospatial products
+    - Streamflow observations time series (USGS, Local Agencies)
+    - Cross-section geometries (RAS XS [MIP/BLE])
 
-Also included alongisde the API is the Icefabric Dashboard. The dashboard is a Streamlit-based frontend that works separately from the API. It allows users to explore, subset, and visualize hydrologic datasets stored in the Icefabric ecosystem.
+    **Why Iceberg:**
+    - **ACID Transactions**: Ensure data consistency during hydrofabric updates
+    - **Schema Evolution**: Handle network topology changes without breaking existing workflows
+    - **Time Travel**: Access historical network versions for model comparisons
+    - **Performance**: Optimized queries across continental-scale datasets
+    - **Partition Pruning**: Efficient spatial and temporal filtering
 
-Further info can be found [here](./dashboard-docs/index.md).
+=== "Icechunk - Array Data"
+
+    **Used For:**
+    - Topobathy elevation surfaces
+    - Land cover classifications
+
+    **Why Icechunk:**
+    - **Virtual References**: Avoid duplicating large raster datasets
+    - **Zarr Compatibility**: Seamless integration with scientific Python ecosystem
+    - **Git-like Versioning**: Branch/merge workflows for experimental processing
+    - **Chunked Storage**: Optimized for geospatial access patterns
+    - **Compression**: Efficient storage of repetitive classification data
+
+## Benefits Realized
+
+### For Hydrologic Research
+
+- **Reproducible Science**: Exact data versions enable repeatable research
+- **Collaborative Workflows**: Branching enables parallel research without conflicts
+- **Quality Evolution**: Track data quality improvements over time
+
+### For Operational Forecasting
+
+- **Consistent Baselines**: Stable data versions for operational model runs
+- **Real-time Integration**: Fast access to latest observations and forecasts
+- **Rollback Capabilities**: Quick recovery from data quality issues
+
+### For Data Management
+
+- **Access Unification**: Single API for diverse hydrologic data types
+- **Version Management**: Automated tracking eliminates manual version confusion
+- **Quality Assurance**: Built-in validation prevents bad data propagation
+
+## Conclusion
+
+The Icefabric lakehouse architecture addresses fundamental challenges in hydrologic data management through:
+
+1. **Unified Access**: Single interface for diverse water data sources
+3. **Version Control**: Git-like workflows for scientific data management
+4. **Quality Assurance**: Automated validation and lineage tracking
+6. **Research Support**: Reproducible environments for collaborative science
+
+This architecture enables EDFS to provide reliable, versioned, high-performance access to critical water resources data supporting both operational forecasting and cutting-edge research.

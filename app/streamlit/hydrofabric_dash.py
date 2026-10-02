@@ -20,6 +20,10 @@ from app.streamlit.tooltips import (
 )
 from icefabric.cli.streamflow import NoResultsFoundError
 from icefabric.hydrofabric import subset_nhf
+from icefabric.schemas.hydrofabric import (
+    HydrofabricNamespace,
+    HydrofabricSource,
+)
 
 st.session_state.TEMP_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -59,6 +63,7 @@ elif top_layer_control == "Subset Data":
             label="__Subset Method__", options=subset_types_display, selection_mode="single"
         )
         subset_user_sel = st.text_input(label="__ID__", value=None)
+        domain_user_sel = st.selectbox("Domain", ("CONUS", "Alaska", "Hawaii", "Puerto Rico/Virgin Islands"))
         subset_submit = st.form_submit_button("Submit")
         if subset_submit:
             submit_valid = validate_nhf_subset_query(subset_type, subset_user_sel)
@@ -68,7 +73,7 @@ elif top_layer_control == "Subset Data":
         subset_gpkg_file = (
             st.session_state.TEMP_OUTPUT_DIR
             / "nhf_subset_gpkg_files"
-            / f"nhf_subset_by_{subset_type.replace(' ', '_').lower()}_{subset_user_sel}.gpkg"
+            / f"nhf_subset_by_{subset_type.replace(' ', '_').lower()}_{subset_user_sel}_{domain_user_sel}.gpkg"
         )
         subset_successful = False
 
@@ -78,12 +83,41 @@ elif top_layer_control == "Subset Data":
                 with st.spinner(
                     f"**Subsetting hydrofabric ({subset_type} {subset_user_sel})...**", show_time=True
                 ):
+                    # retrieve domain namespace
+                    try:
+                        namespace = HydrofabricNamespace.resolve(domain_user_sel, HydrofabricSource.NHF)
+                    except NotImplementedError:
+                        st.error(
+                            "ERROR - Domain not available",
+                            icon=":material/error:",
+                        )
+                    except ValueError:
+                        st.error(
+                            "ERROR - Invalid Domain request",
+                            icon=":material/error:",
+                        )
+
                     if subset_type == "Flowpath ID":
-                        subset_nhf(catalog=catalog, flowpath_id=subset_user_sel, output=subset_gpkg_file)
+                        subset_nhf(
+                            catalog=catalog,
+                            flowpath_id=subset_user_sel,
+                            namespace=namespace,
+                            output=subset_gpkg_file,
+                        )
                     elif subset_type == "Gage ID":
-                        subset_nhf(catalog=catalog, gage_id=subset_user_sel, output=subset_gpkg_file)
+                        subset_nhf(
+                            catalog=catalog,
+                            gage_id=subset_user_sel,
+                            namespace=namespace,
+                            output=subset_gpkg_file,
+                        )
                     elif subset_type == "VPU ID":
-                        subset_nhf(catalog=catalog, vpu_id=subset_user_sel, output=subset_gpkg_file)
+                        subset_nhf(
+                            catalog=catalog,
+                            vpu_id=subset_user_sel,
+                            namespace=namespace,
+                            output=subset_gpkg_file,
+                        )
 
                 post_transient_success_msg("Subsetting complete!")
                 subset_successful = True

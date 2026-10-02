@@ -93,7 +93,7 @@ def get_ras_xs_user_input():
                 with st.container(border=True):
                     m = folium.Map(
                         location=[39.8283, -98.5795],
-                        tiles=folium.TileLayer(tiles="Cartodb Positron", control=False),
+                        tiles=folium.TileLayer(tiles="OpenStreetMap", control=False),
                         zoom_start=4,
                         prefer_canvas=True,
                     )

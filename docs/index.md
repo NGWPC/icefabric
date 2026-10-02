@@ -1,98 +1,113 @@
-# Icefabric: Lakehouse Architecture for Hydrologic Data Management
 
-<figure markdown="span">
-  ![Icefabric version controlling system](img/icefabric_version.png){ width="600" }
-  <figcaption>The icefabric lake house architecture. Data is moved from sources to an underlying specificed format (iceberg/icechunk) and queried to consumers via APIs and services.</figcaption>
-</figure>
+# icefabric
 
 
-## Overview
+An [Apache Iceberg](https://py.iceberg.apache.org/) implementation of the Hydrofabric to disseminate continental hydrologic data
 
-Icefabric implements a modern **lakehouse architecture** to combine the flexibility of data lakes with the performance and governance of data warehouse. This system provides versioned, centralized access to hydrologic datasets to support the National Water Model.
+!!! note
+    To run any of the functions in this repo your AWS test account credentials need to be in your `.env` file and your `.pyiceberg.yaml` settings need to up to date with `AWS_DEFAULT_REGION="us-east-1"` set
+    The `.env` file is used for deploying to the test environment. A `.prod.env` file is used in-place of that if you're deploying to the production environment. By default, when not deploying locally, the test env/catalog is the default; prod needs to be specified when the API/dashboard is launched.
 
-## The Problem: Hydrologic Data Complexity
+### Getting Started
+This repo is managed through [UV](https://docs.astral.sh/uv/getting-started/installation/) and can be installed through:
+```sh
+uv sync --all-extras
+source .venv/bin/activate
+```
+Note: Functionality is split into `optional-dependencies` in `pyproject.toml`. If you only require base functionality, install as `uv sync`. If you require some extras (e.g. `icechunk`, `io`), you can specify `uv sync --extra icechunk --extra io` as needed. For local develpoment, `--all-extras` is recommended for complete functionality.
 
-### Traditional Challenges
+### Development
+To ensure that icefabric follows the specified structure, be sure to install the local dev dependencies and run `pre-commit install`
 
-Hydrologic research and operations face unique data management challenges:
+### Running/deploying the services
+The following sections detail how to:
 
-- **Heterogeneous Data Sources**: Datasets are sourced from different agencies in various formats
-- **Multiple Formats**: Tabular, vectorized, COGs, etc
-- **Version Control Needs**: Hydrofabric topology updates, data quality improvements, and research reproducibility
+- Run the Icefabric API locally (standalone)
+- Deploy the API/Dashboard through a script that pulls down an S3 catalog archive, then spins up a unified docker setup routed behind an nginx proxy
 
-### Why Traditional Solutions Fall Short
+For full information on API deployment, please see the full [user guide API deploy info page.](./docs/user_guide/deployment.md)
+For full information on Streamlit Dashboard deployment, please see the [dashboard deploy info page.](./docs/dashboard-docs/running.md)
 
-**Traditional database systems** struggle with:
+#### Running the API locally standalone
+To run the API locally, ensure your `.env` file (make sure to have your prod credentials in a `.prod.env` if deploying with the production env/catalog) in your project root has the right credentials, then run
 
-- Large geospatial datasets and complex geometries
-- Schema evolution for evolving datasets
-- Version control for scientific workflows
+```sh
+python -m app.main
+```
 
-**File-based approaches** suffer from:
+This should spin up the API services at `localhost:8000/`.
 
-- Data duplication and storage inefficiencies
-- Lack of ACID transactions
-- Manual version management
-- Limited discovery and access controls
+To specify the deploy environment/iceberg catalog used (test or production (OE)), add a `deploy-env` flag to the command. The flag should be formatted as `--deploy-env <value>`:
 
-## Lakehouse Architecture Solution
+```sh
+# Test
+python -m app.main --catalog glue --deploy-env test
+# Prod
+python -m app.main --catalog glue --deploy-env prod
+```
 
-### Technology Stack Rationale
+##### SQL catalog deploy
 
-=== "Apache Iceberg - Structured Data"
+If you are running the API locally (SQL) you first need to localize the Iceberg and Icechunk stores from S3. Information on this can be found in the User Guide - [details here](./docs/user_guide/icefabric_tools.md#localize-glue-catalog).
 
-    **Used For:**
-    - Hydrofabric geospatial products
-    - Streamflow observations time series (USGS, Local Agencies)
-    - Cross-section geometries (RAS XS [MIP/BLE])
+With the local SQL catalog created, run:
 
-    **Why Iceberg:**
-    - **ACID Transactions**: Ensure data consistency during hydrofabric updates
-    - **Schema Evolution**: Handle network topology changes without breaking existing workflows
-    - **Time Travel**: Access historical network versions for model comparisons
-    - **Performance**: Optimized queries across continental-scale datasets
-    - **Partition Pruning**: Efficient spatial and temporal filtering
+```sh
+python -m app.main --catalog sql
+```
 
-=== "Icechunk - Array Data"
+#### Full API/dashboard local deployment (from archive file)
 
-    **Used For:**
-    - Topobathy elevation surfaces
-    - Land cover classifications
+To run the api and dashboard together connected to a local iceberg catalog and icechunk data that has been extracted from an archive file synced from S3 please:
 
-    **Why Icechunk:**
-    - **Virtual References**: Avoid duplicating large raster datasets
-    - **Zarr Compatibility**: Seamless integration with scientific Python ecosystem
-    - **Git-like Versioning**: Branch/merge workflows for experimental processing
-    - **Chunked Storage**: Optimized for geospatial access patterns
-    - **Compression**: Efficient storage of repetitive classification data
+1\. Authenticate into an AWS profile that has access to an S3 bucket with icefabric archive using the command:
+`aws sso login --profile your-profile-name`
 
-## Benefits Realized
+If you haven't created a profile linked to the AWS account please use the `aws configure sso` command using information associated with the AWS account. Further instructions can be found at: https://d-90678ba0c3.awsapps.com/start/#/
 
-### For Hydrologic Research
+2\. Run the following shell script to download the archived catalog, extract it, build the api, dashboard, and nginx docker images, and run docker compose up. Replace the s3 with your s3 path:
 
-- **Reproducible Science**: Exact data versions enable repeatable research
-- **Collaborative Workflows**: Branching enables parallel research without conflicts
-- **Quality Evolution**: Track data quality improvements over time
+```sh
+docker/deploy_local.sh s3://ngwpc-data/icefabric_catalog_archive.tar {aws_profile}
+```
 
-### For Operational Forecasting
+This process will take a while (10-30 minutes) because we need to download ~40 GB of data, extract a large archive, build 3 docker images, and then wait for the api to spin up.
 
-- **Consistent Baselines**: Stable data versions for operational model runs
-- **Real-time Integration**: Fast access to latest observations and forecasts
-- **Rollback Capabilities**: Quick recovery from data quality issues
+The files will be saved to your `/tmp/`. If the both directories are present, the shell script will not re-download the archive. Delete `icefabric_local_catalog` and `icefabric_streamflow_obs` directories to force download. Note that your `tmp` file system must be mounted to root and not a `tmpfs` file system tied to memory.  You can check this by running: `df -hT /tmp`.
+The shell script will update your `.env` file to have the appropriate file paths.
 
-### For Data Management
+### Documentation
+To build the user guide documentation for Icefabric locally, run the following commands:
+```sh
+uv pip install ".[docs]"
+mkdocs serve -a localhost:8080
+```
+Docs will be spun up at localhost:8080/
 
-- **Access Unification**: Single API for diverse hydrologic data types
-- **Version Management**: Automated tracking eliminates manual version confusion
-- **Quality Assurance**: Built-in validation prevents bad data propagation
+### Pytests
 
-## Conclusion
+The `tests` folder is for all testing data so the global confest can pick it up. This allows all tests in the namespace packages to share the same scope without having to reference one another in tests
 
-The Icefabric lakehouse architecture addresses fundamental challenges in hydrologic data management through:
+To run tests, run `pytest -s` from project root.
 
-1. **Unified Access**: Single interface for diverse water data sources
-3. **Version Control**: Git-like workflows for scientific data management
-4. **Quality Assurance**: Automated validation and lineage tracking
-6. **Research Support**: Reproducible environments for collaborative science
+To run the subsetter tests, run `pytest --run-slow` as these tests take some time. Otherwise, they will be skipped
 
-This architecture enables EDFS to provide reliable, versioned, high-performance access to critical water resources data supporting both operational forecasting and cutting-edge research.
+### Smoke Tests
+
+Smoke tests validate the deployed test API. These tests are skipped when the `API_BASE_URL` environment variable is not set, so they won't run during normal CI.
+
+To run smoke tests against a deployed environment:
+```sh
+export API_BASE_URL="http://edfs.test.nextgenwaterprediction.com:8000/"
+uv run pytest tests/smoke/ -v
+```
+
+For local (note no / following api):
+```sh
+export API_BASE_URL="http://localhost:8000/api"
+uv run pytest tests/smoke/ -v
+```
+
+The smoke tests currently verify:
+- The API health endpoint is reachable
+- Numeric fields (`initial_value`, `min`, `max`) in the `parameter_metadata` endpoint are never null

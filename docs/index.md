@@ -1,6 +1,5 @@
 
-# icefabric
-
+# Icefabric
 
 An [Apache Iceberg](https://py.iceberg.apache.org/) implementation of the Hydrofabric to disseminate continental hydrologic data
 

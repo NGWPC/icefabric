@@ -67,6 +67,9 @@ elif top_layer_control == "Subset Data":
         subset_submit = st.form_submit_button("Submit")
         if subset_submit:
             submit_valid = validate_nhf_subset_query(subset_type, subset_user_sel)
+            domain_user_sel = (
+                "Puerto_Rico" if domain_user_sel == "Puerto Rico/Virgin Islands" else domain_user_sel
+            )
 
     if subset_submit and submit_valid:
         l_col, r_col = st.columns([2, 3], gap="medium")
@@ -164,7 +167,7 @@ elif top_layer_control == "Subset Data":
                     st.markdown(f"#### __Map Results ({subset_type}: `{subset_user_sel}`)__")
 
                     # Create a folium map centered on the subset data
-                    m = folium.Map(tiles=folium.TileLayer(tiles="Cartodb Positron", control=False))
+                    m = folium.Map(tiles=folium.TileLayer(tiles="OpenStreetMap", control=False))
                     lat_lon_coll = [
                         (row.lat, row.lon) for row in subset_dfs["divides"].to_pandas().itertuples()
                     ]
